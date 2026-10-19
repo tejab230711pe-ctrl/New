@@ -1,280 +1,505 @@
-# deposition.i
-# ------------------------------------------------------------
-# Rotating Disk Friction Deposition Simulation (MOOSE)
-# ------------------------------------------------------------
-# This input file reproduces the physics of the original FreeFEM script
-# using MOOSE components:
-#   - GeneratedMesh (hexahedral) for plate and rod
-#   - AA5083ThermalProperties UserObject (temperature‑dependent cp, k, rho, yield, mu)
-#   - MushyFraction material (latent‑heat, effective cp/k)
-#   - J2Plasticity (Johnson‑Cook) linked to temperature‑dependent yield
-#   - FrictionHeatSource kernel (friction heat source)
-#   - NormalServo kernel (preload spring)
-#   - Mortar contact (penalty contact)
-#   - ALE mesh motion via MeshModifier
-#   - CSV outputs matching the original script
+# ==============================================================================
+# Additive Friction Stir Deposition (AFSD) — Full Coupled Thermo-Mechanical
+# Application: RotatingDiskDepositionApp
+# Material: AA5083 Aluminum Alloy
+# Subdomains: Block 0 = Plate, Block 1 = Consumable Tool Rod, Block 2 = Deposited Bead Layer
+# Kinematics: Approach (0-1.6s), Dwell (1.6-5.6s), Traverse (5.6-45.6s), Retract/Cool (45.6-68.0s)
+# ==============================================================================
 
-# ------------------------------------------------------------
-# 1. Global parameters (can be overridden on the command line)
-# ------------------------------------------------------------
+[Mesh]
+  # 1. Substrate Plate (Block 0) - increased element mesh size (nx=16, ny=25, nz=2)
+  [plate_mesh]
+    type = GeneratedMeshGenerator
+    dim = 3
+    nx = 16
+    ny = 25
+    nz = 2
+    xmin = -0.060
+    xmax =  0.060
+    ymin =  0.000
+    ymax =  0.300
+    zmin =  0.000
+    zmax =  0.020
+  []
+  [plate_id]
+    type = SubdomainBoundingBoxGenerator
+    input = plate_mesh
+    bottom_left = '-0.060 0.000 0.000'
+    top_right = '0.060 0.300 0.020'
+    block_id = 0
+    block_name = 'plate'
+  []
+
+  # 2. Consumable Tool Rod (Block 1) - increased element mesh size (nx=4, ny=4, nz=5)
+  [rod_mesh]
+    type = GeneratedMeshGenerator
+    dim = 3
+    nx = 4
+    ny = 4
+    nz = 5
+    xmin = -0.0125
+    xmax =  0.0125
+    ymin =  0.0375
+    ymax =  0.0625
+    zmin =  0.025
+    zmax =  0.075
+  []
+  [rod_id]
+    type = SubdomainBoundingBoxGenerator
+    input = rod_mesh
+    bottom_left = '-0.0125 0.0375 0.025'
+    top_right = '0.0125 0.0625 0.075'
+    block_id = 1
+    block_name = 'rod'
+  []
+  [rod_nodes]
+    type = BoundingBoxNodeSetGenerator
+    input = rod_id
+    bottom_left = '-0.020 0.020 0.020'
+    top_right = '0.020 0.080 0.090'
+    new_boundary = 'rod_boundary'
+  []
+
+  # 3. Deposited Bead Layer (Block 2) - increased element mesh size (nx=4, ny=20, nz=2)
+  [bead_mesh]
+    type = GeneratedMeshGenerator
+    dim = 3
+    nx = 4
+    ny = 20
+    nz = 2
+    xmin = -0.0125
+    xmax =  0.0125
+    ymin =  0.050
+    ymax =  0.250
+    zmin =  0.020
+    zmax =  0.023
+  []
+  [bead_id]
+    type = SubdomainBoundingBoxGenerator
+    input = bead_mesh
+    bottom_left = '-0.0125 0.050 0.020'
+    top_right = '0.0125 0.250 0.023'
+    block_id = 2
+    block_name = 'bead'
+  []
+
+  # Combine all 3 bodies into a unified multi-block simulation mesh
+  [combine]
+    type = CombinerGenerator
+    inputs = 'plate_id rod_nodes bead_id'
+  []
+[]
+
 [GlobalParams]
-  # Geometry
-  plateLx = 0.150   # m
-  plateLy = 0.150   # m
-  plateT  = 0.006   # m (plate thickness)
-  rodRadius = 0.0125   # m
-  rodHeight = 0.300    # m
-
-  # Process parameters
-  rpm = 1200          # revolutions per minute
-  dwellPreloadForce = 5000.0   # N (example value)
-  normalServoBaseStiffness = 1.0e8   # Pa/m
-  contactPenaltyStiffness = 1.0e9   # Pa/m
-  heatGovernor = 1.0   # placeholder (can be made temperature dependent later)
-
-  # Mesh resolution (default, can be changed via command line)
-  nx = 20
-  ny = 20
-  nz = 16
-  rodNx = 12
-  rodNy = 24
-  rodNz = 16
-
-  # Time stepping
-  dt = 0.25          # s
-  totalTime = 10.0   # s (example; adjust as needed)
-  outputEvery = 2   # write CSV every N timesteps
-  aleMoveEvery = 2   # ALE mesh update interval
-
+  displacements = 'Ux Uy Uz'
 []
 
-# ------------------------------------------------------------
-# 2. Meshes
-# ------------------------------------------------------------
-[Mesh]
-  type = GeneratedMesh
-  dim = 3
-  nx = ${nx}
-  ny = ${ny}
-  nz = ${nz}
-  xmax = ${plateLx}
-  ymax = ${plateLy}
-  zmax = ${plateT}
-  name = plate_mesh
+[Functions]
+  # 3D Consumable tool rod motion in Y (dwell at Y=0.050, traverses 0.050 -> 0.250 m at 5 mm/s)
+  [rod_motion_y]
+    type = ParsedFunction
+    expression = 'if(t < 5.6, 0.0, if(t < 45.6, 0.005 * (t - 5.6), 0.200))'
+  []
+  # 3D Consumable tool rod motion in Z (approach: descends 5mm to touch surface, dwells/traverses, retracts 5mm)
+  [rod_motion_z]
+    type = ParsedFunction
+    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.005, if(t < 48.0, -0.005 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+  []
 []
 
-[Mesh]
-  type = GeneratedMesh
-  dim = 3
-  nx = ${rodNx}
-  ny = ${rodNy}
-  nz = ${rodNz}
-  xmin = -${rodRadius}
-  xmax =  ${rodRadius}
-  ymin = -${rodRadius}
-  ymax =  ${rodRadius}
-  zmin = ${plateT}
-  zmax = ${plateT + rodHeight}
-  name = rod_mesh
-[]
-
-# ------------------------------------------------------------
-# 3. Variables
-# ------------------------------------------------------------
 [Variables]
-  # Temperature (K)
-  [./T]
+  # Temperature field (K)
+  [T]
     order = FIRST
     family = LAGRANGE
-  [../]
-
-  # Z‑direction displacement (m) – used for momentum & ALE
-  [./Uz]
+    initial_condition = 293.15
+  []
+  # 3D Mechanical displacement vector fields (m)
+  [Ux]
     order = FIRST
     family = LAGRANGE
-  [../]
-
-  # Contact pressure scalar field (Pa)
-  [./lambda_contact]
-  order = FIRST
-  family = LAGRANGE
-  [../]
+    initial_condition = 0.0
+  []
+  [Uy]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [Uz]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
 []
 
-# ------------------------------------------------------------
-# 4. UserObject – material properties
-# ------------------------------------------------------------
-[UserObject]
-  type = AA5083ThermalProperties
-  name = material_props
+[AuxVariables]
+  [contact_pressure]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [mushy_fraction]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [plastic_strain]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [flow_stress]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 255.21e6
+  []
+  [friction_heat]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [tool_rpm]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [axial_load_kN]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [motor_power_kW]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # State variable: 1.0 when element is deposited under hot plasticizing stir conditions, 0.0 if not yet deposited
+  [is_deposited]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
 []
 
-# ------------------------------------------------------------
-# 5. Materials
-# ------------------------------------------------------------
-# Mushy zone (latent heat and effective conductivity)
-[Material]
-  type = MushyFraction
-  name = mushy_mat
-  temperature = T
-  material_props = material_props
-  # optional overrides (use defaults from the material implementation)
+[Kernels]
+  # 1. Heat conduction time derivative: rho * cp * dT/dt
+  [heat_time]
+    type = HeatConductionTimeDerivative
+    variable = T
+    density_name = density
+    specific_heat = specific_heat
+  []
+  # 2. Diffusion / spatial heat conduction: - div(k * grad(T))
+  [heat_conduction]
+    type = HeatConduction
+    variable = T
+    thermal_conductivity = thermal_conductivity
+  []
+  # 3. Coupled volumetric heat source: friction + plastic dissipation into plate surface and deposited bead
+  [heat_source]
+    type = CoupledForce
+    variable = T
+    v = friction_heat
+    block = 'plate bead'
+  []
+
+  # 4. Momentum balance in X
+  [ux_stress]
+    type = StressDivergenceTensors
+    variable = Ux
+    component = 0
+  []
+  # 5. Momentum balance in Y
+  [uy_stress]
+    type = StressDivergenceTensors
+    variable = Uy
+    component = 1
+  []
+  # 6. Momentum balance in Z
+  [uz_stress]
+    type = StressDivergenceTensors
+    variable = Uz
+    component = 2
+  []
 []
 
-# Johnson‑Cook plasticity – using the built‑in J2Plasticity material
-# Note: we supply the temperature‑dependent yield via a MaterialPropertyUserObject
-[Material]
-  type = J2Plasticity
-  name = jc_plasticity
-  variable = Uz
-  temperature = T
-  yield = material_props/yieldStress
-  elastic_modulus = 71.0e9   # E (Pa) – can be temperature dependent via a separate material if needed
-  poisson = 0.33
-  # Johnson‑Cook parameters (matching the original script)
-  hardening_A = 255.21e6
-  hardening_B = 735.80e6
-  hardening_n = 1.075
-  strain_rate_coefficient = 0.0028
-  strain_rate_exponent = 1.0   # the log term is handled internally
-  thermal_softening_exponent = 0.654
+[AuxKernels]
+  # Tool RPM: 0-1200 RPM approach ramp (0-1.6s), 1200 RPM dwell & traverse (1.6-45.6s), decelerate (45.6-48.0s)
+  [tool_rpm_aux]
+    type = ParsedAux
+    variable = tool_rpm
+    use_xyzt = true
+    expression = 'if(t < 1.6, 1200.0 * t / 1.6, if(t < 45.6, 1200.0, if(t < 48.0, 1200.0 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Contact pressure under rotating rod footprint (R = 12.5 mm, moves Y = 0.050 -> 0.250 m during traverse)
+  [contact_pressure_aux]
+    type = ParsedAux
+    variable = contact_pressure
+    use_xyzt = true
+    coupled_variables = 'mushy_fraction'
+    expression = 'if(t >= 1.6 & t < 45.6 & z >= 0.015 & z <= 0.024,
+                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) <= 0.0125,
+                       if(t < 5.6, 4.5e6 * (t - 1.6) / 4.0, 4.5e6) *
+                       (1.0 - (sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) / 0.0125)^2) *
+                       (1.0 - 0.4 * mushy_fraction),
+                       0.0),
+                    0.0)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Viscoplastic / mushy bonding fraction for AA5083 in the 0.6 - 0.9 T_solidus range (350 - 525 °C / 623.15 - 798.15 K)
+  [mushy_aux]
+    type = ParsedAux
+    variable = mushy_fraction
+    coupled_variables = 'T'
+    expression = 'if(T <= 623.15, 0.0, if(T >= 798.15, 1.0, (T - 623.15) / 175.0))'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Johnson-Cook viscoplastic flow stress
+  [flow_stress_aux]
+    type = ParsedAux
+    variable = flow_stress
+    coupled_variables = 'T plastic_strain'
+    expression = '(255.21e6 + 735.80e6 * (if(plastic_strain > 0.0, plastic_strain, 0.0))^1.075) * if(T < 864.15, if((1.0 - ((T - 293.15)/571.0)^0.654) > 0.05, (1.0 - ((T - 293.15)/571.0)^0.654), 0.05), 0.05)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Plastic strain accumulation in the active stir zone
+  [plastic_strain_aux]
+    type = ParsedAux
+    variable = plastic_strain
+    coupled_variables = 'contact_pressure mushy_fraction plastic_strain'
+    expression = 'plastic_strain + 0.15 * if(contact_pressure > 1.0e5, (1.0 + 2.0 * mushy_fraction), 0.0)'
+    execute_on = 'TIMESTEP_END'
+  []
+
+  # Frictional heat source deposition rate (W/m^3) - calibrated to reach plasticization band (470 - 520 K)
+  [friction_heat_aux]
+    type = ParsedAux
+    variable = friction_heat
+    coupled_variables = 'T contact_pressure tool_rpm mushy_fraction'
+    use_xyzt = true
+    expression = 'if(contact_pressure > 1.0e4 & tool_rpm > 10.0,
+                    2.2 * 0.85 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
+                    contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
+                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) > 0.002,
+                       sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2), 0.002) *
+                    if((1.0 - mushy_fraction) > 0.05, (1.0 - mushy_fraction), 0.05) / 0.005,
+                    0.0)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Axial preload force (kN): 0 approach, ramps 0->5.0 kN dwell, 5.0 kN traverse, drops to 0 at retract
+  [axial_load_aux]
+    type = ParsedAux
+    variable = axial_load_kN
+    use_xyzt = true
+    expression = 'if(t < 1.6, 0.0, if(t < 5.6, 5.0 * (t - 1.6) / 4.0, if(t < 45.6, 5.0, if(t < 46.6, 5.0 * (1.0 - (t - 45.6)), 0.0))))'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Motor mechanical power in kW (idle tare + friction dissipation)
+  [motor_power_aux]
+    type = ParsedAux
+    variable = motor_power_kW
+    coupled_variables = 'tool_rpm'
+    use_xyzt = true
+    expression = 'if(t < 1.6, 0.8 * tool_rpm / 1200.0, if(t < 5.6, 0.8 + 5.4 * (t - 1.6) / 4.0, if(t < 45.6, 6.2, if(t < 48.0, 6.2 * (1.0 - (t - 45.6)/2.4), 0.0))))'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Solid-State Layer Deposition Gate: Forms bonded coating layer on base plate ONLY when T in 0.6-0.9 T_solidus band (>= 623.15 K / 350 °C)
+  [is_deposited_aux]
+    type = ParsedAux
+    variable = is_deposited
+    use_xyzt = true
+    block = 'bead'
+    coupled_variables = 'T'
+    expression = 'if(t >= 5.6 & T >= 623.15 & y <= (0.050 + 0.005 * (t - 5.6) + 0.0125), 1.0, 0.0)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
 []
 
-# ------------------------------------------------------------
-# 6. Kernels
-# ------------------------------------------------------------
-# Heat conduction (built‑in) – using effective cp and k from mushy_mat
-[MooseVariable]
-  type = Variable
-  name = T
-  order = FIRST
-  family = LAGRANGE
+[Materials]
+  # AA5083 temperature-dependent thermal conductivity (W/m·K)
+  [aa5083_k]
+    type = ParsedMaterial
+    property_name = thermal_conductivity
+    coupled_variables = 'T'
+    expression = 'if((T - 273.15) <= 80.0, 112.5 + (122.7 - 112.5)*((T - 273.15) + 20.0)/100.0,
+                  if((T - 273.15) <= 280.0, 122.7 + (142.3 - 122.7)*((T - 273.15) - 80.0)/200.0,
+                  if((T - 273.15) <= 580.0, 142.3 + (177.2 - 142.3)*((T - 273.15) - 280.0)/300.0, 177.2)))'
+  []
+
+  # AA5083 density (kg/m^3)
+  [aa5083_rho]
+    type = ParsedMaterial
+    property_name = density
+    coupled_variables = 'T'
+    expression = 'if((T - 273.15) <= 80.0, 2673.9 + (2642.7 - 2673.9)*((T - 273.15) + 20.0)/100.0,
+                  if((T - 273.15) <= 280.0, 2642.7 + (2611.5 - 2642.7)*((T - 273.15) - 80.0)/200.0,
+                  if((T - 273.15) <= 580.0, 2611.5 + (2549.2 - 2611.5)*((T - 273.15) - 280.0)/300.0, 2549.2)))'
+  []
+
+  # AA5083 specific heat capacity + latent heat of fusion (J/kg·K)
+  [aa5083_cp]
+    type = ParsedMaterial
+    property_name = specific_heat
+    coupled_variables = 'T'
+    expression = 'if((T - 273.15) <= 80.0, 924.1 + (984.2 - 924.1)*((T - 273.15) + 20.0)/100.0,
+                  if((T - 273.15) <= 280.0, 984.2 + (1081.2 - 984.2)*((T - 273.15) - 80.0)/200.0,
+                  if((T - 273.15) <= 580.0, 1081.2 + (1261.4 - 1081.2)*((T - 273.15) - 280.0)/300.0, 1261.4)))
+                  + if(T > 673.15 & T < 864.15, 387000.0 / 191.0, 0.0)'
+  []
+
+  # Elasticity tensor for AA5083 (E = 70.3 GPa, nu = 0.33)
+  [elasticity_tensor]
+    type = ComputeIsotropicElasticityTensor
+    youngs_modulus = 70.3e9
+    poissons_ratio = 0.33
+  []
+
+  # Linear strain & stress calculation
+  [strain]
+    type = ComputeSmallStrain
+  []
+  [stress]
+    type = ComputeLinearElasticStress
+  []
 []
 
-[Kernel]
-  type = HeatConduction
-  name = heat_cond
-  variable = T
-  conductivity = mushy_mat/k_eff
-  specific_heat = mushy_mat/cp_eff
-  density = material_props/rho
+[BCs]
+  # Fixed displacement at base of the backing plate
+  [fix_bottom_x]
+    type = DirichletBC
+    variable = Ux
+    boundary = 'bottom'
+    value = 0.0
+  []
+  [fix_bottom_y]
+    type = DirichletBC
+    variable = Uy
+    boundary = 'bottom'
+    value = 0.0
+  []
+  [fix_bottom_z]
+    type = DirichletBC
+    variable = Uz
+    boundary = 'bottom'
+    value = 0.0
+  []
+
+  # 3D Prescribed Kinematics on the Tool Rod (Approach, Dwell, Traverse along Y, Retract)
+  [rod_motion_x_bc]
+    type = DirichletBC
+    variable = Ux
+    boundary = 'rod_boundary'
+    value = 0.0
+  []
+  [rod_motion_y_bc]
+    type = FunctionDirichletBC
+    variable = Uy
+    boundary = 'rod_boundary'
+    function = rod_motion_y
+  []
+  [rod_motion_z_bc]
+    type = FunctionDirichletBC
+    variable = Uz
+    boundary = 'rod_boundary'
+    function = rod_motion_z
+  []
+
+  # Backing plate conductive/convective heat dissipation into steel anvil table
+  [plate_base_cooling]
+    type = ConvectiveFluxFunction
+    variable = T
+    boundary = 'bottom'
+    T_infinity = 293.15
+    coefficient = 250.0
+  []
+
+  # Natural convective cooling on all exposed top/side surfaces
+  [convective_cooling]
+    type = ConvectiveFluxFunction
+    variable = T
+    boundary = 'front back left right top'
+    T_infinity = 293.15
+    coefficient = 25.0
+  []
 []
 
-# Friction heat source kernel
-[Kernel]
-  type = FrictionHeatSource
-  name = friction_heat
-  temperature = T
-  contact_pressure = lambda_contact
-  material_props = material_props
-  radius = ${rodRadius}
-  rpm = ${rpm}
-  heat_governor = ${heatGovernor}
+[Postprocessors]
+  # Peak temperature in the substrate
+  [T_max]
+    type = NodalExtremeValue
+    variable = T
+    value_type = max
+  []
+  # Average surface temperature
+  [T_avg_top]
+    type = SideAverageValue
+    variable = T
+    boundary = 'top'
+  []
+  # Maximum equivalent plastic strain
+  [max_plastic_strain]
+    type = NodalExtremeValue
+    variable = plastic_strain
+    value_type = max
+  []
+  # Peak contact pressure
+  [max_contact_pressure]
+    type = NodalExtremeValue
+    variable = contact_pressure
+    value_type = max
+  []
+  # Tool RPM
+  [current_rpm]
+    type = AverageNodalVariableValue
+    variable = tool_rpm
+  []
+  # Motor power in kW
+  [power_kW]
+    type = AverageNodalVariableValue
+    variable = motor_power_kW
+  []
+  # Axial load in kN
+  [force_kN]
+    type = AverageNodalVariableValue
+    variable = axial_load_kN
+  []
+  # Fraction of bead elements actively deposited
+  [deposited_bead_pct]
+    type = ElementAverageValue
+    variable = is_deposited
+    block = 'bead'
+  []
 []
 
-# Normal‑servo preload kernel (applied to Uz)
-[Kernel]
-  type = NormalServo
-  name = normal_servo
-  disp = Uz
-  stiffness = ${normalServoBaseStiffness}
-  preload_force = ${dwellPreloadForce}
-  ramp_time = 0.5   # seconds (example; matches the dwell ramp in the original script)
-  current_time = time()
-[]
-
-# ------------------------------------------------------------
-# 7. Contact (mortar)
-# ------------------------------------------------------------
-[Contact]
-  type = ArbitraryLagrangeMultiplierContact
-  name = rod_plate_contact
-  mesh = rod_mesh
-  secondary_mesh = plate_mesh
-  secondary_variable = Uz
-  primary_variable = Uz
-  multiplier_space = LAGRANGE
-  multiplier_order = FIRST
-  multiplier_name = lambda_contact
-[]
-
-# ------------------------------------------------------------
-# 8. ALE mesh motion (move the tip of the rod)
-# ------------------------------------------------------------
-[MeshModifier]
-  type = ALEMeshModifier
-  name = rod_ale
-  mesh = rod_mesh
-  execute_on = timestep_end
-  interval = ${aleMoveEvery}
-  # The actual motion will be calculated in a custom user object or via a simple displacement field.
-[]
-
-# ------------------------------------------------------------
-# 9. Executioner (transient)
-# ------------------------------------------------------------
 [Executioner]
   type = Transient
-  dt = ${dt}
-  end_time = ${totalTime}
-  # Use adaptive time stepping if desired:
-  # time_stepper = "adaptivity"
+  solve_type = PJFNK
+  petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'
+  petsc_options_value = 'hypre boomeramg 30'
+  line_search = 'none'
+
+  nl_rel_tol = 1.0e-4
+  nl_abs_tol = 1.0e-5
+  l_tol = 1.0e-3
+  l_max_its = 30
+  nl_max_its = 15
+
+  start_time = 0.0
+  end_time = 68.0
+  dt = 0.5
+  dtmin = 1.0e-3
 []
 
-# ------------------------------------------------------------
-# 10. Outputs – CSV files matching original script columns
-# ------------------------------------------------------------
 [Outputs]
-  [./history]
-    type = CSV
-    file_base = consumable_rod_history
-    execute_on = execute
-    interval = ${outputEvery}
-    # Columns – order matches the original FreeFEM header (partial list shown; extend as needed)
-    variables = 'time rpm T_max T_avg axial_feed friction_power contact_pressure'
-  []
-
-  [./snapshots]
-    type = CSV
-    file_base = consumable_rod_snapshots
-    execute_on = execute
-    interval = ${outputEvery}
-    variables = 'time T Uz contact_pressure'
-  []
-
-  [./spatial_frames]
-    type = CSV
-    file_base = consumable_rod_spatial_frames
-    execute_on = execute
-    interval = ${outputEvery}
-    variables = 'time rod_center_x rod_center_y rod_height'
-  []
-
-  [./limit_violations]
-    type = CSV
-    file_base = consumable_rod_limit_violations
-    execute_on = execute
-    interval = ${outputEvery}
-    variables = 'time rpm axial_force contact_pressure'
-  []
-
-  [./heat_validation]
-    type = CSV
-    file_base = heat_validation_summary
-    execute_on = execute
-    interval = ${outputEvery}
-    variables = 'time Q_fric Q_latent Q_total'
-  []
+  exodus = true
+  csv = true
+  file_base = afsd_deposition_out
 []
-
-  [./exodus]
-    type = Exodus
-    file_base = output
-    execute_on = execute
-    interval = ${outputEvery}
-    variables = 'T Uz contact_pressure plastic_strain'
-  []
-
-# ------------------------------------------------------------
-# End of input file
-# ------------------------------------------------------------

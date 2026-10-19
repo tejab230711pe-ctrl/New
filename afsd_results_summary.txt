@@ -1,0 +1,42 @@
+========================================================================
+  AFSD SIMULATION RESULTS SUMMARY (INCREASED MESH SIZE RUN)
+  Material: AA5083 Aluminum Alloy
+  Framework: MOOSE (RotatingDiskDepositionApp)
+========================================================================
+
+  Mesh Configuration (Increased Element Size h):
+    • Substrate Plate (Block 0): nx=16, ny=25, nz=2 (800 Hex8 elements)
+    • Consumable Rod  (Block 1): nx=4,  ny=4,  nz=5 (80 Hex8 elements)
+    • Bead Layer      (Block 2): nx=4,  ny=20, nz=2 (160 Hex8 elements)
+    • Total Elements:            1,040 Hex8 elements
+    • Total Nodes:               1,791 nodes
+
+  Simulation Duration:  0.00 – 68.00 s (150 timesteps)
+  Timestep Size:        Δt ≈ 0.375 – 0.500 s
+  Execution Time:       111.28 s across 8 threads
+
+  Peak Temperature:     717.64 K (444.49 °C) at t = 45.13 s
+  Exceeded Solidus?     NO ✅ (Solidus = 864.15 K)
+  Exceeded Liquidus?    NO ✅ (Liquidus = 911.15 K)
+  Layer Formation Gate: 0.6 - 0.9 T_solidus (350 - 525 °C / 623.15 - 798.15 K) ✅ ACTIVE
+  Coating Process:      Consumable Rod Friction Surfacing Coating (No sleeve)
+  Rod Shortening:       L = 60.0 mm -> 25.0 mm (-35.0 mm / 58.3% consumed into coating bead)
+  Mushroom Formation:   +26% radial viscoplastic flare (deformation ability onset at T >= 450 K)
+  Retraction Tip:       Permanently deformed mushroom tip on 25.0 mm stub (+5 mm lift)
+  Peak Axial Force:     5.00 kN (Ceiling = 15.0 kN)
+  Force Within Limits?  YES ✅
+  Peak Motor Power:     6.20 kW (Ceiling = 22.0 kW)
+  Power Within Limits?  YES ✅
+  Max Plastic Strain:   2.55
+  Peak Contact Pressure:4.50 MPa
+  Deposited Bead Layer: 100.0% Track Volume Active (Gated at T >= 623.15 K / 350 °C)
+  Layer Deposition:     COMPLETED & SOLIDIFIED ✅
+
+========================================================================
+  Generated Output Files & Simulation Video Suites:
+    • Isometric Video: afsd_simulation_isometric.mp4 / .gif
+    • Close-Up Video:  afsd_simulation_closeup.mp4 / .gif
+    • Multi-Viewport:  afsd_simulation_multiview.mp4 / .gif
+    • Exodus 3D:       afsd_deposition_out.e
+    • Time-Series:     afsd_deposition_out.csv
+========================================================================

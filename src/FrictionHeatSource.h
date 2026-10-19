@@ -4,6 +4,7 @@
 #include "UserObject.h"
 #include "MaterialProperty.h"
 #include "Moose.h"
+#include "AA5083ThermalProperties.h"
 
 /**
  * FrictionHeatSource kernel
