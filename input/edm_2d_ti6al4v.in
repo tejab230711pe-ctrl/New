@@ -1,0 +1,26 @@
+# 2-D Wire EDM of Ti-6Al-4V
+units           metal
+dimension       2
+atom_style      atomic
+boundary        p p p
+
+# Create a thin rectangular slab (2-D)
+region          slab block 0 10 0 1 -0.5 0.5 units box
+create_box      1 slab
+create_atoms    1 region slab
+
+# Material properties (Ti-6Al-4V)
+mass            1 47.867
+pair_style      lj/cut 5.0
+pair_coeff      * * 0.0 0.0
+
+# Initial temperature
+velocity        all create 300.0 12345 mom yes rot yes dist gaussian
+fix             temp all nvt temp 300.0 300.0 0.1
+
+# EDM heat source fix (custom)
+# fix ID group EDM current pulse_on pulse_off wire_speed wire_radius spark_radius energy_model
+fix             1 all EDM 5.0 50 100 10.0 0.02 10.0 gaussian
+
+timestep        1e-6
+run             20000
