@@ -516,7 +516,7 @@
     formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
-    penalty = 1.0e9
+    penalty = 1.0e7
   []
 []
 
@@ -746,12 +746,12 @@
 
 [Executioner]
   type = Transient
-  solve_type = PJFNK
+  solve_type = NEWTON
   petsc_options_iname = '-ksp_type -pc_type'
   petsc_options_value = 'preonly lu'
   line_search = 'bt'
 
-  nl_rel_tol = 1.0e-3
+  nl_rel_tol = 5.0e-3
   nl_abs_tol = 5.0
   l_tol = 5.0e-2
   l_max_its = 25

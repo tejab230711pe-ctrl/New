@@ -175,7 +175,7 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
     if low_ram:
         # A small sequential direct solve is more robust than AMG/ILU for the
         # first penalty-contact increment and remains within the launcher cap.
-        text = text.replace("penalty = 1.0e10", "penalty = 1.0e9")
+        text = text.replace("penalty = 1.0e10", "penalty = 1.0e7")
         text = text.replace("gap_conductance = 1.0e8", "gap_conductance = 1.0e7")
         text = text.replace(
             "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
@@ -183,6 +183,10 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
             "petsc_options_iname = '-ksp_type -pc_type'\n"
             "  petsc_options_value = 'preonly lu'",
         )
+        # Assemble the contact Jacobian.  Matrix-free Newton is inexpensive
+        # before contact, but stalls once the normal constraint activates.
+        text = text.replace("solve_type = PJFNK", "solve_type = NEWTON")
+        text = text.replace("nl_rel_tol = 1.0e-3", "nl_rel_tol = 5.0e-3")
         text = text.replace("line_search = 'none'", "line_search = 'bt'")
         text = text.replace("l_tol = 1.0e-2", "l_tol = 5.0e-2")
         # Active contact needs a converged linear correction; one iteration
