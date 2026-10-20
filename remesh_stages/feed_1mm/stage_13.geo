@@ -1,13 +1,17 @@
 SetFactory("OpenCASCADE");
-// AA5083 AFSD remesh stage; coordinates are mm.
-Box(1) = {-25.0, 0, 0, 50.0, 100.0, 10.0};
-Cylinder(2) = {0, 40.35714285714286, 10.0, 0, 0, 187.0, 12.5};
-Box(3) = {-12.5, 0, 10.0, 25.0, 27.85714285714286, 8.704829644321718};
-Mesh.CharacteristicLengthMin = 1.0;
-Mesh.CharacteristicLengthMax = 2.5;
-Physical Volume("plate") = {1};
+// AA5083 AFSD remesh stage; coordinates are SI metres.
+Box(1) = {-0.025, 0, 0, 0.05, 0.1, 0.01};
+Cylinder(2) = {0, 0.04035714285714286, 0.00975, 0, 0, 0.187, 0.0125};
+Box(3) = {-0.0125, 0, 0.01, 0.025, 0.02785714285714286, 0.008704829644321718};
+workpiece[] = BooleanFragments{ Volume{1, 3}; Delete; }{};
+Coherence;
+Mesh.CharacteristicLengthMin = 0.001;
+Mesh.CharacteristicLengthMax = 0.0025;
+Physical Volume("workpiece") = {workpiece[]};
 Physical Volume("rod") = {2};
-Physical Volume("bead") = {3};
-// Contact and thermal-contact surfaces are identified after import by
-// geometric bounding boxes; do not merge volumes at this stage.
-// Active volumes: 1, 2, 3
+// The named surfaces below are consumed by the stage input deck.
+Physical Surface("rod_bottom") = { Surface In BoundingBox{-0.01250001, 0.02785713285714286, 0.00974999, 0.01250001, 0.05285715285714287, 0.00975001} };
+Physical Surface("rod_top") = { Surface In BoundingBox{-0.01250001, 0.02785713285714286, 0.19674999, 0.01250001, 0.05285715285714287, 0.19675001} };
+Physical Surface("workpiece_top") = { Surface In BoundingBox{-0.025000010000000003, -1e-08, 0.00999999, 0.025000010000000003, 0.10000001, 0.01000001} };
+Physical Surface("workpiece_base") = { Surface In BoundingBox{-0.025000010000000003, -1e-08, -1e-08, 0.025000010000000003, 0.10000001, 1e-08} };
+// Active volumes: workpiece[], 2

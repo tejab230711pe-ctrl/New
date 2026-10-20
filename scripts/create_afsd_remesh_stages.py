@@ -36,6 +36,9 @@ PLATE_LX_MM = 50.0
 PLATE_LY_MM = 100.0
 PLATE_LZ_MM = 10.0
 BEAD_WIDTH_MM = 25.0
+# A small imposed overlap provides the initial contact pressure on the
+# displacement-controlled CNC shoulder without prescribing a second tip BC.
+INITIAL_INTERFERENCE_MM = 0.25
 
 
 @dataclass(frozen=True)
@@ -91,7 +94,7 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
 def geo_text(stage: Stage) -> str:
     """A non-overlapping stage geometry in metres for Gmsh/OpenCASCADE."""
     y_tool = stage.tool_center_y_mm * MM
-    rod_base_z = PLATE_LZ_MM * MM
+    rod_base_z = (PLATE_LZ_MM - INITIAL_INTERFERENCE_MM) * MM
     rod_top_z = rod_base_z + stage.rod_height_mm * MM
     bead_y_end = max(0.0, y_tool - ROD_RADIUS_MM * MM)
     lines = [
@@ -121,6 +124,8 @@ def geo_text(stage: Stage) -> str:
     lines.extend([
         '// The named surfaces below are consumed by the stage input deck.',
         f'Physical Surface("rod_bottom") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-1e-8}, {y_tool-ROD_RADIUS_MM*MM-1e-8}, {rod_base_z-1e-8}, {ROD_RADIUS_MM*MM+1e-8}, {y_tool+ROD_RADIUS_MM*MM+1e-8}, {rod_base_z+1e-8}}} }};',
+        f'Physical Surface("rod_top") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-1e-8}, {y_tool-ROD_RADIUS_MM*MM-1e-8}, {rod_top_z-1e-8}, {ROD_RADIUS_MM*MM+1e-8}, {y_tool+ROD_RADIUS_MM*MM+1e-8}, {rod_top_z+1e-8}}} }};',
+        f'Physical Surface("workpiece_top") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-1e-8}, {-1e-8}, {PLATE_LZ_MM*MM-1e-8}, {PLATE_LX_MM*MM/2+1e-8}, {PLATE_LY_MM*MM+1e-8}, {PLATE_LZ_MM*MM+1e-8}}} }};',
         f'Physical Surface("workpiece_base") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-1e-8}, {-1e-8}, {-1e-8}, {PLATE_LX_MM*MM/2+1e-8}, {PLATE_LY_MM*MM+1e-8}, {1e-8}}} }};',
         f'// Active volumes: {volumes}',
         '',
@@ -143,9 +148,10 @@ def main() -> None:
         'mesh_units': 'm (SI; compatible with the MOOSE AA5083 model)',
         'process_units': 'mm and s',
         'flash_fraction': FLASH_FRACTION,
+        'initial_interference_mm': INITIAL_INTERFERENCE_MM,
         'dwell_s': DWELL_S,
         'deposition_s': DEPOSITION_S,
-        'field_transfer': ['T', 'Ux', 'Uy', 'Uz', 'plastic_strain', 'is_deposited'],
+        'field_transfer': ['T', 'plastic_strain', 'effective_plastic_strain', 'is_deposited'],
         'stages': [],
     }
     for stage in stages:
