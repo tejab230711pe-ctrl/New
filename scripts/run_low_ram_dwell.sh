@@ -8,4 +8,10 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-exec ./rotating_disk_deposition-opt --n-threads=1 -i remesh_stages/feed_5mm_low_ram/feed_5mm/dwell_low_ram.i "$@"
+input_file="${1:-remesh_stages/feed_5mm_low_ram/feed_5mm/dwell_low_ram.i}"
+if [[ $# -gt 1 ]]; then
+  echo "usage: $0 [input-file]" >&2
+  exit 2
+fi
+
+exec ./rotating_disk_deposition-opt --n-threads=1 -i "$input_file"

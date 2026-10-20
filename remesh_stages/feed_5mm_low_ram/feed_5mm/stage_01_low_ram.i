@@ -501,8 +501,10 @@
 # Solved rod/plate contact replaces the analytical contact-pressure field.
 [Contact]
   [rod_plate]
-    primary = workpiece_top
-    secondary = rod_bottom
+    # Node-face contact is imposed at the fine plate nodes against the coarser
+    # shoulder face; this is the robust primary/secondary ordering in MOOSE.
+    primary = rod_bottom
+    secondary = workpiece_top
     model = coulomb
     formulation = penalty
     displacements = 'Ux Uy Uz'
@@ -522,8 +524,8 @@
   [rod_plate]
     type = GapHeatTransfer
     variable = T
-    primary = workpiece_top
-    secondary = rod_bottom
+    primary = rod_bottom
+    secondary = workpiece_top
     displacements = 'Ux Uy Uz'
     gap_conductance = 1.0e7
   []
@@ -605,12 +607,12 @@
   []
 
   # q = eta * mu(T) * solved_contact_pressure * omega * radius.
-  # This is injected at the secondary contact surface and ThermalContact
-  # transfers it bidirectionally into the substrate.
+  # This is injected at the secondary contact surface (the plate); the same
+  # interface also carries bidirectional thermal contact conductance.
   [rod_friction_heat]
     type = ContactFrictionHeatFlux
     variable = T
-    boundary = rod_bottom
+    boundary = workpiece_top
     temperature = T
     contact_pressure = contact_pressure
     material_props = aa5083_properties
