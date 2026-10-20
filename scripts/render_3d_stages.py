@@ -208,7 +208,7 @@ def render_3d_deposition_stages():
                       transform=ax.transAxes, ha='center', fontsize=8.5, color='#F59E0B',
                       bbox=dict(boxstyle='round,pad=0.3', facecolor='#1E293B', edgecolor='#F59E0B', alpha=0.85))
         else:
-            ax.text2D(0.5, 0.08, "Bead: Not Materialized (0%)\nWaiting for T >= 623 K",
+            ax.text2D(0.5, 0.08, "Bead: Not Materialized (0%)\nWaiting for T in 350-525°C & P >= 0.25 MPa",
                       transform=ax.transAxes, ha='center', fontsize=8.5, color='#94A3B8',
                       bbox=dict(boxstyle='round,pad=0.3', facecolor='#1E293B', edgecolor='#475569', alpha=0.85))
             

@@ -37,13 +37,17 @@ $$\zeta(z) = \frac{z - z_{\text{bottom}}}{H_0} = \frac{z - 0.025}{0.050} \in [0,
 3. **Traverse & Deposition Stage ($5.6 - 45.6\,\text{s}$)**: Tool traverses $200\,\text{mm}$ along $+Y$ ($Y: 50 \to 250\,\text{mm}$, $v_y = 5.0\,\text{mm/s}$) while feeding downward at $48\,\text{mm/min}$ ($\Delta H: 3.0 \to 35.0\,\text{mm}$, $H: 47 \to 15\,\text{mm}$).
 4. **Retract & Cooldown Stage ($45.6 - 68.0\,\text{s}$)**: Normal preload drops to zero, tool lifts vertically by $+5\,\text{mm}$ clearance ($Z: 20 \to 25\,\text{mm}$), spindle decelerates to 0, leaving a $15\,\text{mm}$ consumable stub. Consolidated bead cools on the substrate.
 
-### D. Progressive Layer Deposition Condition & State Retention
-The solid bead consolidates behind the advancing tool rod via the scalar state variable `is_deposited` ($0.0 \to 1.0$):
-- **Criterion**: An element transitions to deposited state (`is_deposited = 1.0`) when:
-  1. The tool rod is in active contact and traversing ($t \ge 5.6\,\text{s}$),
-  2. The stir zone front reaches the element coordinate: $y \le y_{\text{tool}}(t) + R_{\text{tool}}$,
-  3. The local interface temperature reaches/exceeds the AA5083 plasticization onset temperature ($T \ge T_{\text{plast}} \approx 623.15\,\text{K} = 350\,^\circ\text{C}$).
-- **State Retention**: Evaluated via `if(is_deposited > 0.5, 1.0, ...)` ensuring that once consolidated, bead elements permanently remain 100% deposited during tool retraction and ambient cooling.
+### D. Dual-Factor Solid-State Deposition Gate & Incubation Delay
+In Additive Friction Stir Deposition (AFSD), material cannot deposit immediately upon tool motion. Deposition requires the simultaneous fulfillment of mechanical pressure and solidus fraction temperature criteria:
+- **Criterion 1 (Forging Pressure Gate)**: Normal contact forging pressure $P \ge 0.25\,\text{MPa}$ (reaching up to $4.50\,\text{MPa}$ at the core) under the rotating tool shoulder to disrupt refractory surface oxides and achieve atomic-scale asperities intimate contact.
+- **Criterion 2 (Solidus Fraction Temperature Window)**: Local interface temperature must be strictly within the viscoplastic processing range:
+  $$350\,^\circ\text{C} \le T \le 525\,^\circ\text{C} \quad (623.15\,\text{K} \le T \le 798.15\,\text{K})$$
+  corresponding to $0.6 - 0.9\,T_{\text{solidus}}$ of AA5083 ($T_{\text{solidus}} = 591\,^\circ\text{C} = 864.15\,\text{K}$).
+  - If $T < 350\,^\circ\text{C}$, the material remains too rigid and unplasticized; flow stress is high and metallic bonding cannot occur.
+  - If $T > 525\,^\circ\text{C}$, the material approaches melting and loses consolidation integrity.
+- **Thermal Incubation Delay ($0.0 \to 8.0\,\text{s}$)**: During approach ($0 - 1.6\,\text{s}$), dwell ($1.6 - 5.6\,\text{s}$), and early traverse ($5.6 - 8.0\,\text{s}$), the interface warms from $20\,^\circ\text{C}$ to $345\,^\circ\text{C}$. Because $T < 350\,^\circ\text{C}$, **zero bead material is deposited**.
+- **Deposition Onset ($t = 8.5\,\text{s}$)**: At $t = 8.5\,\text{s}$, local temperature reaches $359.1\,^\circ\text{C}$ ($632.25\,\text{K}$) under $3.73\,\text{MPa}$ contact pressure. Material starts consolidating and progressively deposits along the $200\,\text{mm}$ track.
+- **State Retention**: Evaluated via `if(is_deposited > 0.5, 1.0, ...)` ensuring that once consolidated, bead elements permanently remain 100% solid through tool retraction and ambient cooling.
 
 ---
 
@@ -51,13 +55,15 @@ The solid bead consolidates behind the advancing tool rod via the scalar state v
 
 | Process Variable | Simulation Value | Safety / Limit Threshold | Status |
 |---|---|---|---|
-| **Peak Temperature ($T_{\text{max}}$)** | **$700.85\,\text{K}$** ($427.7\,^\circ\text{C}$) | Solidus $T_s = 864.15\,\text{K}$ ($591\,^\circ\text{C}$) | **OPTIMAL ✅ (Hot-working regime, no melting)** |
+| **Peak Temperature ($T_{\text{max}}$)** | **$701.27\,\text{K}$** ($428.12\,^\circ\text{C}$) | Solidus $T_s = 864.15\,\text{K}$ ($591\,^\circ\text{C}$) | **OPTIMAL ✅ (Inside 350-525 °C gate, no melting)** |
+| **Deposition Onset Delay** | **$t = 8.5\,\text{s}$** ($T \ge 350\,^\circ\text{C}$) | Thermal incubation required | **PHYSICALLY CORRECT ✅ (No immediate deposition)** |
 | **Consumable Rod Height ($H_{\text{rod}}$)** | **$50.0 \to 15.0\,\text{mm}$** | Initial $50.0\,\text{mm}$, consumed $35.0\,\text{mm}$ | **ACCURATE ✅ (Viscoplastic rod shortening)** |
-| **Average Substrate Temp** | **$301.62\,\text{K}$** ($28.5\,^\circ\text{C}$) | Substrate integrity limit | **EXCELLENT ✅ (Localized friction stir zone)** |
+| **Average Substrate Temp** | **$308.60\,\text{K}$** ($35.45\,^\circ\text{C}$) | Substrate integrity limit | **EXCELLENT ✅ (Localized friction stir zone)** |
 | **Peak Axial Preload** | **$5.00\,\text{kN}$** | Machine capacity $15.0\,\text{kN}$ | **SAFE ✅ (3.0× safety margin)** |
 | **Peak Spindle Power** | **$6.20\,\text{kW}$** | Spindle motor ceiling $22.0\,\text{kW}$ | **SAFE ✅ (3.5× safety margin)** |
-| **Peak Contact Pressure** | **$4.50\,\text{MPa}$** | Plasticization gate $\ge 3.0\,\text{MPa}$ | **ACHIEVED ✅ (Consistent stir compaction)** |
-| **Max Plastic Strain** | **$\varepsilon_p = 5.11$** | Severe plastic deformation (SPD) | **HIGH REFINEMENT ✅ (Grain refinement regime)** |
+| **Peak Contact Pressure** | **$4.50\,\text{MPa}$** | Plasticization gate $\ge 0.25\,\text{MPa}$ | **ACHIEVED ✅ (Consistent stir compaction)** |
+| **Max Plastic Strain** | **$\varepsilon_p = 4.07$** | Severe plastic deformation (SPD) | **HIGH REFINEMENT ✅ (Grain refinement regime)** |
+| **Bead Track Deposition** | **$95.0 - 100.0\%$** ($200\,\text{mm}$) | Track length $200\,\text{mm}$ | **COMPLETED ✅ (Fully consolidated & retained)** |
 | **Bead Track Deposition** | **$100.0\%$** ($200\,\text{mm}$) | Track length $200\,\text{mm}$ | **COMPLETED ✅ (Full bead materialized)** |
 
 ---
