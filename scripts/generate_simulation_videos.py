@@ -112,7 +112,8 @@ def compute_frame_states(num_frames=160):
             tool_z = 20.0
             tool_y = 50.0 + (t - 5.6) * 5.0
             collar_scale = 1.0
-            dep_len = tool_y - 50.0
+            # Material does NOT deposit immediately: governed by physical simulation gate (T in 350-525 C & pressure)
+            dep_len = float(dep_interp[i]) * 200.0
             is_contact = True
         else:
             stage_name = "Tool Retraction & Solidification Cooling"
@@ -122,7 +123,7 @@ def compute_frame_states(num_frames=160):
             frac = min(1.0, (t - 45.6) / 2.4)
             tool_z = 20.0 + 5.0 * frac
             collar_scale = 1.0
-            dep_len = 200.0
+            dep_len = float(dep_interp[i]) * 200.0
             is_contact = False
 
         rot_angle = np.radians((t * 1200.0 * 360.0 / 60.0) % 360.0)
@@ -184,21 +185,21 @@ def compute_frame_states(num_frames=160):
         consumed_len = 50.0 - current_rod_h
 
         # Solid-State Layer Formation Criterion: 0.6 to 0.9 T_solidus (350 °C to 525 °C / 623 K to 798 K)
-        # Layer forms and solidifies ONLY when material is within 350 - 525 °C!
+        # Material will NOT deposit immediately! Requires T in [350, 525] °C AND forging contact pressure!
         t_sol_low = 623.15   # 350 °C (0.6 T_solidus)
         t_sol_high = 798.15  # 525 °C (0.9 T_solidus)
-        is_layer_forming = (is_contact and (temp_val >= t_sol_low) and (temp_val <= t_sol_high))
+        is_layer_forming = (is_contact and (temp_val >= t_sol_low) and (temp_val <= t_sol_high) and (force_val >= 1.5))
 
         if t <= 1.6:
             layer_state = "STANDBY (Tool Approaching)"
-        elif temp_val < 450.0:
-            layer_state = "COLD DWELL (T < 177 °C, No Deposition)"
+        elif not is_contact:
+            layer_state = "SOLIDIFIED & COOLED (Layer Consolidated)"
         elif temp_val < t_sol_low:
-            layer_state = f"PRE-HEATING (T = {temp_val-273.15:3.0f} °C < 350 °C, Below Gate)"
-        elif is_contact:
-            layer_state = f"BONDING & SOLIDIFYING ({temp_val-273.15:3.0f} °C, 0.6-0.9 T_sol)"
+            layer_state = f"PRE-HEATING (T = {temp_val-273.15:3.0f} °C < 350 °C - NO DEPOSITION)"
+        elif temp_val <= t_sol_high:
+            layer_state = f"ACTIVE CONSOLIDATION ({temp_val-273.15:3.0f} °C in 350-525 °C Gate)"
         else:
-            layer_state = "SOLIDIFIED & COOLED (Layer 100% Consolidated)"
+            layer_state = f"INHIBITED (T = {temp_val-273.15:3.0f} °C > 525 °C - Exceeds Gate)"
 
         states.append({
             'idx': i,
@@ -210,7 +211,7 @@ def compute_frame_states(num_frames=160):
             'tool_z': tool_z,
             'collar_scale': collar_scale,
             'dep_len': dep_len,
-            'dep_pct': dep_interp[i] * 100.0 if dep_len > 0 else 0.0,
+            'dep_pct': float(dep_interp[i]) * 100.0,
             'rot_angle': rot_angle,
             'rpm': rpm_val,
             'force_kn': force_val,

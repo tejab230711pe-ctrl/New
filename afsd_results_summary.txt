@@ -4,19 +4,19 @@
   Framework: MOOSE (RotatingDiskDepositionApp)
 ========================================================================
 
-  Simulation Duration:  0.00 – 68.00 s (155 timesteps)
+  Simulation Duration:  0.00 – 68.00 s (146 timesteps)
   Timestep Size:        Δt ≈ 0.5000 s
 
-  Peak Temperature:     700.85 K (427.70 °C) at t = 45.31 s
+  Peak Temperature:     701.27 K (428.12 °C) at t = 45.56 s
   Exceeded Solidus?     NO ✅ (Solidus = 864.1 K)
   Exceeded Liquidus?    NO ✅ (Liquidus = 911.1 K)
   Peak Axial Force:     5.00 kN (Ceiling = 15.0 kN)
   Force Within Limits?  YES ✅
   Peak Motor Power:     6.20 kW (Ceiling = 22.0 kW)
   Power Within Limits?  YES ✅
-  Max Plastic Strain:   5.1145
+  Max Plastic Strain:   4.0717
   Peak Contact Pressure:4.50 MPa
-  Deposited Bead Layer: 100.0% Track Volume Active (Gated at T >= 673 K)
+  Deposited Bead Layer: 95.0% Track Volume Active (Gated at T >= 673 K)
   Layer Deposition:     COMPLETED ✅
 
 ========================================================================

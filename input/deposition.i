@@ -296,17 +296,17 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Contact pressure under rotating rod footprint (R = 12.5 mm, moves Y = 0.050 -> 0.250 m during traverse)
-  # Provides forging consolidation pressure under tool shoulder (P = 1.8 - 4.5 MPa)
+  # Contact pressure under rotating rod footprint & shoulder (R_eff = 15 mm, moves Y = 0.050 -> 0.250 m during traverse)
+  # Smooth C1-continuous forging pressure profile across entire 25 mm bead width
   [contact_pressure_aux]
     type = ParsedAux
     variable = contact_pressure
     use_xyzt = true
     coupled_variables = 'mushy_fraction'
     expression = 'if(t >= 1.6 & t < 45.6 & z >= 0.015 & z <= 0.024,
-                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) <= 0.0125,
+                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) < 0.015,
                        if(t < 5.6, 4.5e6 * (t - 1.6) / 4.0, 4.5e6) *
-                       (0.40 + 0.60 * (1.0 - (sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) / 0.0125)^2)) *
+                       (1.0 - (sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) / 0.015)^2)^2 *
                        (1.0 - 0.4 * mushy_fraction),
                        0.0),
                     0.0)'
@@ -377,7 +377,9 @@
 
   # Solid-State Layer Deposition Gate:
   # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
-  # 1. Contact forging pressure P >= 1.0 MPa under rotating tool shoulder
+  # Solid-State Layer Deposition Gate:
+  # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
+  # 1. Contact forging pressure P >= 0.25 MPa under rotating tool shoulder (reaching up to 4.5 MPa in core)
   # 2. Temperature strictly within 0.6 - 0.9 T_solidus window: 350 °C <= T <= 525 °C (623.15 K <= T <= 798.15 K)
   # 3. Active traverse (t >= 5.6s) with shoulder passing over element: y <= tool_y + R
   # 4. State retention: once consolidated, bead remains permanently 100% solid through cooling
@@ -388,8 +390,8 @@
     block = 'bead'
     coupled_variables = 'T contact_pressure is_deposited'
     expression = 'if(is_deposited > 0.5, 1.0,
-                    if(t >= 5.6 & contact_pressure >= 1.0e6 & T >= 623.15 & T <= 798.15 &
-                       y <= (0.050 + 0.005 * (t - 5.6) + 0.0125),
+                    if(t >= 5.6 & contact_pressure >= 2.5e5 & T >= 623.15 & T <= 798.15 &
+                       y <= (0.050 + 0.005 * (t - 5.6) + 0.015),
                        1.0, 0.0))'
     execute_on = 'TIMESTEP_END'
   []
