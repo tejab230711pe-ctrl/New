@@ -1,0 +1,20 @@
+# Generated AFSD solver data: keep source, decks, scripts, and mesh geometry only.
+*.e
+*.csv
+*.log
+*.rd
+*_out_cp/
+Outputs/
+.jitcache/
+.system_generated/
+__pycache__/
+
+# Generated media.  The retained visualization artifacts are explicitly kept.
+*.gif
+*.mp4
+*.png
+!afsd_simulation_dashboard.png
+!afsd_temperature_history.png
+!scripts/snapshots/
+scripts/snapshots/*
+!scripts/snapshots/iso_04_retract.png
