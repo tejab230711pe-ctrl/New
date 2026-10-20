@@ -52,9 +52,23 @@
     block_id = 1
     block_name = 'rod'
   []
-  [rod_nodes]
+  [rod_bottom_nodes]
     type = BoundingBoxNodeSetGenerator
     input = rod_id
+    bottom_left = '-0.020 0.020 0.0249'
+    top_right = '0.020 0.080 0.0251'
+    new_boundary = 'rod_bottom'
+  []
+  [rod_top_nodes]
+    type = BoundingBoxNodeSetGenerator
+    input = rod_bottom_nodes
+    bottom_left = '-0.020 0.020 0.0749'
+    top_right = '0.020 0.080 0.0751'
+    new_boundary = 'rod_top'
+  []
+  [rod_nodes]
+    type = BoundingBoxNodeSetGenerator
+    input = rod_top_nodes
     bottom_left = '-0.020 0.020 0.020'
     top_right = '0.020 0.080 0.090'
     new_boundary = 'rod_boundary'
@@ -100,10 +114,30 @@
     type = ParsedFunction
     expression = 'if(t < 5.6, 0.0, if(t < 45.6, 0.005 * (t - 5.6), 0.200))'
   []
-  # 3D Consumable tool rod motion in Z (approach: descends 5mm to touch surface, dwells/traverses, retracts 5mm)
-  [rod_motion_z]
+  # Bottom tip of consumable rod: plunges 5mm to touch substrate, dwells/traverses in contact, retracts 5mm
+  [rod_motion_z_bottom]
     type = ParsedFunction
     expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.005, if(t < 48.0, -0.005 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+  []
+  # Top feed end of consumable rod: continuous downward axial feed reduces rod height from 50mm to 15mm
+  [rod_motion_z_top]
+    type = ParsedFunction
+    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 5.6, -0.005 - 0.003 * (t - 1.6) / 4.0, if(t < 45.6, -0.008 - 0.032 * (t - 5.6) / 40.0, -0.040 + 0.005 * min(1.0, (t - 45.6)/2.4))))'
+  []
+  # Instantaneous physical rod height in mm
+  [rod_height_func]
+    type = ParsedFunction
+    expression = '50.0 - if(t < 1.6, 0.0, if(t < 5.6, 3.0 * (t - 1.6) / 4.0, if(t < 45.6, 3.0 + 32.0 * (t - 5.6) / 40.0, 35.0)))'
+  []
+  # Cumulative consumed rod length in mm
+  [rod_consumed_func]
+    type = ParsedFunction
+    expression = 'if(t < 1.6, 0.0, if(t < 5.6, 3.0 * (t - 1.6) / 4.0, if(t < 45.6, 3.0 + 32.0 * (t - 5.6) / 40.0, 35.0)))'
+  []
+  # Axial feed rate in mm/min
+  [axial_feed_rate_func]
+    type = ParsedFunction
+    expression = 'if(t >= 1.6 & t < 5.6, 45.0, if(t >= 5.6 & t < 45.6, 48.0, 0.0))'
   []
 []
 
@@ -175,6 +209,24 @@
   []
   # State variable: 1.0 when element is deposited under hot plasticizing stir conditions, 0.0 if not yet deposited
   [is_deposited]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # Instantaneous physical rod height in mm (50mm -> 15mm)
+  [rod_height_mm]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 50.0
+  []
+  # Cumulative consumed rod length in mm (0mm -> 35mm)
+  [consumed_length_mm]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # Axial feed rate in mm/min
+  [axial_feed_rate_mmpm]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
@@ -321,6 +373,30 @@
     expression = 'if(t >= 5.6 & T >= 623.15 & y <= (0.050 + 0.005 * (t - 5.6) + 0.0125), 1.0, 0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
+
+  # Instantaneous physical rod height tracking (50mm -> 15mm)
+  [rod_height_aux]
+    type = FunctionAux
+    variable = rod_height_mm
+    function = rod_height_func
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Consumed rod length tracking (0mm -> 35mm)
+  [consumed_length_aux]
+    type = FunctionAux
+    variable = consumed_length_mm
+    function = rod_consumed_func
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Axial feed rate tracking (45-48 mm/min during dwell/traverse)
+  [axial_feed_rate_aux]
+    type = FunctionAux
+    variable = axial_feed_rate_mmpm
+    function = axial_feed_rate_func
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -405,11 +481,19 @@
     boundary = 'rod_boundary'
     function = rod_motion_y
   []
-  [rod_motion_z_bc]
+  # Consumable Tool Rod Plunge & Contact Interface Kinematics (at bottom tip z=25mm)
+  [rod_bottom_z_bc]
     type = FunctionDirichletBC
     variable = Uz
-    boundary = 'rod_boundary'
-    function = rod_motion_z
+    boundary = 'rod_bottom'
+    function = rod_motion_z_bottom
+  []
+  # Consumable Tool Rod Axial Feeding & Consumption Kinematics (at top feed end z=75mm)
+  [rod_top_z_bc]
+    type = FunctionDirichletBC
+    variable = Uz
+    boundary = 'rod_top'
+    function = rod_motion_z_top
   []
 
   # Backing plate conductive/convective heat dissipation into steel anvil table
@@ -476,6 +560,24 @@
     type = ElementAverageValue
     variable = is_deposited
     block = 'bead'
+  []
+  # Instantaneous physical rod height (mm)
+  [rod_height_mm]
+    type = ElementAverageValue
+    variable = rod_height_mm
+    block = 'rod'
+  []
+  # Cumulative consumed rod length (mm)
+  [consumed_length_mm]
+    type = ElementAverageValue
+    variable = consumed_length_mm
+    block = 'rod'
+  []
+  # Machine axial feed rate (mm/min)
+  [feed_rate_mmpm]
+    type = ElementAverageValue
+    variable = axial_feed_rate_mmpm
+    block = 'rod'
   []
 []
 
