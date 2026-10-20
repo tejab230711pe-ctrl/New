@@ -9,9 +9,14 @@ cd "$(dirname "$0")/.."
 
 trial_root="remesh_stages/feed_5mm_low_ram/feed_5mm"
 manifest="$trial_root/manifest.json"
+start_stage="${1:-0}"
 
 if [[ ! -f "$manifest" ]]; then
   echo "Missing $manifest. Run ./scripts/make_low_ram_afsd_trial.sh first." >&2
+  exit 2
+fi
+if [[ ! "$start_stage" =~ ^[0-7]$ ]]; then
+  echo "usage: $0 [starting-stage: 0..7]" >&2
   exit 2
 fi
 
@@ -30,8 +35,11 @@ run_stage() {
   ./scripts/run_low_ram_dwell.sh "$deck"
 }
 
-run_stage 0
-for index in 1 2 3 4 5 6 7; do
+if [[ "$start_stage" == 0 ]]; then
+  run_stage 0
+  start_stage=1
+fi
+for ((index=start_stage; index<=7; index++)); do
   run_stage "$index"
 done
 
