@@ -472,7 +472,10 @@
     absolute_tolerance = 1.0e-4
     # Exodus fields required to reconstruct J2 hardening in a later remesh
     # stage. The Remesh* material consumes them through SolutionFunctions.
-    output_properties = 'effective_plastic_strain hardening_variable plastic_strain'
+    # Tensor plastic_strain components are already emitted by the solid-
+    # mechanics action.  Output only the scalar history missing from it.
+    output_properties = 'effective_plastic_strain'
+    outputs = exodus
     block = 'workpiece rod'
   []
 
@@ -758,7 +761,14 @@
 []
 
 [Outputs]
-  exodus = true
-  csv = true
-  file_base = remesh_stages/feed_5mm/dwell
+  [exodus]
+    type = Exodus
+    # temp_dep_hardening explicitly targets this output and limits material
+    # export to effective_plastic_strain; do not enable all properties here.
+    file_base = remesh_stages/feed_5mm/dwell
+  []
+  [csv]
+    type = CSV
+    file_base = remesh_stages/feed_5mm/dwell
+  []
 []
