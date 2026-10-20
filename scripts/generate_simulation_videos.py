@@ -64,12 +64,18 @@ def load_simulation_data():
     force_data = df['force_kN'].values
     power_data = df['power_kW'].values
     dep_data = df['deposited_bead_pct'].values
-    return t_data, t_max, rpm_data, force_data, power_data, dep_data
+    torque_data = df['spindle_torque_Nm'].values if 'spindle_torque_Nm' in df.columns else np.zeros_like(t_data)
+    fy_data = df['traverse_force_N'].values if 'traverse_force_N' in df.columns else np.zeros_like(t_data)
+    fx_data = df['transverse_force_N'].values if 'transverse_force_N' in df.columns else np.zeros_like(t_data)
+    flow_stress_data = df['flow_stress_Pa'].values if 'flow_stress_Pa' in df.columns else np.full_like(t_data, 255.21e6)
+    lnZ_data = df['ln_Zener_Hollomon'].values if 'ln_Zener_Hollomon' in df.columns else np.full_like(t_data, 60.0)
+    return t_data, t_max, rpm_data, force_data, power_data, dep_data, torque_data, fy_data, fx_data, flow_stress_data, lnZ_data
 
 
 def compute_frame_states(num_frames=160):
     """Computes exact physical states for all video frames."""
-    t_data, t_max_arr, rpm_arr, force_arr, power_arr, dep_arr = load_simulation_data()
+    (t_data, t_max_arr, rpm_arr, force_arr, power_arr, dep_arr,
+     torque_arr, fy_arr, fx_arr, flow_stress_arr, lnZ_arr) = load_simulation_data()
     t_eval = np.linspace(0.0, 68.0, num_frames)
     
     t_max_interp = np.interp(t_eval, t_data, t_max_arr)
@@ -77,6 +83,11 @@ def compute_frame_states(num_frames=160):
     force_interp = np.interp(t_eval, t_data, force_arr)
     power_interp = np.interp(t_eval, t_data, power_arr)
     dep_interp   = np.interp(t_eval, t_data, dep_arr)
+    torque_interp = np.interp(t_eval, t_data, torque_arr)
+    fy_interp     = np.interp(t_eval, t_data, fy_arr)
+    fx_interp     = np.interp(t_eval, t_data, fx_arr)
+    flow_stress_interp = np.interp(t_eval, t_data, flow_stress_arr)
+    lnZ_interp    = np.interp(t_eval, t_data, lnZ_arr)
 
     states = []
     plate_w, plate_l, plate_t = 120.0, 300.0, 20.0
@@ -230,10 +241,14 @@ def compute_frame_states(num_frames=160):
             'rod_h': current_rod_h,
             'consumed_len': consumed_len,
             'is_layer_forming': is_layer_forming,
-            'layer_state': layer_state
+            'layer_state': layer_state,
+            'fy_kn': float(fy_interp[i]) / 1000.0,
+            'fx_kn': float(fx_interp[i]) / 1000.0,
+            'flow_stress_mpa': float(flow_stress_interp[i]) / 1e6,
+            'lnZ': float(lnZ_interp[i])
         })
 
-    return states, (t_data, t_max_arr, force_arr, power_arr)
+    return states, (t_data, t_max_arr, force_arr, power_arr, torque_arr, fy_arr)
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -309,13 +324,15 @@ def render_isometric_frame(args):
         f"Stage:     {state['stage_name'].upper()}\n"
         f"Time:      t = {state['time']:5.1f} s / 68.0 s\n"
         f"Rod Feed:  L = {state['rod_h']:4.1f} mm (-{state['consumed_len']:4.1f} mm consumed)\n"
-        f"Torque:    {state['torque_state']}\n"
+        f"Forces:    Fz={state['force_kn']:4.2f} kN | Fy={state['fy_kn']:4.2f} kN | Fx={state['fx_kn']:4.2f} kN\n"
+        f"Torque:    Mz = {state['torque_nm']:4.1f} N·m ({state['power_kw']:4.1f} kW @ {state['rpm']:4.0f} RPM)\n"
+        f"Flow:      sigma_y = {state['flow_stress_mpa']:4.1f} MPa | ln(Z) = {state['lnZ']:4.1f}\n"
         f"Bond Gate: 0.6-0.9 T_sol (350-525 °C) [{ 'ACTIVE' if state['is_layer_forming'] else 'OFF' }]\n"
         f"T_max:     {state['t_max']:5.1f} K ({state['t_max'] - 273.15:5.1f} °C)\n"
         f"Tool:      Y = {state['tool_y']:5.1f} mm  |  Z = {state['tool_z']:4.1f} mm [{contact_str}]\n"
         f"Deposit:   {state['dep_len']:5.1f} mm / 200.0 mm ({state['dep_pct']:4.1f}%)"
     )
-    fig.text(0.04, 0.94, text_content, color='#E2E8F0', fontsize=11,
+    fig.text(0.04, 0.94, text_content, color='#E2E8F0', fontsize=10.5,
              family='monospace', fontweight='bold', va='top', bbox=hud_bg)
 
     # Stage Badge Banner
@@ -393,13 +410,14 @@ def render_closeup_frame(args):
         'TOOL-WORKPIECE INTERACTION (MACRO DYNAMICS)\n'
         f"Time:       t = {state['time']:4.1f} s  |  Stage: {state['stage_name'].split()[0].upper()}\n"
         f"Rod Feed:   L = {state['rod_h']:4.1f} mm  |  Consumed: -{state['consumed_len']:4.1f} mm\n"
-        f"Preload:    {state['force_kn']:4.1f} kN  |  Torque Drag: {state['torque_nm']:4.1f} N·m\n"
-        f"Mushroom:   {'+' if mushroom_pct > 0.5 else ''}{mushroom_pct:4.1f}% Outward Plastic Bulge\n"
+        f"Forces:     Fz = {state['force_kn']:4.2f} kN  |  Fy = {state['fy_kn']:4.2f} kN  |  Fx = {state['fx_kn']:4.2f} kN\n"
+        f"Torque Mz:  {state['torque_nm']:4.1f} N·m  |  Power: {state['power_kw']:4.2f} kW\n"
+        f"Flow:       sigma_y = {state['flow_stress_mpa']:4.1f} MPa  |  ln(Z) = {state['lnZ']:4.1f}\n"
         f"Layer Gate: {state['layer_state']}\n"
         f"Interface:  {state['t_max']:5.1f} K ({state['t_max'] - 273.15:5.1f} °C) | 0.6-0.9 T_sol\n"
         f"Flash:      {state['collar_scale']*100:4.0f}% Viscoplastic Collar"
     )
-    fig.text(0.04, 0.94, text_content, color='#E2E8F0', fontsize=11,
+    fig.text(0.04, 0.94, text_content, color='#E2E8F0', fontsize=10.5,
              family='monospace', fontweight='bold', va='top', bbox=hud_bg)
 
     fig.text(0.50, 0.95, '  TOOL & FLASH COLLAR DYNAMICS (MACRO VIEW)  ', color='white', fontsize=13,
@@ -417,7 +435,7 @@ def render_closeup_frame(args):
 def render_multiview_frame(args):
     """Renders a single frame for the 3-Panel Scientific Telemetry & Thermal Video."""
     state, curves, out_file = args
-    t_data, t_max_arr, force_arr, power_arr = curves
+    t_data, t_max_arr, force_arr, power_arr, torque_arr, fy_arr = curves
     curr_t = state['time']
 
     fig = plt.figure(figsize=(19.2, 10.8), dpi=100)
