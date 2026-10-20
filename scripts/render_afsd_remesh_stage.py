@@ -91,8 +91,10 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         text,
         "Mesh",
         "[Mesh]\n"
-        "  type = FileMesh\n"
-        f"  file = {mesh}\n"
+        "  [file_mesh]\n"
+        "    type = FileMeshGenerator\n"
+        f"    file = {mesh}\n"
+        "  []\n"
         "  parallel_type = replicated\n"
         "  # Update node-face contact search as the tool moves.\n"
         "  patch_update_strategy = iteration\n"
@@ -183,9 +185,11 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         )
         text = text.replace("line_search = 'none'", "line_search = 'bt'")
         text = text.replace("l_tol = 1.0e-2", "l_tol = 5.0e-2")
-        text = text.replace("l_max_its = 200", "l_max_its = 1")
-        text = text.replace("dtmax = 0.05", "dtmax = 0.025")
-        text = text.replace("    dt = 0.25", "    dt = 0.025")
+        # Active contact needs a converged linear correction; one iteration
+        # only works while the bodies are not touching.
+        text = text.replace("l_max_its = 200", "l_max_its = 25")
+        text = text.replace("dtmax = 0.05", "dtmax = 0.005")
+        text = text.replace("    dt = 0.25", "    dt = 0.005")
     target.write_text(text, encoding="utf-8")
 
 

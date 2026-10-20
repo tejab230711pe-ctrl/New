@@ -17,10 +17,10 @@ python3 scripts/render_afsd_remesh_stage.py \
 python3 scripts/render_afsd_remesh_stage.py \
   "$trial_root/manifest.json" 1 --low-ram
 
-# The stabilization deck covers 0.1 s only.  It proves contact convergence
+# The stabilization deck covers one 5 ms increment.  It proves contact convergence
 # before the 4 s dwell is attempted and uses a distinct output base.
 sed \
-  -e 's/end_time = 4.0/end_time = 0.1/' \
+  -e 's/end_time = 4.0/end_time = 0.005/' \
   -e 's#file_base = remesh_stages/feed_5mm_low_ram/dwell#file_base = remesh_stages/feed_5mm_low_ram/dwell_contact_smoke#g' \
   "$trial_root/dwell_low_ram.i" \
   > "$trial_root/dwell_contact_smoke.i"

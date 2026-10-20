@@ -38,8 +38,10 @@
 # ==============================================================================
 
 [Mesh]
-  type = FileMesh
-  file = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm_low_ram/feed_5mm/dwell.msh
+  [file_mesh]
+    type = FileMeshGenerator
+    file = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm_low_ram/feed_5mm/dwell.msh
+  []
   parallel_type = replicated
   # Update node-face contact search as the tool moves.
   patch_update_strategy = iteration
@@ -505,16 +507,16 @@
     # shoulder face; this is the robust primary/secondary ordering in MOOSE.
     primary = rod_bottom
     secondary = workpiece_top
-    model = coulomb
+    # Tool spin is represented by ContactFrictionHeatFlux rather than a
+    # mesh-rotating tangential displacement field, so enforce the normal
+    # reaction here and use it to close the thermal/mechanical feedback loop.
+    model = frictionless
+    # Node-face normal contact is supported by the installed low-derivative
+    # MOOSE runtime; its pressure drives the frictional heat-flux coupling.
     formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
     penalty = 1.0e9
-    # The re-zoned meshes have nonuniform interface faces.  Normalize the
-    # penalty to face area and retain a newly established contact set.
-    normalize_penalty = true
-    capture_tolerance = 5.0e-5
-    tangential_tolerance = 5.0e-4
   []
 []
 
@@ -752,17 +754,17 @@
   nl_rel_tol = 1.0e-3
   nl_abs_tol = 5.0
   l_tol = 5.0e-2
-  l_max_its = 1
+  l_max_its = 25
   nl_max_its = 40
 
   start_time = 0.0
   end_time = 4.0
   dtmin = 1.0e-4
-  dtmax = 0.025
+  dtmax = 0.005
 
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 0.025
+    dt = 0.005
     optimal_iterations = 8
     iteration_window = 4
     growth_factor = 1.25

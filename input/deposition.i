@@ -567,16 +567,16 @@
     # shoulder face; this is the robust primary/secondary ordering in MOOSE.
     primary = back_to_rod
     secondary = front_to_plate
-    model = coulomb
+    # Tool spin is represented by ContactFrictionHeatFlux rather than a
+    # mesh-rotating tangential displacement field, so enforce the normal
+    # reaction here and use it to close the thermal/mechanical feedback loop.
+    model = frictionless
+    # Node-face normal contact is supported by the installed low-derivative
+    # MOOSE runtime; its pressure drives the frictional heat-flux coupling.
     formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
     penalty = 1.0e10
-    # The re-zoned meshes have nonuniform interface faces.  Normalize the
-    # penalty to face area and retain a newly established contact set.
-    normalize_penalty = true
-    capture_tolerance = 5.0e-5
-    tangential_tolerance = 5.0e-4
   []
 []
 
