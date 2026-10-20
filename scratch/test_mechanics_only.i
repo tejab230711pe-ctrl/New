@@ -66,7 +66,7 @@
     displacements = 'Ux Uy Uz'
     strain = FINITE
     decomposition_method = HughesWinget
-    volumetric_locking_correction = true
+    volumetric_locking_correction = false
     add_variables = false
     generate_output = 'stress_zz vonmises_stress plastic_strain_zz'
   []
@@ -149,7 +149,7 @@
   solve_type = NEWTON
   petsc_options_iname = '-pc_type -pc_factor_mat_solver_type'
   petsc_options_value = 'lu mumps'
-  line_search = 'bt'
+  line_search = 'none'
 
   nl_rel_tol = 1.0e-4
   nl_abs_tol = 1.0e-1

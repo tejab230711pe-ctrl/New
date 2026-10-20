@@ -83,20 +83,6 @@
     block_id = 1
     block_name = 'rod'
   []
-  [rod_bottom_nodes]
-    type = BoundingBoxNodeSetGenerator
-    input = rod_id
-    bottom_left = '-0.020 0.020 0.0249'
-    top_right = '0.020 0.080 0.0251'
-    new_boundary = 'rod_bottom'
-  []
-  [rod_top_nodes]
-    type = BoundingBoxNodeSetGenerator
-    input = rod_bottom_nodes
-    bottom_left = '-0.020 0.020 0.0749'
-    top_right = '0.020 0.080 0.0751'
-    new_boundary = 'rod_top'
-  []
 
   # 3. Deposited Bead Layer (Block 2) - (nx=4, ny=20, nz=2)
   [bead_mesh]
@@ -124,7 +110,13 @@
   # Combine all 3 bodies into a unified multi-block simulation mesh
   [combine]
     type = CombinerGenerator
-    inputs = 'plate_id rod_top_nodes bead_id'
+    inputs = 'plate_id rod_id bead_id'
+  []
+
+  # Automatically split and isolate all boundaries by subdomain to prevent collisions
+  [break_boundary]
+    type = BreakBoundaryOnSubdomainGenerator
+    input = combine
   []
 []
 
@@ -164,38 +156,38 @@
   # 1. Room Temperature (293.15 K / 20 °C)
   [hf_293K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '255.21e6 270.0e6 295.0e6 330.0e6 380.0e6 440.0e6 480.0e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '255.21e6 270.0e6 295.0e6 330.0e6 380.0e6 440.0e6 480.0e6 520.0e6 550.0e6'
   []
   # 2. Warm Temperature (450.0 K / 177 °C)
   [hf_450K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '190.0e6 205.0e6 225.0e6 255.0e6 290.0e6 325.0e6 345.0e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '190.0e6 205.0e6 225.0e6 255.0e6 290.0e6 325.0e6 345.0e6 370.0e6 390.0e6'
   []
   # 3. Plasticization Onset (623.15 K / 350 °C)
   [hf_623K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '95.0e6 102.0e6 112.0e6 125.0e6 140.0e6 152.0e6 160.0e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '95.0e6 102.0e6 112.0e6 125.0e6 140.0e6 152.0e6 160.0e6 170.0e6 180.0e6'
   []
   # 4. Active Stir Zone Consolidation (723.15 K / 450 °C)
   [hf_723K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '52.0e6 56.0e6 62.0e6 69.0e6 76.0e6 82.0e6 85.0e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '52.0e6 56.0e6 62.0e6 69.0e6 76.0e6 82.0e6 85.0e6 90.0e6 95.0e6'
   []
   # 5. Peak Solid-State Plastic Stir (798.15 K / 525 °C)
   [hf_798K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '28.0e6 30.5e6 33.5e6 36.5e6 39.5e6 41.5e6 42.5e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '28.0e6 30.5e6 33.5e6 36.5e6 39.5e6 41.5e6 42.5e6 45.0e6 48.0e6'
   []
   # 6. Near-Solidus Boundary (850.0 K / 577 °C)
   [hf_850K]
     type = PiecewiseLinear
-    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
-    y = '12.0e6 13.0e6 14.5e6 15.8e6 16.9e6 17.6e6 18.0e6'
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
+    y = '12.0e6 13.0e6 14.5e6 15.8e6 16.9e6 17.6e6 18.0e6 19.0e6 20.0e6'
   []
 []
 
@@ -233,7 +225,7 @@
     displacements = 'Ux Uy Uz'
     strain = FINITE
     decomposition_method = HughesWinget
-    volumetric_locking_correction = true
+    volumetric_locking_correction = false
     add_variables = false
     block = 'plate rod'
     generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
@@ -335,12 +327,12 @@
     variable = T
     thermal_conductivity = thermal_conductivity
   []
-  # 3. Coupled volumetric heat source: friction + plastic dissipation into plate surface and deposited bead
+  # 3. Coupled volumetric heat source: friction + plastic dissipation into plate surface, rod, and deposited bead
   [heat_source]
     type = CoupledForce
     variable = T
     v = friction_heat
-    block = 'plate bead'
+    block = 'plate rod bead'
   []
 []
 
@@ -361,7 +353,7 @@
     variable = contact_pressure
     use_xyzt = true
     coupled_variables = 'mushy_fraction'
-    expression = 'if(t >= 1.6 & t < 45.6 & z >= 0.015 & z <= 0.024,
+    expression = 'if(t >= 1.6 & t < 45.6 & z >= 0.015 & z <= 0.035,
                     if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) < 0.015,
                        if(t < 5.6, 4.5e6 * (t - 1.6) / 4.0, 4.5e6) *
                        (1.0 - (sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) / 0.015)^2)^2 *
@@ -550,82 +542,82 @@
   # Multi-inelastic radial return stress calculator
   [radial_return_stress]
     type = ComputeMultipleInelasticStress
-    tangent_operator = elastic
+    tangent_operator = nonlinear
     inelastic_models = 'temp_dep_hardening'
     block = 'plate rod'
   []
 []
 
 [BCs]
-  # Fixed displacement at base of the backing plate (clamped to steel anvil table)
+  # Fixed displacement at base of the backing plate (clamped to steel anvil table at z = 0)
   [fix_bottom_x]
     type = DirichletBC
     variable = Ux
-    boundary = 'bottom'
+    boundary = 'back_to_plate'
     value = 0.0
   []
   [fix_bottom_y]
     type = DirichletBC
     variable = Uy
-    boundary = 'bottom'
+    boundary = 'back_to_plate'
     value = 0.0
   []
   [fix_bottom_z]
     type = DirichletBC
     variable = Uz
-    boundary = 'bottom'
+    boundary = 'back_to_plate'
     value = 0.0
   []
 
-  # Actuator boundary conditions on the TOP of the tool rod (Machine Spindle Quill)
+  # Actuator boundary conditions on the TOP of the tool rod (Machine Spindle Quill at z = 0.075)
   [rod_top_x]
     type = DirichletBC
     variable = Ux
-    boundary = 'rod_top'
+    boundary = 'front_to_rod'
     value = 0.0
   []
   [rod_top_y]
     type = FunctionDirichletBC
     variable = Uy
-    boundary = 'rod_top'
+    boundary = 'front_to_rod'
     function = rod_motion_y
   []
   # Continuous downward axial feed driving rod height shortening (50 mm -> 15 mm)
   [rod_top_z]
     type = FunctionDirichletBC
     variable = Uz
-    boundary = 'rod_top'
+    boundary = 'front_to_rod'
     function = rod_motion_z_top
   []
 
-  # Contact elevation boundary conditions on the BOTTOM tip of the tool rod
+  # Contact elevation boundary conditions on the BOTTOM tip of the tool rod (z = 0.025)
   # - Plunges 5mm downward during approach (t < 1.6s) to contact plate at z = 20mm
   # - Held in contact on the substrate surface throughout dwell & traverse (1.6 <= t < 45.6s)
   # - Retracts 5mm upward during retraction phase (t >= 45.6s)
   [rod_bottom_z]
     type = FunctionDirichletBC
     variable = Uz
-    boundary = 'rod_bottom'
+    boundary = 'back_to_rod'
     function = rod_motion_z_bottom
   []
   [rod_bottom_x]
     type = DirichletBC
     variable = Ux
-    boundary = 'rod_bottom'
+    boundary = 'back_to_rod'
     value = 0.0
   []
   [rod_bottom_y]
     type = FunctionDirichletBC
     variable = Uy
-    boundary = 'rod_bottom'
+    boundary = 'back_to_rod'
     function = rod_motion_y
   []
 
-  # Backing plate conductive/convective heat dissipation into steel anvil table
+  # Backing plate conductive/convective heat dissipation into steel anvil table at z = 0
   [plate_base_cooling]
     type = ConvectiveFluxFunction
     variable = T
-    boundary = 'bottom'
+    boundary = 'back_to_plate'
     T_infinity = 293.15
     coefficient = 250.0
   []
@@ -634,7 +626,7 @@
   [convective_cooling]
     type = ConvectiveFluxFunction
     variable = T
-    boundary = 'front back left right top'
+    boundary = 'front_to_plate bottom_to_plate top_to_plate left_to_plate right_to_plate left_to_rod right_to_rod bottom_to_rod top_to_rod front_to_bead left_to_bead right_to_bead top_to_bead bottom_to_bead'
     T_infinity = 293.15
     coefficient = 25.0
   []
@@ -768,25 +760,25 @@
   line_search = 'none'
 
   nl_rel_tol = 1.0e-3
-  nl_abs_tol = 1.0e-1
-  l_tol = 1.0e-3
+  nl_abs_tol = 5.0
+  l_tol = 1.0e-2
   l_max_its = 200
-  nl_max_its = 30
+  nl_max_its = 40
 
   start_time = 0.0
   end_time = 48.0
+  dtmin = 1.0e-4
+  dtmax = 1.0
 
   [TimeStepper]
     type = IterationAdaptiveDT
     dt = 0.25
     optimal_iterations = 8
     iteration_window = 4
-    growth_factor = 1.5
+    growth_factor = 1.25
     cutback_factor = 0.5
     cutback_factor_at_failure = 0.25
   []
-  dtmin = 1.0e-4
-  dtmax = 1.0
 []
 
 [Outputs]
