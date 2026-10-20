@@ -232,6 +232,8 @@
   [all]
     displacements = 'Ux Uy Uz'
     strain = FINITE
+    decomposition_method = HughesWinget
+    volumetric_locking_correction = true
     add_variables = false
     block = 'plate rod'
     generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
