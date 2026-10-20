@@ -121,8 +121,8 @@
     value = 0.0
   []
   [rod_stage_translation_z]
-    type = ConstantFunction
-    value = 0.0
+    type = ParsedFunction
+    expression = 'if(t < 4.1, -2.5e-4 * (t - 4.0), -2.5e-5)'
   []
   [rod_stage_center_y]
     type = ConstantFunction
@@ -624,7 +624,7 @@
   [T_core]
     type = PointValue
     variable = T
-    point = '0.0 0.050 0.020'
+    point = '0.0 0.0232142857143 0.009'
   []
   # Maximum von Mises stress in the consumable tool rod (Pa)
   [rod_max_vonmises_stress]

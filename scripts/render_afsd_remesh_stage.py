@@ -99,6 +99,12 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
     )
     text = text.replace("'plate rod'", "'workpiece rod'")
     text = text.replace("block = 'bead'", "block = 'workpiece'")
+    # The diagnostic core point must remain inside the workpiece as the tool
+    # advances and the bead grows.  Sample 1 mm below the local shoulder.
+    text = text.replace(
+        "point = '0.0 0.050 0.020'",
+        f"point = '0.0 {stage['tool_center_y_mm'] * 1.0e-3:.12g} 0.009'",
+    )
     for old, new in (
         ("front_to_plate", "workpiece_top"),
         ("back_to_plate", "workpiece_base"),
@@ -112,15 +118,17 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "boundary = 'workpiece_top bottom_to_plate top_to_plate left_to_plate right_to_plate left_to_rod right_to_rod bottom_to_rod top_to_rod front_to_bead left_to_bead right_to_bead top_to_bead bottom_to_bead'",
         "boundary = 'workpiece_top rod_top'",
     )
+    previous = stage["previous_exodus"]
     # A remesh stage starts from its own re-zoned reference configuration.  Do
     # not interpolate Ux/Uy/Uz into the already moved geometry: that would
     # apply the travel displacement twice and reintroduce mesh inversion.
-    for variable in ("T", "is_deposited"):
-        start = text.index(f"  [{variable}]", text.index("[Variables]") if variable == "T" else text.index("[AuxVariables]"))
-        end = text.index("  []", start)
-        section = text[start:end]
-        section = "\n".join(line for line in section.splitlines() if "initial_condition" not in line)
-        text = text[:start] + section + "\n" + text[end:]
+    if previous:
+        for variable in ("T", "is_deposited"):
+            start = text.index(f"  [{variable}]", text.index("[Variables]") if variable == "T" else text.index("[AuxVariables]"))
+            end = text.index("  []", start)
+            section = text[start:end]
+            section = "\n".join(line for line in section.splitlines() if "initial_condition" not in line)
+            text = text[:start] + section + "\n" + text[end:]
     # The physical tool position is already embedded in each stage mesh.  The
     # actuator fields are therefore local zero increments, while friction uses
     # a constant physical tool-centre coordinate for the current stage.
@@ -131,15 +139,15 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
         if not low_ram
         else "  [rod_stage_translation_z]\n    type = ParsedFunction\n"
-             f"    expression = 'if(t < {stage['time_start_s'] + 1.0}, -2.0e-5 * (t - {stage['time_start_s']}), -2.0e-5)'\n"
+             f"    expression = 'if(t < {stage['time_start_s'] + 0.1}, -2.5e-4 * (t - {stage['time_start_s']}), -2.5e-5)'\n"
              "  []\n"
     )
     function_insertion = (
         "\n  # Local frame for this re-zoned stage; geometry already contains travel/feed.\n"
         "  [rod_stage_translation_y]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
         + z_function
-        "  [rod_stage_center_y]\n    type = ConstantFunction\n"
-        f"    value = {stage['tool_center_y_mm'] * 1.0e-3:.12g}\n  []\n"
+        + "  [rod_stage_center_y]\n    type = ConstantFunction\n"
+        + f"    value = {stage['tool_center_y_mm'] * 1.0e-3:.12g}\n  []\n"
     )
     functions_start = text.index("[Functions]")
     functions_end = block_end(text, functions_start)
@@ -149,7 +157,6 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "type = TemperatureDependentHardeningStressUpdate",
         "type = RemeshTemperatureDependentHardeningStressUpdate",
     )
-    previous = stage["previous_exodus"]
     if previous:
         params = (
             "    initial_effective_plastic_strain = restart_effective_plastic_strain\n"

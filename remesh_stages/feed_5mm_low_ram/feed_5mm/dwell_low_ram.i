@@ -121,8 +121,8 @@
     value = 0.0
   []
   [rod_stage_translation_z]
-    type = ConstantFunction
-    value = 0.0
+    type = ParsedFunction
+    expression = 'if(t < 0.1, -2.5e-4 * (t - 0.0), -2.5e-5)'
   []
   [rod_stage_center_y]
     type = ConstantFunction
@@ -135,6 +135,7 @@
   [T]
     order = FIRST
     family = LAGRANGE
+    initial_condition = 293.15
   []
   # 3D Mechanical displacement vector fields (m) on substrate plate and tool rod
   [Ux]
@@ -207,6 +208,7 @@
   [is_deposited]
     order = FIRST
     family = LAGRANGE
+    initial_condition = 0.0
   []
   # Instantaneous physical rod height in mm (50mm -> 15mm)
   [rod_height_mm]
@@ -622,7 +624,7 @@
   [T_core]
     type = PointValue
     variable = T
-    point = '0.0 0.050 0.020'
+    point = '0.0 0.0125 0.009'
   []
   # Maximum von Mises stress in the consumable tool rod (Pa)
   [rod_max_vonmises_stress]
