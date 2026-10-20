@@ -194,6 +194,21 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         text = text.replace("l_max_its = 200", "l_max_its = 25")
         text = text.replace("dtmax = 0.05", "dtmax = 0.005")
         text = text.replace("    dt = 0.25", "    dt = 0.005")
+        # Each remesh stage needs only its final Exodus state: it is the input
+        # to the next re-zoned mesh.  Writing every 5 ms retains a large
+        # in-memory Exodus history and eventually triggers the OOM killer on
+        # the 8 GB laptop.  Keep CSV at every accepted step for lightweight
+        # time histories and diagnostics.
+        exodus_end = f"    file_base = {stage['output_exodus'][:-2]}\n  []\n  [csv]"
+        exodus_final_only = (
+            f"    file_base = {stage['output_exodus'][:-2]}\n"
+            "    execute_on = FINAL\n"
+            "  []\n"
+            "  [csv]"
+        )
+        if exodus_end not in text:
+            raise ValueError("could not set final-only Exodus output in low-RAM deck")
+        text = text.replace(exodus_end, exodus_final_only, 1)
     target.write_text(text, encoding="utf-8")
 
 

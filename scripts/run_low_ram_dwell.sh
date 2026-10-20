@@ -3,7 +3,10 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-ulimit -v 5767168 # 5.5 GiB: fail cleanly before the OS starts swapping/freezing.
+# This is a secondary per-process guard.  The cgroup below is the effective
+# RSS limit: virtual-address limits alone do not prevent PETSc/Exodus from
+# reserving address space that later turns into real memory pressure.
+ulimit -v 4456448 # 4.25 GiB virtual-address ceiling.
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -14,4 +17,18 @@ if [[ $# -gt 1 ]]; then
   exit 2
 fi
 
-exec ./rotating_disk_deposition-opt --n-threads=1 -i "$input_file"
+solver=(./rotating_disk_deposition-opt --n-threads=1 -i "$input_file")
+
+# Keep a solver overrun from exhausting the desktop.  A systemd user scope
+# limits resident memory, unlike ulimit -v, and returns a normal nonzero exit
+# rather than allowing global OOM pressure and a frozen laptop.
+if command -v systemd-run >/dev/null && systemctl --user is-system-running >/dev/null 2>&1; then
+  echo "AFSD memory guard: MemoryMax=4G, MemorySwapMax=1G, one solver thread."
+  exec systemd-run --user --scope --quiet --collect \
+    -p MemoryMax=4G \
+    -p MemorySwapMax=1G \
+    "${solver[@]}"
+fi
+
+echo "WARNING: systemd user scope unavailable; using only the 4.25 GiB virtual-memory guard." >&2
+exec "${solver[@]}"
