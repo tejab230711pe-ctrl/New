@@ -764,19 +764,29 @@
   type = Transient
   solve_type = PJFNK
   petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'
-  petsc_options_value = 'hypre boomeramg 50'
+  petsc_options_value = 'hypre boomeramg 200'
   line_search = 'none'
 
   nl_rel_tol = 1.0e-3
   nl_abs_tol = 1.0e-1
   l_tol = 1.0e-3
-  l_max_its = 50
-  nl_max_its = 25
+  l_max_its = 200
+  nl_max_its = 30
 
   start_time = 0.0
   end_time = 48.0
-  dt = 0.5
-  dtmin = 1.0e-3
+
+  [TimeStepper]
+    type = IterationAdaptiveDT
+    dt = 0.25
+    optimal_iterations = 8
+    iteration_window = 4
+    growth_factor = 1.5
+    cutback_factor = 0.5
+    cutback_factor_at_failure = 0.25
+  []
+  dtmin = 1.0e-4
+  dtmax = 1.0
 []
 
 [Outputs]
