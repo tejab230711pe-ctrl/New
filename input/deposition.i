@@ -4,34 +4,41 @@
 # Material: AA5083 Aluminum Alloy (Viscoplastic Solid-State Consolidation)
 # Subdomains: Block 0 = Plate, Block 1 = Consumable Tool Rod, Block 2 = Deposited Bead Layer
 #
-# GOVERNING EQUATIONS OF MATERIAL PLASTICIZATION & CONSOLIDATION:
+# GOVERNING EQUATIONS OF MATERIAL PLASTICIZATION & CONTACT MECHANICS:
 # 1. Conservation of Mass (Isochoric plastic flow & Feed-Deposit balance):
 #    div(v) = 0,  V_dot_feed = V_dot_layer + V_dot_flash
 #    A_rod * v_feed = W_bead * h_layer * v_traverse * (1 + beta_flash)
 # 2. Conservation of Linear Momentum (Quasi-static equilibrium):
-#    div(sigma) + b = 0,  sigma = -p*I + 2*mu_eff*edot_p'
-# 3. Conservation of Energy (Coupled Thermo-Mechanical Conduction-Advection):
+#    div(sigma) + b = 0,  sigma = -p*I + s
+# 3. Finite-Strain Continuum Kinematics:
+#    F = I + grad(u),  Delta_eps = 0.5 * [grad(Delta_u) + grad(Delta_u)^T]
+#    Delta_eps = Delta_eps_elastic + Delta_eps_plastic
+# 4. Temperature-Dependent Radial Return J2 Plasticity (von Mises Yield Criterion):
+#    f(sigma, T, eps_p) = sigma_vm - sigma_y(T, eps_p) <= 0
+#    sigma_vm = sqrt(3/2 * s : s),  s = sigma - (1/3)*tr(sigma)*I
+#    Delta_eps_p = Delta_gamma * (3/2) * (s / sigma_vm)
+#    sigma_y(T, eps_p) thermally softens from 255.21 MPa (293K) down to 28 MPa (798K)
+# 5. Conservation of Energy (Coupled Thermo-Mechanical Conduction-Advection):
 #    rho*cp*(dT/dt + v_adv.grad(T)) = div(k*grad(T)) + q_fric + q_plast
 #    q_fric  = delta * tau_cont * (omega * r) / h_interface
-#    q_plast = eta_TQ * (1 - delta) * sigma_flow * edot_p / h_shear  (eta_TQ = 0.90)
-# 4. Viscoplastic Constitutive Law (Johnson-Cook & Sellars-Tegart):
-#    sigma_flow = [A + B*(eps_p)^n] * [1 + C*ln(edot/edot0)] * [1 - ((T-Tref)/(Tmelt-Tref))^m]
-#    Z = edot * exp(Q / (R * T)),  mu_eff = sigma_flow / (3 * edot_p)
-# 5. Sliding-to-Sticking Contact Friction Transition:
-#    tau_cont = min(mu(T)*P, sigma_flow / sqrt(3))
-# 6. Process Exerted Forces:
-#    Axial Forging Force: F_z = integral(P(r) dA) = 5.0 kN
+#    q_plast = eta_TQ * sigma_vm * edot_p  (Taylor-Quinney coefficient eta_TQ = 0.90)
+# 6. Sliding-to-Sticking Contact Friction Transition:
+#    tau_cont = min(mu(T)*P, sigma_y(T) / sqrt(3))
+# 7. Process Exerted Reaction Forces:
+#    Axial Forging Force: F_z = integral(|sigma_zz| dA) = 5.0 kN
 #    Spindle Torque:      M_z = integral(r * tau_cont dA) = P_spindle / omega
-#    Traverse Force:      F_y = 2 * R * h_layer * sigma_flow + mu * F_z
+#    Traverse Force:      F_y = integral(|sigma_yy| dA) + mu * F_z
 #    Transverse Force:    F_x = integral(tau_AS - tau_RS dA) ~ 0.25 * F_y
-# 7. Kinematic ALE Mesh Motion Formulation:
-#    w_ALE(z, t) = v_y(t)*e_y + [Uz_tip(t) - ((z - z0)/H0) * delta_H_consumed(t)]*e_z
-# 8. Dual-Factor Solid-State Deposition Gate:
+# 8. Axial Rod Shortening Mechanics:
+#    Top Quill Actuator: Uz(z_top, t) feeds downward by 35 mm (50 mm -> 15 mm)
+#    Bottom Tip Interface: Uz(z_bot, t) rests on substrate under contact traction
+#    Rod Interior: Solved by Finite-Element elastoviscoplastic momentum balance
+# 9. Dual-Factor Solid-State Deposition Gate:
 #    Deposition iff: t >= t_dwell & P >= 0.25 MPa & 350 °C <= T <= 525 °C & y <= y_tool + R
 # ==============================================================================
 
 [Mesh]
-  # 1. Substrate Plate (Block 0) - increased element mesh size (nx=16, ny=25, nz=2)
+  # 1. Substrate Plate (Block 0) - (nx=16, ny=25, nz=2)
   [plate_mesh]
     type = GeneratedMeshGenerator
     dim = 3
@@ -54,7 +61,7 @@
     block_name = 'plate'
   []
 
-  # 2. Consumable Tool Rod (Block 1) - increased element mesh size (nx=4, ny=4, nz=5)
+  # 2. Consumable Tool Rod (Block 1) - (nx=4, ny=4, nz=5)
   [rod_mesh]
     type = GeneratedMeshGenerator
     dim = 3
@@ -90,15 +97,8 @@
     top_right = '0.020 0.080 0.0751'
     new_boundary = 'rod_top'
   []
-  [rod_nodes]
-    type = BoundingBoxNodeSetGenerator
-    input = rod_top_nodes
-    bottom_left = '-0.020 0.020 0.020'
-    top_right = '0.020 0.080 0.090'
-    new_boundary = 'rod_boundary'
-  []
 
-  # 3. Deposited Bead Layer (Block 2) - increased element mesh size (nx=4, ny=20, nz=2)
+  # 3. Deposited Bead Layer (Block 2) - (nx=4, ny=20, nz=2)
   [bead_mesh]
     type = GeneratedMeshGenerator
     dim = 3
@@ -124,7 +124,7 @@
   # Combine all 3 bodies into a unified multi-block simulation mesh
   [combine]
     type = CombinerGenerator
-    inputs = 'plate_id rod_nodes bead_id'
+    inputs = 'plate_id rod_top_nodes bead_id'
   []
 []
 
@@ -163,16 +163,43 @@
     type = ParsedFunction
     expression = 'if(t >= 1.6 & t < 5.6, 45.0, if(t >= 5.6 & t < 45.6, 48.0, 0.0))'
   []
-  # Kinematic ALE Mesh Motion for Consumable Tool Rod:
-  # - Bottom tip (z=0.025): plunges 5mm, dwells/traverses at z=20mm, retracts 5mm
-  # - Top feed end (z=0.075): feeds downward by 35mm, compressing the rod from 50mm to 15mm
-  # - Across rod height (0.025 <= z <= 0.075): smooth linear ALE mesh compression with strictly positive Jacobians
-  [rod_motion_z_ale]
-    type = ParsedFunction
-    expression = 'if(t < 1.6, -0.005 * t / 1.6,
-                  if(t < 5.6, -0.005 - ((z - 0.025) / 0.050) * 0.003 * (t - 1.6) / 4.0,
-                  if(t < 45.6, -0.005 - ((z - 0.025) / 0.050) * (0.003 + 0.032 * (t - 5.6) / 40.0),
-                  -0.005 * (1.0 - min(1.0, (t - 45.6)/2.4)) - ((z - 0.025) / 0.050) * 0.035)))'
+
+  # Piecewise-linear true stress vs plastic strain hardening curves for AA5083 across temperatures:
+  # 1. Room Temperature (293.15 K / 20 °C)
+  [hf_293K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '255.21e6 270.0e6 295.0e6 330.0e6 380.0e6 440.0e6 480.0e6'
+  []
+  # 2. Warm Temperature (450.0 K / 177 °C)
+  [hf_450K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '190.0e6 205.0e6 225.0e6 255.0e6 290.0e6 325.0e6 345.0e6'
+  []
+  # 3. Plasticization Onset (623.15 K / 350 °C)
+  [hf_623K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '95.0e6 102.0e6 112.0e6 125.0e6 140.0e6 152.0e6 160.0e6'
+  []
+  # 4. Active Stir Zone Consolidation (723.15 K / 450 °C)
+  [hf_723K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '52.0e6 56.0e6 62.0e6 69.0e6 76.0e6 82.0e6 85.0e6'
+  []
+  # 5. Peak Solid-State Plastic Stir (798.15 K / 525 °C)
+  [hf_798K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '28.0e6 30.5e6 33.5e6 36.5e6 39.5e6 41.5e6 42.5e6'
+  []
+  # 6. Near-Solidus Boundary (850.0 K / 577 °C)
+  [hf_850K]
+    type = PiecewiseLinear
+    x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00'
+    y = '12.0e6 13.0e6 14.5e6 15.8e6 16.9e6 17.6e6 18.0e6'
   []
 []
 
@@ -201,6 +228,14 @@
   []
 []
 
+[Physics/SolidMechanics/QuasiStatic]
+  [all]
+    strain = FINITE
+    add_variables = false
+    generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
+  []
+[]
+
 [AuxVariables]
   [contact_pressure]
     order = FIRST
@@ -211,16 +246,6 @@
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
-  []
-  [plastic_strain]
-    order = FIRST
-    family = LAGRANGE
-    initial_condition = 0.0
-  []
-  [flow_stress]
-    order = FIRST
-    family = LAGRANGE
-    initial_condition = 255.21e6
   []
   [friction_heat]
     order = FIRST
@@ -272,16 +297,16 @@
     family = LAGRANGE
     initial_condition = 0.0
   []
-  # Traverse resistance force in N: F_y = 2*R*h_layer*flow_stress + mu*F_z
+  # Traverse resistance force in N: F_y = 2*R*h_layer*vonmises_stress + mu*F_z
   [traverse_force_N]
-    order = FIRST
-    family = LAGRANGE
+    order = CONSTANT
+    family = MONOMIAL
     initial_condition = 0.0
   []
   # Transverse / side force in N: F_x due to Advancing/Retreating Side asymmetry
   [transverse_force_N]
-    order = FIRST
-    family = LAGRANGE
+    order = CONSTANT
+    family = MONOMIAL
     initial_condition = 0.0
   []
   # Zener-Hollomon parameter ln(Z) = ln(edot) + Q/(R*T)
@@ -312,25 +337,6 @@
     variable = T
     v = friction_heat
     block = 'plate bead'
-  []
-
-  # 4. Momentum balance in X
-  [ux_stress]
-    type = StressDivergenceTensors
-    variable = Ux
-    component = 0
-  []
-  # 5. Momentum balance in Y
-  [uy_stress]
-    type = StressDivergenceTensors
-    variable = Uy
-    component = 1
-  []
-  # 6. Momentum balance in Z
-  [uz_stress]
-    type = StressDivergenceTensors
-    variable = Uz
-    component = 2
   []
 []
 
@@ -370,25 +376,7 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Johnson-Cook viscoplastic flow stress (A = 255.21 MPa, B = 735.80 MPa, n = 1.075, m = 0.654)
-  [flow_stress_aux]
-    type = ParsedAux
-    variable = flow_stress
-    coupled_variables = 'T plastic_strain'
-    expression = '(255.21e6 + 735.80e6 * (if(plastic_strain > 0.0, plastic_strain, 0.0))^1.075) * if(T < 864.15, if((1.0 - (max(0.0, (T - 293.15)/571.0))^0.654) > 0.05, (1.0 - (max(0.0, (T - 293.15)/571.0))^0.654), 0.05), 0.05)'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
-  []
-
-  # Plastic strain accumulation in the active stir zone
-  [plastic_strain_aux]
-    type = ParsedAux
-    variable = plastic_strain
-    coupled_variables = 'contact_pressure mushy_fraction plastic_strain'
-    expression = 'plastic_strain + 0.15 * if(contact_pressure > 1.0e5, (1.0 + 2.0 * mushy_fraction), 0.0)'
-    execute_on = 'TIMESTEP_END'
-  []
-
-  # Frictional heat source deposition rate (W/m^3) - calibrated to reach plasticization band (470 - 520 K)
+  # Frictional heat source deposition rate (W/m^3) - calibrated to reach plasticization band (623 - 798 K)
   [friction_heat_aux]
     type = ParsedAux
     variable = friction_heat
@@ -425,9 +413,7 @@
 
   # Solid-State Layer Deposition Gate:
   # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
-  # Solid-State Layer Deposition Gate:
-  # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
-  # 1. Contact forging pressure P >= 0.25 MPa under rotating tool shoulder (reaching up to 4.5 MPa in core)
+  # 1. Contact forging pressure P >= 0.25 MPa under rotating tool shoulder
   # 2. Temperature strictly within 0.6 - 0.9 T_solidus window: 350 °C <= T <= 525 °C (623.15 K <= T <= 798.15 K)
   # 3. Active traverse (t >= 5.6s) with shoulder passing over element: y <= tool_y + R
   # 4. State retention: once consolidated, bead remains permanently 100% solid through cooling
@@ -481,9 +467,9 @@
   [traverse_force_aux]
     type = ParsedAux
     variable = traverse_force_N
-    coupled_variables = 'flow_stress axial_load_kN'
+    coupled_variables = 'vonmises_stress axial_load_kN'
     use_xyzt = true
-    expression = 'if(t >= 5.6 & t < 45.6, 2.0 * 0.0125 * 0.003 * flow_stress + 0.15 * axial_load_kN * 1000.0, 0.0)'
+    expression = 'if(t >= 5.6 & t < 45.6, 2.0 * 0.0125 * 0.003 * max(1.0e6, vonmises_stress) + 0.15 * axial_load_kN * 1000.0, 0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -545,17 +531,26 @@
     poissons_ratio = 0.33
   []
 
-  # Linear strain & stress calculation
-  [strain]
-    type = ComputeSmallStrain
+  # Temperature-dependent radial return J2 plasticity for AA5083
+  [temp_dep_hardening]
+    type = TemperatureDependentHardeningStressUpdate
+    hardening_functions = 'hf_293K hf_450K hf_623K hf_723K hf_798K hf_850K'
+    temperatures = '293.15 450.0 623.15 723.15 798.15 850.0'
+    temperature = T
+    relative_tolerance = 1.0e-8
+    absolute_tolerance = 1.0e-4
   []
-  [stress]
-    type = ComputeLinearElasticStress
+
+  # Multi-inelastic radial return stress calculator
+  [radial_return_stress]
+    type = ComputeMultipleInelasticStress
+    tangent_operator = elastic
+    inelastic_models = 'temp_dep_hardening'
   []
 []
 
 [BCs]
-  # Fixed displacement at base of the backing plate
+  # Fixed displacement at base of the backing plate (clamped to steel anvil table)
   [fix_bottom_x]
     type = DirichletBC
     variable = Ux
@@ -575,25 +570,48 @@
     value = 0.0
   []
 
-  # 3D Prescribed Kinematics on the Tool Rod (Approach, Dwell, Traverse along Y, Retract)
-  [rod_motion_x_bc]
+  # Actuator boundary conditions on the TOP of the tool rod (Machine Spindle Quill)
+  [rod_top_x]
     type = DirichletBC
     variable = Ux
-    boundary = 'rod_boundary'
+    boundary = 'rod_top'
     value = 0.0
   []
-  [rod_motion_y_bc]
+  [rod_top_y]
     type = FunctionDirichletBC
     variable = Uy
-    boundary = 'rod_boundary'
+    boundary = 'rod_top'
     function = rod_motion_y
   []
-  # Kinematic ALE Mesh Motion for Consumable Tool Rod (Axial Height Shortening 50mm -> 15mm)
-  [rod_motion_z_bc]
+  # Continuous downward axial feed driving rod height shortening (50 mm -> 15 mm)
+  [rod_top_z]
     type = FunctionDirichletBC
     variable = Uz
-    boundary = 'rod_boundary'
-    function = rod_motion_z_ale
+    boundary = 'rod_top'
+    function = rod_motion_z_top
+  []
+
+  # Contact elevation boundary conditions on the BOTTOM tip of the tool rod
+  # - Plunges 5mm downward during approach (t < 1.6s) to contact plate at z = 20mm
+  # - Held in contact on the substrate surface throughout dwell & traverse (1.6 <= t < 45.6s)
+  # - Retracts 5mm upward during retraction phase (t >= 45.6s)
+  [rod_bottom_z]
+    type = FunctionDirichletBC
+    variable = Uz
+    boundary = 'rod_bottom'
+    function = rod_motion_z_bottom
+  []
+  [rod_bottom_x]
+    type = DirichletBC
+    variable = Ux
+    boundary = 'rod_bottom'
+    value = 0.0
+  []
+  [rod_bottom_y]
+    type = FunctionDirichletBC
+    variable = Uy
+    boundary = 'rod_bottom'
+    function = rod_motion_y
   []
 
   # Backing plate conductive/convective heat dissipation into steel anvil table
@@ -622,19 +640,45 @@
     variable = T
     value_type = max
   []
-  # Average surface temperature
-  [T_avg_top]
-    type = SideAverageValue
+  # Core temperature at active deposition point
+  [T_core]
+    type = PointValue
     variable = T
-    boundary = 'top'
+    point = '0.0 0.050 0.020'
   []
-  # Maximum equivalent plastic strain
-  [max_plastic_strain]
-    type = NodalExtremeValue
-    variable = plastic_strain
+  # Maximum von Mises stress in the consumable tool rod (Pa)
+  [rod_max_vonmises_stress]
+    type = ElementExtremeValue
+    variable = vonmises_stress
     value_type = max
+    block = 'rod'
   []
-  # Peak contact pressure
+  # Average von Mises stress in the consumable tool rod (Pa)
+  [rod_avg_vonmises_stress]
+    type = ElementAverageValue
+    variable = vonmises_stress
+    block = 'rod'
+  []
+  # Axial compressive stress in the consumable tool rod (Pa)
+  [rod_axial_stress_zz]
+    type = ElementAverageValue
+    variable = stress_zz
+    block = 'rod'
+  []
+  # Maximum accumulated plastic strain in the rod
+  [rod_max_plastic_strain_zz]
+    type = ElementExtremeValue
+    variable = plastic_strain_zz
+    value_type = min
+    block = 'rod'
+  []
+  # Average plastic strain in the rod
+  [rod_avg_plastic_strain_zz]
+    type = ElementAverageValue
+    variable = plastic_strain_zz
+    block = 'rod'
+  []
+  # Peak contact pressure (Pa)
   [max_contact_pressure]
     type = NodalExtremeValue
     variable = contact_pressure
@@ -686,19 +730,13 @@
   []
   # Traverse resistance force in N
   [traverse_force_N]
-    type = AverageNodalVariableValue
+    type = ElementAverageValue
     variable = traverse_force_N
   []
   # Transverse / lateral asymmetry force in N
   [transverse_force_N]
-    type = AverageNodalVariableValue
-    variable = transverse_force_N
-  []
-  # Average plastic flow stress in stir zone (Pa)
-  [flow_stress_Pa]
     type = ElementAverageValue
-    variable = flow_stress
-    block = 'bead'
+    variable = transverse_force_N
   []
   # Zener-Hollomon parameter ln(Z) in active stir zone
   [ln_Zener_Hollomon]
@@ -711,15 +749,15 @@
 [Executioner]
   type = Transient
   solve_type = PJFNK
-  petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'
-  petsc_options_value = 'hypre boomeramg 30'
+  petsc_options_iname = '-pc_type -pc_factor_mat_solver_type'
+  petsc_options_value = 'lu    superlu_dist'
   line_search = 'none'
 
   nl_rel_tol = 1.0e-4
   nl_abs_tol = 1.0e-5
   l_tol = 1.0e-3
-  l_max_its = 30
-  nl_max_its = 15
+  l_max_its = 40
+  nl_max_its = 20
 
   start_time = 0.0
   end_time = 68.0
