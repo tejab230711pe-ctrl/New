@@ -219,6 +219,13 @@
   []
 []
 
+[UserObjects]
+  # Shared AA5083 properties for the solved contact-friction heat flux.
+  [aa5083_properties]
+    type = AA5083ThermalProperties
+  []
+[]
+
 [Physics/SolidMechanics/QuasiStatic]
   displacements = 'Ux Uy Uz'
   [all]
@@ -233,11 +240,6 @@
 []
 
 [AuxVariables]
-  [contact_pressure]
-    order = FIRST
-    family = LAGRANGE
-    initial_condition = 0.0
-  []
   [mushy_fraction]
     order = FIRST
     family = LAGRANGE
@@ -327,12 +329,13 @@
     variable = T
     thermal_conductivity = thermal_conductivity
   []
-  # 3. Coupled volumetric heat source: friction + plastic dissipation into plate surface, rod, and deposited bead
-  [heat_source]
-    type = CoupledForce
+  # Plastic work is a mechanical-to-thermal source with Ux/Uy/Uz off-diagonal Jacobians.
+  [plastic_heat]
+    type = PlasticHeatEnergy
     variable = T
-    v = friction_heat
-    block = 'plate rod bead'
+    displacements = 'Ux Uy Uz'
+    coeff = 0.90
+    block = 'plate rod'
   []
 []
 
@@ -346,23 +349,6 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Contact pressure under rotating rod footprint & shoulder (R_eff = 15 mm, moves Y = 0.050 -> 0.250 m during traverse)
-  # Smooth C1-continuous forging pressure profile across entire 25 mm bead width
-  [contact_pressure_aux]
-    type = ParsedAux
-    variable = contact_pressure
-    use_xyzt = true
-    coupled_variables = 'mushy_fraction'
-    expression = 'if(t >= 1.6 & t < 45.6 & z >= 0.015 & z <= 0.035,
-                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) < 0.015,
-                       if(t < 5.6, 4.5e6 * (t - 1.6) / 4.0, 4.5e6) *
-                       (1.0 - (sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) / 0.015)^2)^2 *
-                       (1.0 - 0.4 * mushy_fraction),
-                       0.0),
-                    0.0)'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
-  []
-
   # Viscoplastic / mushy bonding fraction for AA5083 in the 0.6 - 0.9 T_solidus range (350 - 525 °C / 623.15 - 798.15 K)
   [mushy_aux]
     type = ParsedAux
@@ -372,7 +358,8 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Frictional heat source deposition rate (W/m^3) - calibrated to reach plasticization band (623 - 798 K)
+  # Diagnostic only.  The thermal solve no longer consumes this prescribed field:
+  # ContactFrictionHeatFlux obtains pressure from the solved [Contact] constraint.
   [friction_heat_aux]
     type = ParsedAux
     variable = friction_heat
@@ -520,6 +507,16 @@
                   + if(T > 673.15 & T < 864.15, 387000.0 / 191.0, 0.0)'
   []
 
+  # Thermal strain couples the solved temperature field back into stress.
+  [thermal_expansion]
+    type = ComputeThermalExpansionEigenstrain
+    thermal_expansion_coeff = 2.38e-5
+    temperature = T
+    stress_free_temperature = 293.15
+    eigenstrain_name = thermal_eigenstrain
+    block = 'plate rod'
+  []
+
   # Elasticity tensor for AA5083 (E = 70.3 GPa, nu = 0.33)
   [elasticity_tensor]
     type = ComputeIsotropicElasticityTensor
@@ -545,6 +542,25 @@
     tangent_operator = nonlinear
     inelastic_models = 'temp_dep_hardening'
     block = 'plate rod'
+  []
+
+  # Stress : plastic-strain-rate, consumed by PlasticHeatEnergy in [Kernels].
+  [plastic_work]
+    type = ComputePlasticHeatEnergy
+    block = 'plate rod'
+  []
+[]
+
+# Solved rod/plate contact replaces the analytical contact-pressure field.
+[Contact]
+  [rod_plate]
+    primary = front_to_plate
+    secondary = back_to_rod
+    model = coulomb
+    formulation = penalty
+    displacements = 'Ux Uy Uz'
+    friction_coefficient = 0.35
+    penalty = 1.0e12
   []
 []
 
@@ -629,6 +645,21 @@
     boundary = 'front_to_plate bottom_to_plate top_to_plate left_to_plate right_to_plate left_to_rod right_to_rod bottom_to_rod top_to_rod front_to_bead left_to_bead right_to_bead top_to_bead bottom_to_bead'
     T_infinity = 293.15
     coefficient = 25.0
+  []
+
+  # q = eta * mu(T) * solved_contact_pressure * omega * radius.
+  # This is applied to the secondary contact surface; its 0.5 partition
+  # reserves the complementary heat for the substrate/contact-conduction model.
+  [rod_friction_heat]
+    type = ContactFrictionHeatFlux
+    variable = T
+    boundary = back_to_rod
+    temperature = T
+    contact_pressure = contact_pressure
+    material_props = aa5083_properties
+    rpm = 1200
+    tool_center_y = rod_motion_y
+    heat_partition = 0.5
   []
 []
 

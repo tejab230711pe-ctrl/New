@@ -1,5 +1,6 @@
 #include "ContactFrictionHeatFlux.h"
 #include "AA5083ThermalProperties.h"
+#include "Function.h"
 
 registerMooseObject("RotatingDiskDepositionApp", ContactFrictionHeatFlux);
 
@@ -14,7 +15,7 @@ ContactFrictionHeatFlux::validParams()
   params.addParam<Real>("heat_partition", 0.5, "Fraction of interface heat assigned to this side");
   params.addParam<Real>("efficiency", 0.9, "Fraction of friction work converted to heat");
   params.addParam<Real>("center_x", 0.0, "Spindle centre x coordinate (m)");
-  params.addParam<Real>("center_y", 0.05, "Spindle centre y coordinate (m)");
+  params.addRequiredParam<FunctionName>("tool_center_y", "Time-dependent spindle centre y coordinate");
   return params;
 }
 
@@ -27,14 +28,15 @@ ContactFrictionHeatFlux::ContactFrictionHeatFlux(const InputParameters & paramet
     _heat_partition(getParam<Real>("heat_partition")),
     _efficiency(getParam<Real>("efficiency")),
     _center_x(getParam<Real>("center_x")),
-    _center_y(getParam<Real>("center_y"))
+    _tool_center_y(getFunction("tool_center_y"))
 {
 }
 
 Real
 ContactFrictionHeatFlux::computeQpResidual()
 {
-  const Real radius = std::hypot(_q_point[_qp](0) - _center_x, _q_point[_qp](1) - _center_y);
+  const Real radius = std::hypot(_q_point[_qp](0) - _center_x,
+                                 _q_point[_qp](1) - _tool_center_y.value(_t, _q_point[_qp]));
   const Real pressure = std::max(0.0, _contact_pressure[_qp]);
   const Real flux = _heat_partition * _efficiency * _material_props.mu(_temperature[_qp]) *
                     pressure * _omega * radius;

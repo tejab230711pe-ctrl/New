@@ -3,6 +3,7 @@
 #include "IntegratedBC.h"
 
 class AA5083ThermalProperties;
+class Function;
 
 /**
  * Frictional heat flux at the rotating rod/workpiece contact interface.
@@ -29,5 +30,5 @@ private:
   const Real _heat_partition;
   const Real _efficiency;
   const Real _center_x;
-  const Real _center_y;
+  const Function & _tool_center_y;
 };
