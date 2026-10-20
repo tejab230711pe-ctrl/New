@@ -39,6 +39,10 @@ BEAD_WIDTH_MM = 25.0
 # A small imposed overlap provides the initial contact pressure on the
 # displacement-controlled CNC shoulder without prescribing a second tip BC.
 INITIAL_INTERFERENCE_MM = 0.25
+# OpenCASCADE bounding boxes carry geometry tolerances.  A 10 micrometre
+# selection envelope robustly captures planar contact faces without selecting
+# adjacent cylindrical/side faces.
+SURFACE_TOL_M = 1.0e-5
 
 
 @dataclass(frozen=True)
@@ -148,10 +152,10 @@ def geo_text(stage: Stage) -> str:
     ])
     lines.extend([
         '// The named surfaces below are consumed by the stage input deck.',
-        f'Physical Surface("rod_bottom") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-1e-8}, {y_tool-ROD_RADIUS_MM*MM-1e-8}, {rod_base_z-1e-8}, {ROD_RADIUS_MM*MM+1e-8}, {y_tool+ROD_RADIUS_MM*MM+1e-8}, {rod_base_z+1e-8}}} }};',
-        f'Physical Surface("rod_top") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-1e-8}, {y_tool-ROD_RADIUS_MM*MM-1e-8}, {rod_top_z-1e-8}, {ROD_RADIUS_MM*MM+1e-8}, {y_tool+ROD_RADIUS_MM*MM+1e-8}, {rod_top_z+1e-8}}} }};',
-        f'Physical Surface("workpiece_top") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-1e-8}, {-1e-8}, {PLATE_LZ_MM*MM-1e-8}, {PLATE_LX_MM*MM/2+1e-8}, {PLATE_LY_MM*MM+1e-8}, {PLATE_LZ_MM*MM+1e-8}}} }};',
-        f'Physical Surface("workpiece_base") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-1e-8}, {-1e-8}, {-1e-8}, {PLATE_LX_MM*MM/2+1e-8}, {PLATE_LY_MM*MM+1e-8}, {1e-8}}} }};',
+        f'Physical Surface("rod_bottom") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {y_tool-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {rod_base_z-SURFACE_TOL_M}, {ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {y_tool+ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {rod_base_z+SURFACE_TOL_M}}} }};',
+        f'Physical Surface("rod_top") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {y_tool-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {rod_top_z-SURFACE_TOL_M}, {ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {y_tool+ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {rod_top_z+SURFACE_TOL_M}}} }};',
+        f'Physical Surface("workpiece_top") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {PLATE_LZ_MM*MM-SURFACE_TOL_M}, {PLATE_LX_MM*MM/2+SURFACE_TOL_M}, {PLATE_LY_MM*MM+SURFACE_TOL_M}, {PLATE_LZ_MM*MM+SURFACE_TOL_M}}} }};',
+        f'Physical Surface("workpiece_base") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {PLATE_LX_MM*MM/2+SURFACE_TOL_M}, {PLATE_LY_MM*MM+SURFACE_TOL_M}, {SURFACE_TOL_M}}} }};',
         f'// Active volumes: {volumes}',
         '',
     ])

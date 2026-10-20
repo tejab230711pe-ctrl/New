@@ -30,7 +30,10 @@ RemeshTemperatureDependentHardeningStressUpdate::RemeshTemperatureDependentHarde
   if (isParamSetByUser("initial_effective_plastic_strain"))
     _initial_effective_plastic_strain = &getFunction("initial_effective_plastic_strain");
 
-  const auto & names = getParam<std::vector<FunctionName>>("initial_plastic_strain_functions");
+  const std::vector<FunctionName> names =
+      isParamSetByUser("initial_plastic_strain_functions")
+          ? getParam<std::vector<FunctionName>>("initial_plastic_strain_functions")
+          : std::vector<FunctionName>{};
   if (!names.empty() && names.size() != _initial_plastic_strain.size())
     paramError("initial_plastic_strain_functions",
                "Exactly six functions are required, ordered xx yy zz xy yz zx.");

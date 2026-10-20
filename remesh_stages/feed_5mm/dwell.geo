@@ -7,8 +7,8 @@ Mesh.CharacteristicLengthMax = 0.0025;
 Physical Volume("workpiece") = {1};
 Physical Volume("rod") = {2};
 // The named surfaces below are consumed by the stage input deck.
-Physical Surface("rod_bottom") = { Surface In BoundingBox{-0.01250001, -1e-08, 0.00974999, 0.01250001, 0.025000010000000003, 0.00975001} };
-Physical Surface("rod_top") = { Surface In BoundingBox{-0.01250001, -1e-08, 0.20974999000000003, 0.01250001, 0.025000010000000003, 0.20975001000000001} };
-Physical Surface("workpiece_top") = { Surface In BoundingBox{-0.025000010000000003, -1e-08, 0.00999999, 0.025000010000000003, 0.10000001, 0.01000001} };
-Physical Surface("workpiece_base") = { Surface In BoundingBox{-0.025000010000000003, -1e-08, -1e-08, 0.025000010000000003, 0.10000001, 1e-08} };
+Physical Surface("rod_bottom") = { Surface In BoundingBox{-0.01251, -1e-05, 0.00974, 0.01251, 0.02501, 0.00976} };
+Physical Surface("rod_top") = { Surface In BoundingBox{-0.01251, -1e-05, 0.20974, 0.01251, 0.02501, 0.20976000000000003} };
+Physical Surface("workpiece_top") = { Surface In BoundingBox{-0.02501, -1e-05, 0.00999, 0.02501, 0.10001, 0.01001} };
+Physical Surface("workpiece_base") = { Surface In BoundingBox{-0.02501, -1e-05, -1e-05, 0.02501, 0.10001, 1e-05} };
 // Active volumes: 1, 2
