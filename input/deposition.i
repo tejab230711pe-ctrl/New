@@ -1,9 +1,33 @@
 # ==============================================================================
-# Additive Friction Stir Deposition (AFSD) — Full Coupled Thermo-Mechanical
+# Additive Friction Stir Deposition (AFSD) — Full Coupled Thermo-Mechanical Model
 # Application: RotatingDiskDepositionApp
-# Material: AA5083 Aluminum Alloy
+# Material: AA5083 Aluminum Alloy (Viscoplastic Solid-State Consolidation)
 # Subdomains: Block 0 = Plate, Block 1 = Consumable Tool Rod, Block 2 = Deposited Bead Layer
-# Kinematics: Approach (0-1.6s), Dwell (1.6-5.6s), Traverse (5.6-45.6s), Retract/Cool (45.6-68.0s)
+#
+# GOVERNING EQUATIONS OF MATERIAL PLASTICIZATION & CONSOLIDATION:
+# 1. Conservation of Mass (Isochoric plastic flow & Feed-Deposit balance):
+#    div(v) = 0,  V_dot_feed = V_dot_layer + V_dot_flash
+#    A_rod * v_feed = W_bead * h_layer * v_traverse * (1 + beta_flash)
+# 2. Conservation of Linear Momentum (Quasi-static equilibrium):
+#    div(sigma) + b = 0,  sigma = -p*I + 2*mu_eff*edot_p'
+# 3. Conservation of Energy (Coupled Thermo-Mechanical Conduction-Advection):
+#    rho*cp*(dT/dt + v_adv.grad(T)) = div(k*grad(T)) + q_fric + q_plast
+#    q_fric  = delta * tau_cont * (omega * r) / h_interface
+#    q_plast = eta_TQ * (1 - delta) * sigma_flow * edot_p / h_shear  (eta_TQ = 0.90)
+# 4. Viscoplastic Constitutive Law (Johnson-Cook & Sellars-Tegart):
+#    sigma_flow = [A + B*(eps_p)^n] * [1 + C*ln(edot/edot0)] * [1 - ((T-Tref)/(Tmelt-Tref))^m]
+#    Z = edot * exp(Q / (R * T)),  mu_eff = sigma_flow / (3 * edot_p)
+# 5. Sliding-to-Sticking Contact Friction Transition:
+#    tau_cont = min(mu(T)*P, sigma_flow / sqrt(3))
+# 6. Process Exerted Forces:
+#    Axial Forging Force: F_z = integral(P(r) dA) = 5.0 kN
+#    Spindle Torque:      M_z = integral(r * tau_cont dA) = P_spindle / omega
+#    Traverse Force:      F_y = 2 * R * h_layer * sigma_flow + mu * F_z
+#    Transverse Force:    F_x = integral(tau_AS - tau_RS dA) ~ 0.25 * F_y
+# 7. Kinematic ALE Mesh Motion Formulation:
+#    w_ALE(z, t) = v_y(t)*e_y + [Uz_tip(t) - ((z - z0)/H0) * delta_H_consumed(t)]*e_z
+# 8. Dual-Factor Solid-State Deposition Gate:
+#    Deposition iff: t >= t_dwell & P >= 0.25 MPa & 350 °C <= T <= 525 °C & y <= y_tool + R
 # ==============================================================================
 
 [Mesh]
@@ -242,6 +266,30 @@
     family = LAGRANGE
     initial_condition = 0.0
   []
+  # Spindle torque in N*m: M_z = P_spindle / omega
+  [spindle_torque_Nm]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # Traverse resistance force in N: F_y = 2*R*h_layer*flow_stress + mu*F_z
+  [traverse_force_N]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # Transverse / side force in N: F_x due to Advancing/Retreating Side asymmetry
+  [transverse_force_N]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  # Zener-Hollomon parameter ln(Z) = ln(edot) + Q/(R*T)
+  [zener_hollomon_lnZ]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 55.0
+  []
 []
 
 [Kernels]
@@ -322,12 +370,12 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Johnson-Cook viscoplastic flow stress
+  # Johnson-Cook viscoplastic flow stress (A = 255.21 MPa, B = 735.80 MPa, n = 1.075, m = 0.654)
   [flow_stress_aux]
     type = ParsedAux
     variable = flow_stress
     coupled_variables = 'T plastic_strain'
-    expression = '(255.21e6 + 735.80e6 * (if(plastic_strain > 0.0, plastic_strain, 0.0))^1.075) * if(T < 864.15, if((1.0 - ((T - 293.15)/571.0)^0.654) > 0.05, (1.0 - ((T - 293.15)/571.0)^0.654), 0.05), 0.05)'
+    expression = '(255.21e6 + 735.80e6 * (if(plastic_strain > 0.0, plastic_strain, 0.0))^1.075) * if(T < 864.15, if((1.0 - (max(0.0, (T - 293.15)/571.0))^0.654) > 0.05, (1.0 - (max(0.0, (T - 293.15)/571.0))^0.654), 0.05), 0.05)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -417,6 +465,43 @@
     type = FunctionAux
     variable = axial_feed_rate_mmpm
     function = axial_feed_rate_func
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Spindle torsional torque M_z (N*m) from spindle mechanical power and angular velocity
+  [spindle_torque_aux]
+    type = ParsedAux
+    variable = spindle_torque_Nm
+    coupled_variables = 'motor_power_kW tool_rpm'
+    expression = 'if(tool_rpm > 10.0, (motor_power_kW * 1000.0) / (tool_rpm * 2.0 * 3.14159265 / 60.0), 0.0)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Traverse resistance force F_y (N) exerted on tool during translation through plasticized bead
+  [traverse_force_aux]
+    type = ParsedAux
+    variable = traverse_force_N
+    coupled_variables = 'flow_stress axial_load_kN'
+    use_xyzt = true
+    expression = 'if(t >= 5.6 & t < 45.6, 2.0 * 0.0125 * 0.003 * flow_stress + 0.15 * axial_load_kN * 1000.0, 0.0)'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Transverse / lateral asymmetry force F_x (N) from advancing vs retreating side shear imbalance
+  [transverse_force_aux]
+    type = ParsedAux
+    variable = transverse_force_N
+    coupled_variables = 'traverse_force_N'
+    expression = '0.25 * traverse_force_N'
+    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  []
+
+  # Zener-Hollomon parameter ln(Z) for hot viscoplastic deformation (AA5083: Q=145 kJ/mol, R=8.314 J/mol-K, edot~1500 s^-1)
+  [zener_hollomon_aux]
+    type = ParsedAux
+    variable = zener_hollomon_lnZ
+    coupled_variables = 'T'
+    expression = '7.313 + 145000.0 / (8.314 * max(300.0, T))'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 []
@@ -593,6 +678,33 @@
     type = ElementAverageValue
     variable = axial_feed_rate_mmpm
     block = 'rod'
+  []
+  # Spindle torsional torque in N*m
+  [spindle_torque_Nm]
+    type = AverageNodalVariableValue
+    variable = spindle_torque_Nm
+  []
+  # Traverse resistance force in N
+  [traverse_force_N]
+    type = AverageNodalVariableValue
+    variable = traverse_force_N
+  []
+  # Transverse / lateral asymmetry force in N
+  [transverse_force_N]
+    type = AverageNodalVariableValue
+    variable = transverse_force_N
+  []
+  # Average plastic flow stress in stir zone (Pa)
+  [flow_stress_Pa]
+    type = ElementAverageValue
+    variable = flow_stress
+    block = 'bead'
+  []
+  # Zener-Hollomon parameter ln(Z) in active stir zone
+  [ln_Zener_Hollomon]
+    type = ElementAverageValue
+    variable = zener_hollomon_lnZ
+    block = 'bead'
   []
 []
 
