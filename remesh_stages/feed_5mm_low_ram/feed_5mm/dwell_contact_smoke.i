@@ -41,6 +41,8 @@
   type = FileMesh
   file = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm_low_ram/feed_5mm/dwell.msh
   parallel_type = replicated
+  # Update node-face contact search as the tool moves.
+  patch_update_strategy = iteration
   displacements = 'Ux Uy Uz'
 []
 
@@ -506,6 +508,11 @@
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
     penalty = 1.0e9
+    # The re-zoned meshes have nonuniform interface faces.  Normalize the
+    # penalty to face area and retain a newly established contact set.
+    normalize_penalty = true
+    capture_tolerance = 5.0e-5
+    tangential_tolerance = 5.0e-4
   []
 []
 

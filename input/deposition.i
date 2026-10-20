@@ -570,6 +570,11 @@
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
     penalty = 1.0e10
+    # The re-zoned meshes have nonuniform interface faces.  Normalize the
+    # penalty to face area and retain a newly established contact set.
+    normalize_penalty = true
+    capture_tolerance = 5.0e-5
+    tangential_tolerance = 5.0e-4
   []
 []
 

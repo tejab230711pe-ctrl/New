@@ -94,6 +94,8 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "  type = FileMesh\n"
         f"  file = {mesh}\n"
         "  parallel_type = replicated\n"
+        "  # Update node-face contact search as the tool moves.\n"
+        "  patch_update_strategy = iteration\n"
         "  displacements = 'Ux Uy Uz'\n"
         "[]\n",
     )
