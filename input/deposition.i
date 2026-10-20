@@ -128,10 +128,6 @@
   []
 []
 
-[GlobalParams]
-  displacements = 'Ux Uy Uz'
-[]
-
 [Functions]
   # 3D Consumable tool rod motion in Y (dwell at Y=0.050, traverses 0.050 -> 0.250 m at 5 mm/s)
   [rod_motion_y]
@@ -210,28 +206,34 @@
     family = LAGRANGE
     initial_condition = 293.15
   []
-  # 3D Mechanical displacement vector fields (m)
+  # 3D Mechanical displacement vector fields (m) on substrate plate and tool rod
   [Ux]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
+    block = 'plate rod'
   []
   [Uy]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
+    block = 'plate rod'
   []
   [Uz]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
+    block = 'plate rod'
   []
 []
 
 [Physics/SolidMechanics/QuasiStatic]
+  displacements = 'Ux Uy Uz'
   [all]
+    displacements = 'Ux Uy Uz'
     strain = FINITE
     add_variables = false
+    block = 'plate rod'
     generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
   []
 []
@@ -529,6 +531,7 @@
     type = ComputeIsotropicElasticityTensor
     youngs_modulus = 70.3e9
     poissons_ratio = 0.33
+    block = 'plate rod'
   []
 
   # Temperature-dependent radial return J2 plasticity for AA5083
@@ -539,6 +542,7 @@
     temperature = T
     relative_tolerance = 1.0e-8
     absolute_tolerance = 1.0e-4
+    block = 'plate rod'
   []
 
   # Multi-inelastic radial return stress calculator
@@ -546,6 +550,7 @@
     type = ComputeMultipleInelasticStress
     tangent_operator = elastic
     inelastic_models = 'temp_dep_hardening'
+    block = 'plate rod'
   []
 []
 
@@ -634,13 +639,13 @@
 []
 
 [Postprocessors]
-  # Peak temperature in the substrate
+  # Peak temperature in the substrate (K)
   [T_max]
     type = NodalExtremeValue
     variable = T
     value_type = max
   []
-  # Core temperature at active deposition point
+  # Core temperature at active deposition point (K)
   [T_core]
     type = PointValue
     variable = T
@@ -746,21 +751,28 @@
   []
 []
 
+[Preconditioning]
+  [smp]
+    type = SMP
+    full = true
+  []
+[]
+
 [Executioner]
   type = Transient
   solve_type = PJFNK
-  petsc_options_iname = '-pc_type -pc_factor_mat_solver_type'
-  petsc_options_value = 'lu    superlu_dist'
+  petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'
+  petsc_options_value = 'hypre boomeramg 50'
   line_search = 'none'
 
-  nl_rel_tol = 1.0e-4
-  nl_abs_tol = 1.0e-5
+  nl_rel_tol = 1.0e-3
+  nl_abs_tol = 1.0e-1
   l_tol = 1.0e-3
-  l_max_its = 40
-  nl_max_its = 20
+  l_max_its = 50
+  nl_max_its = 25
 
   start_time = 0.0
-  end_time = 68.0
+  end_time = 48.0
   dt = 0.5
   dtmin = 1.0e-3
 []
