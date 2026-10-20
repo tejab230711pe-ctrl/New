@@ -779,6 +779,7 @@
     # temp_dep_hardening explicitly targets this output and limits material
     # export to effective_plastic_strain; do not enable all properties here.
     file_base = remesh_stages/feed_5mm_low_ram/feed_5mm/stage_01
+    execute_on = FINAL
   []
   [csv]
     type = CSV
