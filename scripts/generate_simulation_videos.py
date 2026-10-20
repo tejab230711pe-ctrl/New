@@ -539,13 +539,15 @@ def render_multiview_frame(args):
     ax_plot.plot(t_data, t_max_arr, color='#EF4444', lw=1.5, alpha=0.35, label='_nolegend_')
     ax_plot.plot(t_data, force_arr * 100.0, color='#10B981', lw=1.5, alpha=0.35, label='_nolegend_')
     ax_plot.plot(t_data, power_arr * 80.0, color='#38BDF8', lw=1.5, alpha=0.35, label='_nolegend_')
+    ax_plot.plot(t_data, torque_arr * 10.0, color='#C084FC', lw=1.5, alpha=0.35, label='_nolegend_')
 
     # Plot active history up to current time
     mask = (t_data <= curr_t)
     if np.any(mask):
         ax_plot.plot(t_data[mask], t_max_arr[mask], color='#EF4444', lw=2.4, label='Peak Temp T_max [K]')
-        ax_plot.plot(t_data[mask], force_arr[mask] * 100.0, color='#10B981', lw=2.2, label='Normal Load [x100 N]')
+        ax_plot.plot(t_data[mask], force_arr[mask] * 100.0, color='#10B981', lw=2.2, label='Normal Load F_z [x100 N]')
         ax_plot.plot(t_data[mask], power_arr[mask] * 80.0, color='#38BDF8', lw=2.0, label='Spindle Power [x80 W]')
+        ax_plot.plot(t_data[mask], torque_arr[mask] * 10.0, color='#C084FC', lw=2.0, label='Spindle Torque M_z [x10 N·m]')
 
     # Moving Time Scrubber line
     ax_plot.axvline(curr_t, color='#F8FAFC', lw=1.8, linestyle='-', alpha=0.9)
@@ -577,8 +579,8 @@ def render_multiview_frame(args):
              color='white', fontsize=14, fontweight='bold', ha='center', va='top',
              bbox=dict(boxstyle='round,pad=0.4', facecolor=state['stage_color'], edgecolor='none', alpha=0.95))
 
-    fig.text(0.78, 0.965, f"t = {curr_t:4.1f} s | Rod: {state['rod_h']:4.1f} mm | {state['layer_state'][:25]}",
-             color='#E2E8F0', fontsize=10.0, family='monospace', fontweight='bold', ha='center', va='top',
+    fig.text(0.78, 0.965, f"t = {curr_t:4.1f} s | Rod: {state['rod_h']:4.1f} mm | Fz: {state['force_kn']:3.1f} kN | Fy: {state['fy_kn']:4.1f} kN",
+             color='#E2E8F0', fontsize=9.5, family='monospace', fontweight='bold', ha='center', va='top',
              bbox=dict(boxstyle='round,pad=0.35', facecolor='#1E293B', edgecolor='#334155', alpha=0.9))
 
     fig.savefig(out_file, dpi=100, facecolor='#0B0F19')
