@@ -120,6 +120,8 @@ def postprocess_simulation_data(workspace_dir):
         ax.plot(t, df['T_max'].values, color='#D32F2F', linewidth=2.4, label='$T_{max}$ (Peak Interfacial)')
     if 'T_avg_top' in df.columns:
         ax.plot(t, df['T_avg_top'].values, color='#1976D2', linewidth=1.8, label='$T_{avg,top}$ (Substrate Surface)')
+    elif 'T_core' in df.columns:
+        ax.plot(t, df['T_core'].values, color='#1976D2', linewidth=1.8, label='$T_{core}$ (Deposition Zone)')
     
     ax.axhspan(623.15, 798.15, alpha=0.15, color='#F59E0B', label='0.6-0.9 $T_{sol}$ Gate (350–525 °C)')
     ax.axhline(T_SOLIDUS, color='#E53935', ls='--', alpha=0.7, lw=1.2, label=f'Solidus $T_s$ ({T_SOLIDUS:.0f} K / 591 °C)')
@@ -198,6 +200,12 @@ def postprocess_simulation_data(workspace_dir):
         ax.plot(t, df['flow_stress_Pa'].values / 1e6, color='#4338CA', linewidth=2.2, label='Johnson-Cook Flow Stress $\\sigma_{flow}$ [MPa]')
         ax.set_ylabel("Flow Stress $\\sigma_{flow}$ [MPa]", color='#4338CA')
         ax.tick_params(axis='y', labelcolor='#4338CA')
+    elif 'rod_max_vonmises_stress' in df.columns:
+        ax.plot(t, df['rod_max_vonmises_stress'].values / 1e6, color='#4338CA', linewidth=2.2, label='Max Von Mises Stress $\\sigma_{vm}$ [MPa]')
+        if 'rod_avg_vonmises_stress' in df.columns:
+            ax.plot(t, df['rod_avg_vonmises_stress'].values / 1e6, color='#818CF8', linewidth=1.8, ls='--', label='Avg Von Mises Stress [MPa]')
+        ax.set_ylabel("Stress [MPa]", color='#4338CA')
+        ax.tick_params(axis='y', labelcolor='#4338CA')
     
     if 'ln_Zener_Hollomon' in df.columns:
         ax_z = ax.twinx()
@@ -223,6 +231,12 @@ def postprocess_simulation_data(workspace_dir):
         ax2 = ax.twinx()
         ax2.plot(t, df['max_plastic_strain'].values, color='#2E7D32', ls='--', linewidth=1.8, label='Max Plastic Strain $\\varepsilon_p$')
         ax2.set_ylabel("Equivalent Plastic Strain [-]", color='#2E7D32')
+        ax2.tick_params(axis='y', labelcolor='#2E7D32')
+        ax2.legend(loc='center right', fontsize=8, framealpha=0.9)
+    elif 'rod_max_plastic_strain_zz' in df.columns:
+        ax2 = ax.twinx()
+        ax2.plot(t, np.abs(df['rod_max_plastic_strain_zz'].values), color='#2E7D32', ls='--', linewidth=1.8, label='Rod Plastic Strain $|\\varepsilon_{p,zz}|$')
+        ax2.set_ylabel("Plastic Strain [-]", color='#2E7D32')
         ax2.tick_params(axis='y', labelcolor='#2E7D32')
         ax2.legend(loc='center right', fontsize=8, framealpha=0.9)
     
