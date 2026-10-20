@@ -380,9 +380,9 @@
     variable = is_deposited
     use_xyzt = true
     block = 'bead'
-    coupled_variables = 'T'
-    expression = 'if(t >= 5.6 & T >= 623.15 & y <= (0.050 + 0.005 * (t - 5.6) + 0.0125), 1.0, 0.0)'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+    coupled_variables = 'T is_deposited'
+    expression = 'if(is_deposited > 0.5, 1.0, if(t >= 5.6 & T >= 623.15 & y <= (0.050 + 0.005 * (t - 5.6) + 0.0125), 1.0, 0.0))'
+    execute_on = 'TIMESTEP_END'
   []
 
   # Instantaneous physical rod height tracking (50mm -> 15mm)

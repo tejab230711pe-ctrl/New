@@ -152,15 +152,26 @@ def postprocess_simulation_data(workspace_dir):
     ax.legend(loc='upper left', fontsize=8, framealpha=0.9)
     add_stage_bands(ax, t_max)
     
-    # ── Panel 3: Axial Load (kN) ─────────────────────────────────────────
+    # ── Panel 3: Axial Load (kN) & Rod Shortening (mm) ───────────────────
     ax = axs[1, 0]
     if 'force_kN' in df.columns:
         ax.plot(t, df['force_kN'].values, color='#0D47A1', linewidth=2.2, label='Axial Force $F_z$')
-        ax.axhline(MACHINE_FORCE_LIMIT_kN, color='red', ls='--', alpha=0.5, label=f'Machine Max ({MACHINE_FORCE_LIMIT_kN} kN)')
+        ax.axhline(MACHINE_FORCE_LIMIT_kN, color='red', ls='--', alpha=0.5, label=f'Force Limit ({MACHINE_FORCE_LIMIT_kN} kN)')
+        ax.set_ylabel("Axial Force [kN]", color='#0D47A1')
+        ax.tick_params(axis='y', labelcolor='#0D47A1')
+
+    if 'rod_height_mm' in df.columns:
+        ax_rod = ax.twinx()
+        ax_rod.plot(t, df['rod_height_mm'].values, color='#059669', linewidth=2.0, ls='-', label='Rod Height $H_{rod}$')
+        if 'consumed_length_mm' in df.columns:
+            ax_rod.plot(t, df['consumed_length_mm'].values, color='#D97706', linewidth=1.5, ls=':', label=r'Consumed $\Delta H$')
+        ax_rod.set_ylabel("Rod Dimension [mm]", color='#059669')
+        ax_rod.tick_params(axis='y', labelcolor='#059669')
+        ax_rod.set_ylim(-2, 58)
+        ax_rod.legend(loc='center right', fontsize=8, framealpha=0.9)
     
     ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Axial Force [kN]")
-    ax.set_title("Normal Servo Load & Safety Verification", fontweight='semibold')
+    ax.set_title("Normal Servo Load & Consumable Rod Shortening (50 → 15 mm)", fontweight='semibold')
     ax.legend(loc='upper left', fontsize=8, framealpha=0.9)
     add_stage_bands(ax, t_max)
     
