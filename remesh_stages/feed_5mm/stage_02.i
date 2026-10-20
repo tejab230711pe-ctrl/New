@@ -44,90 +44,6 @@
   displacements = 'Ux Uy Uz'
 []
 
-  # Required by displaced-mesh mechanical contact and interface heat transfer.
-  displacements = 'Ux Uy Uz'
-  # 1. Substrate Plate (Block 0) - (nx=16, ny=25, nz=2)
-  [plate_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 16
-    ny = 25
-    nz = 2
-    xmin = -0.060
-    xmax =  0.060
-    ymin =  0.000
-    ymax =  0.300
-    zmin =  0.000
-    zmax =  0.020
-  []
-  [plate_id]
-    type = SubdomainBoundingBoxGenerator
-    input = plate_mesh
-    bottom_left = '-0.060 0.000 0.000'
-    top_right = '0.060 0.300 0.020'
-    block_id = 0
-    block_name = 'plate'
-  []
-
-  # 2. Consumable Tool Rod (Block 1) - (nx=4, ny=4, nz=5)
-  [rod_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 4
-    ny = 4
-    nz = 5
-    xmin = -0.0125
-    xmax =  0.0125
-    ymin =  0.0375
-    ymax =  0.0625
-    zmin =  0.025
-    zmax =  0.075
-  []
-  [rod_id]
-    type = SubdomainBoundingBoxGenerator
-    input = rod_mesh
-    bottom_left = '-0.0125 0.0375 0.025'
-    top_right = '0.0125 0.0625 0.075'
-    block_id = 1
-    block_name = 'rod'
-  []
-
-  # 3. Deposited Bead Layer (Block 2) - (nx=4, ny=20, nz=2)
-  [bead_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 4
-    ny = 20
-    nz = 2
-    xmin = -0.0125
-    xmax =  0.0125
-    ymin =  0.050
-    ymax =  0.250
-    zmin =  0.020
-    zmax =  0.023
-  []
-  [bead_id]
-    type = SubdomainBoundingBoxGenerator
-    input = bead_mesh
-    bottom_left = '-0.0125 0.050 0.020'
-    top_right = '0.0125 0.250 0.023'
-    block_id = 2
-    block_name = 'bead'
-  []
-
-  # Combine all 3 bodies into a unified multi-block simulation mesh
-  [combine]
-    type = CombinerGenerator
-    inputs = 'plate_id rod_id bead_id'
-  []
-
-  # Automatically split and isolate all boundaries by subdomain to prevent collisions
-  [break_boundary]
-    type = BreakBoundaryOnSubdomainGenerator
-    input = combine
-  []
-[]
-
 [Functions]
   # 3D Consumable tool rod motion in Y (dwell at Y=0.050, traverses 0.050 -> 0.250 m at 5 mm/s)
   [rod_motion_y]
@@ -198,13 +114,28 @@
     x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
     y = '12.0e6 13.0e6 14.5e6 15.8e6 16.9e6 17.6e6 18.0e6 19.0e6 20.0e6'
   []
+
+  # Local frame for this re-zoned stage; geometry already contains travel/feed.
+  [rod_stage_translation_y]
+    type = ConstantFunction
+    value = 0.0
+  []
+  [rod_stage_translation_z]
+    type = ConstantFunction
+    value = 0.0
+  []
+  [rod_stage_center_y]
+    type = ConstantFunction
+    value = 0.0339285714286
+  []
 []
 
 [Variables]
   # Temperature field (K)
   [T]
     order = FIRST
-    family = LAGRANGE  []
+    family = LAGRANGE
+  []
   # 3D Mechanical displacement vector fields (m) on substrate plate and tool rod
   [Ux]
     order = FIRST
@@ -275,7 +206,8 @@
   # State variable: 1.0 when element is deposited under hot plasticizing stir conditions, 0.0 if not yet deposited
   [is_deposited]
     order = FIRST
-    family = LAGRANGE  []
+    family = LAGRANGE
+  []
   # Instantaneous physical rod height in mm (50mm -> 15mm)
   [rod_height_mm]
     order = FIRST
@@ -811,8 +743,8 @@
   l_max_its = 200
   nl_max_its = 40
 
-  start_time = 0.0
-  end_time = 48.0
+  start_time = 9.0
+  end_time = 14.0
   dtmin = 1.0e-4
   dtmax = 0.05
 
@@ -830,22 +762,8 @@
 [Outputs]
   exodus = true
   csv = true
-  file_base = afsd_deposition_out
+  file_base = remesh_stages/feed_5mm/stage_02
 []
-  # Local frame for this re-zoned stage; geometry already contains travel/feed.
-  [rod_stage_translation_y]
-    type = ConstantFunction
-    value = 0.0
-  []
-  [rod_stage_translation_z]
-    type = ConstantFunction
-    value = 0.0
-  []
-  [rod_stage_center_y]
-    type = ConstantFunction
-    value = 0.0339285714286
-  []
-
 
 # Generated Exodus-to-remesh transfer. Do not edit by hand.
 [UserObjects]

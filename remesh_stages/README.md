@@ -21,18 +21,21 @@ heat flux.
 The meshes are written in metres, consistent with the SI AA5083 material data
 in the MOOSE input.  The JSON manifest preserves the physical process values
 in mm and s and identifies the previous Exodus result to sample before each
-next stage.
+next stage.  A 0.25 mm initial shoulder interference provides normal contact
+in the displacement-controlled stage model.
 
 ## Trial order
 
 Run only one campaign at a time:
 
-1. `feed_5mm` — 7 stages, mesh/contact validation;
-2. `feed_2.5mm` — 14 stages, convergence refinement; and
-3. `feed_1mm` — 35 stages, final discretization.
+1. `feed_5mm` — 4 s dwell plus 7 stages, mesh/contact validation;
+2. `feed_2.5mm` — 4 s dwell plus 14 stages, convergence refinement; and
+3. `feed_1mm` — 4 s dwell plus 35 stages, final discretization.
 
 Do not use a normal MOOSE restart after a topology change: it can only restart
-on the identical mesh.  The stage driver must interpolate `T`, `Ux`, `Uy`,
-`Uz`, and the deposition state from the preceding Exodus result.  Plastic
-history variables require a dedicated state-transfer object before results can
-be treated as predictive; they must not silently reset at a remesh boundary.
+on the identical mesh.  The stage driver interpolates `T`, `is_deposited`, and
+the scalar/tensor J2 plastic history from the preceding Exodus result. Each
+new mesh is already in its re-zoned geometry, so `Ux`, `Uy`, and `Uz` are
+deliberately reset to zero; interpolating them would apply travel/feed twice
+and invert the mesh. The custom stress-update material rebuilds hardening from
+the imported effective and tensorial plastic strain.

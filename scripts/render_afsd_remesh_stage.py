@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -119,7 +120,7 @@ def render(source: Path, stage: dict, target: Path) -> None:
         end = text.index("  []", start)
         section = text[start:end]
         section = "\n".join(line for line in section.splitlines() if "initial_condition" not in line)
-        text = text[:start] + section + text[end:]
+        text = text[:start] + section + "\n" + text[end:]
     # The physical tool position is already embedded in each stage mesh.  The
     # actuator fields are therefore local zero increments, while friction uses
     # a constant physical tool-centre coordinate for the current stage.
@@ -150,22 +151,28 @@ def render(source: Path, stage: dict, target: Path) -> None:
         needle = "    block = 'workpiece rod'\n  []\n\n  # Multi-inelastic radial return"
         text = text.replace(needle, params + needle, 1)
         text += "\n" + transfer_fragment(Path(previous))
-    text = text.replace("file_base = afsd_coupled_contact", f"file_base = {stage['output_exodus'][:-2]}")
+    text = text.replace("file_base = afsd_deposition_out", f"file_base = {stage['output_exodus'][:-2]}")
+    text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
+    text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
     target.write_text(text, encoding="utf-8")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
-    parser.add_argument("stage", type=int, help="one-based stage index")
+    parser.add_argument("stage", type=int, help="0 for dwell, then one-based feed stage index")
     parser.add_argument("--source", type=Path, default=Path("input/deposition.i"))
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    try:
-        stage = manifest["stages"][args.stage - 1]
-    except IndexError as exc:
-        raise SystemExit(f"stage must be in 1..{len(manifest['stages'])}") from exc
-    target = args.manifest.parent / f"stage_{args.stage:02d}.i"
+    if args.stage == 0:
+        stage = manifest["dwell"]
+        target = args.manifest.parent / "dwell.i"
+    else:
+        try:
+            stage = manifest["stages"][args.stage - 1]
+        except IndexError as exc:
+            raise SystemExit(f"stage must be in 0..{len(manifest['stages'])}") from exc
+        target = args.manifest.parent / f"stage_{args.stage:02d}.i"
     render(args.source.resolve(), stage, target)
     print(target)
 

@@ -44,90 +44,6 @@
   displacements = 'Ux Uy Uz'
 []
 
-  # Required by displaced-mesh mechanical contact and interface heat transfer.
-  displacements = 'Ux Uy Uz'
-  # 1. Substrate Plate (Block 0) - (nx=16, ny=25, nz=2)
-  [plate_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 16
-    ny = 25
-    nz = 2
-    xmin = -0.060
-    xmax =  0.060
-    ymin =  0.000
-    ymax =  0.300
-    zmin =  0.000
-    zmax =  0.020
-  []
-  [plate_id]
-    type = SubdomainBoundingBoxGenerator
-    input = plate_mesh
-    bottom_left = '-0.060 0.000 0.000'
-    top_right = '0.060 0.300 0.020'
-    block_id = 0
-    block_name = 'plate'
-  []
-
-  # 2. Consumable Tool Rod (Block 1) - (nx=4, ny=4, nz=5)
-  [rod_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 4
-    ny = 4
-    nz = 5
-    xmin = -0.0125
-    xmax =  0.0125
-    ymin =  0.0375
-    ymax =  0.0625
-    zmin =  0.025
-    zmax =  0.075
-  []
-  [rod_id]
-    type = SubdomainBoundingBoxGenerator
-    input = rod_mesh
-    bottom_left = '-0.0125 0.0375 0.025'
-    top_right = '0.0125 0.0625 0.075'
-    block_id = 1
-    block_name = 'rod'
-  []
-
-  # 3. Deposited Bead Layer (Block 2) - (nx=4, ny=20, nz=2)
-  [bead_mesh]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = 4
-    ny = 20
-    nz = 2
-    xmin = -0.0125
-    xmax =  0.0125
-    ymin =  0.050
-    ymax =  0.250
-    zmin =  0.020
-    zmax =  0.023
-  []
-  [bead_id]
-    type = SubdomainBoundingBoxGenerator
-    input = bead_mesh
-    bottom_left = '-0.0125 0.050 0.020'
-    top_right = '0.0125 0.250 0.023'
-    block_id = 2
-    block_name = 'bead'
-  []
-
-  # Combine all 3 bodies into a unified multi-block simulation mesh
-  [combine]
-    type = CombinerGenerator
-    inputs = 'plate_id rod_id bead_id'
-  []
-
-  # Automatically split and isolate all boundaries by subdomain to prevent collisions
-  [break_boundary]
-    type = BreakBoundaryOnSubdomainGenerator
-    input = combine
-  []
-[]
-
 [Functions]
   # 3D Consumable tool rod motion in Y (dwell at Y=0.050, traverses 0.050 -> 0.250 m at 5 mm/s)
   [rod_motion_y]
@@ -198,13 +114,28 @@
     x = '0.0 0.02 0.05 0.10 0.20 0.50 1.00 2.00 5.00'
     y = '12.0e6 13.0e6 14.5e6 15.8e6 16.9e6 17.6e6 18.0e6 19.0e6 20.0e6'
   []
+
+  # Local frame for this re-zoned stage; geometry already contains travel/feed.
+  [rod_stage_translation_y]
+    type = ConstantFunction
+    value = 0.0
+  []
+  [rod_stage_translation_z]
+    type = ConstantFunction
+    value = 0.0
+  []
+  [rod_stage_center_y]
+    type = ConstantFunction
+    value = 0.0232142857143
+  []
 []
 
 [Variables]
   # Temperature field (K)
   [T]
     order = FIRST
-    family = LAGRANGE  []
+    family = LAGRANGE
+  []
   # 3D Mechanical displacement vector fields (m) on substrate plate and tool rod
   [Ux]
     order = FIRST
@@ -275,7 +206,8 @@
   # State variable: 1.0 when element is deposited under hot plasticizing stir conditions, 0.0 if not yet deposited
   [is_deposited]
     order = FIRST
-    family = LAGRANGE  []
+    family = LAGRANGE
+  []
   # Instantaneous physical rod height in mm (50mm -> 15mm)
   [rod_height_mm]
     order = FIRST
@@ -541,6 +473,8 @@
     # Exodus fields required to reconstruct J2 hardening in a later remesh
     # stage. The Remesh* material consumes them through SolutionFunctions.
     output_properties = 'effective_plastic_strain hardening_variable plastic_strain'
+    initial_effective_plastic_strain = restart_effective_plastic_strain
+    initial_plastic_strain_functions = 'restart_plastic_strain_xx restart_plastic_strain_yy restart_plastic_strain_zz restart_plastic_strain_xy restart_plastic_strain_yz restart_plastic_strain_zx'
     block = 'workpiece rod'
   []
 
@@ -809,8 +743,8 @@
   l_max_its = 200
   nl_max_its = 40
 
-  start_time = 0.0
-  end_time = 48.0
+  start_time = 4.0
+  end_time = 9.0
   dtmin = 1.0e-4
   dtmax = 0.05
 
@@ -828,19 +762,69 @@
 [Outputs]
   exodus = true
   csv = true
-  file_base = afsd_deposition_out
+  file_base = remesh_stages/feed_5mm/stage_01
 []
-  # Local frame for this re-zoned stage; geometry already contains travel/feed.
-  [rod_stage_translation_y]
-    type = ConstantFunction
-    value = 0.0
-  []
-  [rod_stage_translation_z]
-    type = ConstantFunction
-    value = 0.0
-  []
-  [rod_stage_center_y]
-    type = ConstantFunction
-    value = 0.0232142857143
-  []
 
+# Generated Exodus-to-remesh transfer. Do not edit by hand.
+[UserObjects]
+  [remesh_source]
+    type = SolutionUserObject
+    mesh = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm/dwell.e
+    system_variables = 'T is_deposited effective_plastic_strain plastic_strain_xx plastic_strain_yy plastic_strain_zz plastic_strain_xy plastic_strain_yz plastic_strain_zx'
+    timestep = LATEST
+    execute_on = INITIAL
+  []
+[]
+
+[Functions]
+  [restart_effective_plastic_strain]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = effective_plastic_strain
+  []
+  [restart_plastic_strain_xx]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_xx
+  []
+  [restart_plastic_strain_yy]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_yy
+  []
+  [restart_plastic_strain_zz]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_zz
+  []
+  [restart_plastic_strain_xy]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_xy
+  []
+  [restart_plastic_strain_yz]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_yz
+  []
+  [restart_plastic_strain_zx]
+    type = SolutionFunction
+    solution = remesh_source
+    from_variable = plastic_strain_zx
+  []
+[]
+
+[ICs]
+  [restart_T]
+    type = SolutionIC
+    solution_uo = remesh_source
+    variable = T
+    from_variable = T
+  []
+  [restart_is_deposited]
+    type = SolutionIC
+    solution_uo = remesh_source
+    variable = is_deposited
+    from_variable = is_deposited
+  []
+[]

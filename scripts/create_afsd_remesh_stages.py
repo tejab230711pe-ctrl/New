@@ -91,6 +91,23 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
     return stages
 
 
+def dwell_stage() -> Stage:
+    """Stationary 4 s shoulder dwell before any rod consumption."""
+    return Stage(
+        index=0,
+        feed_start_mm=0.0,
+        feed_end_mm=0.0,
+        time_start_s=0.0,
+        time_end_s=DWELL_S,
+        tool_center_y_mm=ROD_RADIUS_MM,
+        bead_length_mm=0.0,
+        bead_height_mm=0.0,
+        rod_height_mm=ROD_LENGTH_MM,
+        feed_volume_mm3=0.0,
+        bead_volume_mm3=0.0,
+    )
+
+
 def geo_text(stage: Stage) -> str:
     """A non-overlapping stage geometry in metres for Gmsh/OpenCASCADE."""
     y_tool = stage.tool_center_y_mm * MM
@@ -101,9 +118,9 @@ def geo_text(stage: Stage) -> str:
         'SetFactory("OpenCASCADE");',
         '// AA5083 AFSD remesh stage; coordinates are SI metres.',
         f'Box(1) = {{{-PLATE_LX_MM*MM/2}, 0, 0, {PLATE_LX_MM*MM}, {PLATE_LY_MM*MM}, {PLATE_LZ_MM*MM}}};',
-        f'Cylinder(2) = {{0, {y_tool}, {rod_base_z}, 0, 0, {rod_top_z-rod_base_z}, {ROD_RADIUS_MM*MM}}};',
     ]
-    volumes = '1, 2'
+    rod_tag = 2
+    workpiece = '1'
     if bead_y_end > 1e-9:
         lines.append(
             f'Box(3) = {{{-BEAD_WIDTH_MM*MM/2}, 0, {PLATE_LZ_MM*MM}, '
@@ -114,12 +131,20 @@ def geo_text(stage: Stage) -> str:
         # that a separate plate/bead mesh would otherwise create.
         lines.append('workpiece[] = BooleanFragments{ Volume{1, 3}; Delete; }{};')
         lines.append('Coherence;')
-        volumes = 'workpiece[], 2'
+        workpiece = 'workpiece[]'
+        # The Boolean operation may reuse low entity tags.  Create the rod
+        # afterwards with a high, explicit tag to keep physical IDs stable.
+        rod_tag = 10
+    lines.append(
+        f'Cylinder({rod_tag}) = {{0, {y_tool}, {rod_base_z}, 0, 0, '
+        f'{rod_top_z-rod_base_z}, {ROD_RADIUS_MM*MM}}};'
+    )
+    volumes = f'{workpiece}, {rod_tag}'
     lines.extend([
         'Mesh.CharacteristicLengthMin = 0.001;',
         'Mesh.CharacteristicLengthMax = 0.0025;',
-        f'Physical Volume("workpiece") = {{{volumes.split(",")[0]}}};',
-        f'Physical Volume("rod") = {{2}};',
+        f'Physical Volume("workpiece") = {{{workpiece}}};',
+        f'Physical Volume("rod") = {{{rod_tag}}};',
     ])
     lines.extend([
         '// The named surfaces below are consumed by the stage input deck.',
@@ -154,6 +179,19 @@ def main() -> None:
         'field_transfer': ['T', 'plastic_strain', 'effective_plastic_strain', 'is_deposited'],
         'stages': [],
     }
+    dwell = dwell_stage()
+    dwell_geo = root / 'dwell.geo'
+    dwell_msh = root / 'dwell.msh'
+    dwell_geo.write_text(geo_text(dwell), encoding='utf-8')
+    if args.run_gmsh:
+        subprocess.run(['gmsh', '-3', str(dwell_geo), '-format', 'msh2', '-o', str(dwell_msh)], check=True)
+    manifest['dwell'] = {
+        **asdict(dwell),
+        'geometry': str(dwell_geo),
+        'mesh': str(dwell_msh),
+        'previous_exodus': None,
+        'output_exodus': str(root / 'dwell.e'),
+    }
     for stage in stages:
         stem = f'stage_{stage.index:02d}'
         geo = root / f'{stem}.geo'
@@ -165,7 +203,7 @@ def main() -> None:
         entry.update({
             'geometry': str(geo),
             'mesh': str(msh),
-            'previous_exodus': None if stage.index == 1 else str(root / f'stage_{stage.index-1:02d}.e'),
+            'previous_exodus': str(root / 'dwell.e') if stage.index == 1 else str(root / f'stage_{stage.index-1:02d}.e'),
             'output_exodus': str(root / f'{stem}.e'),
         })
         manifest['stages'].append(entry)
