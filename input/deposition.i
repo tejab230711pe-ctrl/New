@@ -38,6 +38,8 @@
 # ==============================================================================
 
 [Mesh]
+  # Required by displaced-mesh mechanical contact and interface heat transfer.
+  displacements = 'Ux Uy Uz'
   # 1. Substrate Plate (Block 0) - (nx=16, ny=25, nz=2)
   [plate_mesh]
     type = GeneratedMeshGenerator
@@ -564,6 +566,19 @@
   []
 []
 
+# Bidirectional thermal contact transfers the mechanically generated friction
+# heat from the rod into the substrate across the same moving interface.
+[ThermalContact]
+  [rod_plate]
+    type = GapHeatTransfer
+    variable = T
+    primary = front_to_plate
+    secondary = back_to_rod
+    displacements = 'Ux Uy Uz'
+    gap_conductance = 1.0e8
+  []
+[]
+
 [BCs]
   # Fixed displacement at base of the backing plate (clamped to steel anvil table at z = 0)
   [fix_bottom_x]
@@ -648,8 +663,8 @@
   []
 
   # q = eta * mu(T) * solved_contact_pressure * omega * radius.
-  # This is applied to the secondary contact surface; its 0.5 partition
-  # reserves the complementary heat for the substrate/contact-conduction model.
+  # This is injected at the secondary contact surface and ThermalContact
+  # transfers it bidirectionally into the substrate.
   [rod_friction_heat]
     type = ContactFrictionHeatFlux
     variable = T
@@ -659,7 +674,7 @@
     material_props = aa5083_properties
     rpm = 1200
     tool_center_y = rod_motion_y
-    heat_partition = 0.5
+    heat_partition = 1.0
   []
 []
 
