@@ -530,12 +530,15 @@
 
   # Temperature-dependent radial return J2 plasticity for AA5083
   [temp_dep_hardening]
-    type = TemperatureDependentHardeningStressUpdate
+    type = RemeshTemperatureDependentHardeningStressUpdate
     hardening_functions = 'hf_293K hf_450K hf_623K hf_723K hf_798K hf_850K'
     temperatures = '293.15 450.0 623.15 723.15 798.15 850.0'
     temperature = T
     relative_tolerance = 1.0e-8
     absolute_tolerance = 1.0e-4
+    # Exodus fields required to reconstruct J2 hardening in a later remesh
+    # stage. The Remesh* material consumes them through SolutionFunctions.
+    output_properties = 'effective_plastic_strain hardening_variable plastic_strain'
     block = 'plate rod'
   []
 

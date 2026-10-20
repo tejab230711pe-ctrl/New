@@ -13,6 +13,7 @@ set(SRC_FILES
     src/FrictionHeatSource.C
     src/NormalServo.C
     src/MushyFraction.C
+    src/RemeshTemperatureDependentHardeningStressUpdate.C
     src/RotatingDiskDepositionApp.C
 )
 
