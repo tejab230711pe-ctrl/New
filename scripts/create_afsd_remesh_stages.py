@@ -112,7 +112,7 @@ def dwell_stage() -> Stage:
     )
 
 
-def geo_text(stage: Stage) -> str:
+def geo_text(stage: Stage, mesh_min_mm: float, mesh_max_mm: float) -> str:
     """A non-overlapping stage geometry in metres for Gmsh/OpenCASCADE."""
     y_tool = stage.tool_center_y_mm * MM
     rod_base_z = (PLATE_LZ_MM - INITIAL_INTERFERENCE_MM) * MM
@@ -145,8 +145,8 @@ def geo_text(stage: Stage) -> str:
     )
     volumes = f'{workpiece}, {rod_tag}'
     lines.extend([
-        'Mesh.CharacteristicLengthMin = 0.001;',
-        'Mesh.CharacteristicLengthMax = 0.0025;',
+        f'Mesh.CharacteristicLengthMin = {mesh_min_mm * MM};',
+        f'Mesh.CharacteristicLengthMax = {mesh_max_mm * MM};',
         f'Physical Volume("workpiece") = {{{workpiece}}};',
         f'Physical Volume("rod") = {{{rod_tag}}};',
     ])
@@ -167,7 +167,11 @@ def main() -> None:
     parser.add_argument('--feed-increment-mm', type=float, required=True, choices=(1.0, 2.5, 5.0))
     parser.add_argument('--output-dir', type=Path, default=Path('remesh_stages'))
     parser.add_argument('--run-gmsh', action='store_true')
+    parser.add_argument('--mesh-min-mm', type=float, default=1.0)
+    parser.add_argument('--mesh-max-mm', type=float, default=2.5)
     args = parser.parse_args()
+    if args.mesh_min_mm <= 0 or args.mesh_max_mm < args.mesh_min_mm:
+        parser.error('mesh sizes must be positive and mesh-max-mm >= mesh-min-mm')
 
     label = f"feed_{args.feed_increment_mm:g}mm"
     root = args.output_dir / label
@@ -178,6 +182,8 @@ def main() -> None:
         'process_units': 'mm and s',
         'flash_fraction': FLASH_FRACTION,
         'initial_interference_mm': INITIAL_INTERFERENCE_MM,
+        'mesh_min_mm': args.mesh_min_mm,
+        'mesh_max_mm': args.mesh_max_mm,
         'dwell_s': DWELL_S,
         'deposition_s': DEPOSITION_S,
         'field_transfer': ['T', 'plastic_strain', 'effective_plastic_strain', 'is_deposited'],
@@ -186,7 +192,7 @@ def main() -> None:
     dwell = dwell_stage()
     dwell_geo = root / 'dwell.geo'
     dwell_msh = root / 'dwell.msh'
-    dwell_geo.write_text(geo_text(dwell), encoding='utf-8')
+    dwell_geo.write_text(geo_text(dwell, args.mesh_min_mm, args.mesh_max_mm), encoding='utf-8')
     if args.run_gmsh:
         subprocess.run(['gmsh', '-3', str(dwell_geo), '-format', 'msh2', '-o', str(dwell_msh)], check=True)
     manifest['dwell'] = {
@@ -200,7 +206,7 @@ def main() -> None:
         stem = f'stage_{stage.index:02d}'
         geo = root / f'{stem}.geo'
         msh = root / f'{stem}.msh'
-        geo.write_text(geo_text(stage), encoding='utf-8')
+        geo.write_text(geo_text(stage, args.mesh_min_mm, args.mesh_max_mm), encoding='utf-8')
         if args.run_gmsh:
             subprocess.run(['gmsh', '-3', str(geo), '-format', 'msh2', '-o', str(msh)], check=True)
         entry = asdict(stage)

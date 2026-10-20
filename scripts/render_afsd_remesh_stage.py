@@ -84,7 +84,7 @@ def transfer_fragment(previous: Path) -> str:
     ) + "\n"
 
 
-def render(source: Path, stage: dict, target: Path) -> None:
+def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> None:
     text = source.read_text(encoding="utf-8")
     mesh = Path(stage["mesh"]).resolve()
     text = replace_top_level_block(
@@ -154,6 +154,22 @@ def render(source: Path, stage: dict, target: Path) -> None:
     text = text.replace("file_base = afsd_deposition_out", f"file_base = {stage['output_exodus'][:-2]}")
     text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
     text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
+    if low_ram:
+        # Sequential ILU is much less memory hungry than AMG for the first
+        # contact stabilization solve on an 8 GB laptop.
+        text = text.replace("penalty = 1.0e10", "penalty = 1.0e9")
+        text = text.replace("gap_conductance = 1.0e8", "gap_conductance = 1.0e7")
+        text = text.replace(
+            "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
+            "  petsc_options_value = 'hypre boomeramg 200'",
+            "petsc_options_iname = '-ksp_type -pc_type -pc_factor_levels -ksp_gmres_restart'\n"
+            "  petsc_options_value = 'gmres ilu 1 50'",
+        )
+        text = text.replace("line_search = 'none'", "line_search = 'bt'")
+        text = text.replace("l_tol = 1.0e-2", "l_tol = 5.0e-2")
+        text = text.replace("l_max_its = 200", "l_max_its = 80")
+        text = text.replace("dtmax = 0.05", "dtmax = 0.025")
+        text = text.replace("    dt = 0.25", "    dt = 0.025")
     target.write_text(text, encoding="utf-8")
 
 
@@ -162,18 +178,20 @@ def main() -> None:
     parser.add_argument("manifest", type=Path)
     parser.add_argument("stage", type=int, help="0 for dwell, then one-based feed stage index")
     parser.add_argument("--source", type=Path, default=Path("input/deposition.i"))
+    parser.add_argument("--low-ram", action="store_true")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     if args.stage == 0:
         stage = manifest["dwell"]
-        target = args.manifest.parent / "dwell.i"
+        target = args.manifest.parent / ("dwell_low_ram.i" if args.low_ram else "dwell.i")
     else:
         try:
             stage = manifest["stages"][args.stage - 1]
         except IndexError as exc:
             raise SystemExit(f"stage must be in 0..{len(manifest['stages'])}") from exc
-        target = args.manifest.parent / f"stage_{args.stage:02d}.i"
-    render(args.source.resolve(), stage, target)
+        suffix = "_low_ram" if args.low_ram else ""
+        target = args.manifest.parent / f"stage_{args.stage:02d}{suffix}.i"
+    render(args.source.resolve(), stage, target, args.low_ram)
     print(target)
 
 
