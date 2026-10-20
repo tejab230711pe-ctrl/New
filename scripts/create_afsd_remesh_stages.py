@@ -22,6 +22,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
+# The process specification is kept in mm, but MOOSE's existing constitutive
+# data use SI.  Every coordinate written to Gmsh is therefore converted to m.
+MM = 1.0e-3
 ROD_RADIUS_MM = 12.5
 ROD_LENGTH_MM = 200.0
 TOTAL_FEED_MM = 35.0
@@ -86,35 +89,39 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
 
 
 def geo_text(stage: Stage) -> str:
-    """A non-overlapping stage geometry in millimetres for Gmsh/OpenCASCADE."""
-    y_tool = stage.tool_center_y_mm
-    rod_base_z = PLATE_LZ_MM
-    rod_top_z = rod_base_z + stage.rod_height_mm
-    bead_y_end = max(0.0, y_tool - ROD_RADIUS_MM)
+    """A non-overlapping stage geometry in metres for Gmsh/OpenCASCADE."""
+    y_tool = stage.tool_center_y_mm * MM
+    rod_base_z = PLATE_LZ_MM * MM
+    rod_top_z = rod_base_z + stage.rod_height_mm * MM
+    bead_y_end = max(0.0, y_tool - ROD_RADIUS_MM * MM)
     lines = [
         'SetFactory("OpenCASCADE");',
-        '// AA5083 AFSD remesh stage; coordinates are mm.',
-        f'Box(1) = {{{-PLATE_LX_MM/2}, 0, 0, {PLATE_LX_MM}, {PLATE_LY_MM}, {PLATE_LZ_MM}}};',
-        f'Cylinder(2) = {{0, {y_tool}, {rod_base_z}, 0, 0, {rod_top_z-rod_base_z}, {ROD_RADIUS_MM}}};',
+        '// AA5083 AFSD remesh stage; coordinates are SI metres.',
+        f'Box(1) = {{{-PLATE_LX_MM*MM/2}, 0, 0, {PLATE_LX_MM*MM}, {PLATE_LY_MM*MM}, {PLATE_LZ_MM*MM}}};',
+        f'Cylinder(2) = {{0, {y_tool}, {rod_base_z}, 0, 0, {rod_top_z-rod_base_z}, {ROD_RADIUS_MM*MM}}};',
     ]
     volumes = '1, 2'
     if bead_y_end > 1e-9:
         lines.append(
-            f'Box(3) = {{{-BEAD_WIDTH_MM/2}, 0, {PLATE_LZ_MM}, '
-            f'{BEAD_WIDTH_MM}, {bead_y_end}, {stage.bead_height_mm}}};'
+            f'Box(3) = {{{-BEAD_WIDTH_MM*MM/2}, 0, {PLATE_LZ_MM*MM}, '
+            f'{BEAD_WIDTH_MM*MM}, {bead_y_end}, {stage.bead_height_mm*MM}}};'
         )
-        volumes = '1, 2, 3'
+        # The deposited material is bonded to the substrate.  BooleanFragments
+        # makes this interface conformal and eliminates the duplicate nodes
+        # that a separate plate/bead mesh would otherwise create.
+        lines.append('workpiece[] = BooleanFragments{ Volume{1, 3}; Delete; }{};')
+        lines.append('Coherence;')
+        volumes = 'workpiece[], 2'
     lines.extend([
-        'Mesh.CharacteristicLengthMin = 1.0;',
-        'Mesh.CharacteristicLengthMax = 2.5;',
-        f'Physical Volume("plate") = {{1}};',
+        'Mesh.CharacteristicLengthMin = 0.001;',
+        'Mesh.CharacteristicLengthMax = 0.0025;',
+        f'Physical Volume("workpiece") = {{{volumes.split(",")[0]}}};',
         f'Physical Volume("rod") = {{2}};',
     ])
-    if bead_y_end > 1e-9:
-        lines.append('Physical Volume("bead") = {3};')
     lines.extend([
-        '// Contact and thermal-contact surfaces are identified after import by',
-        '// geometric bounding boxes; do not merge volumes at this stage.',
+        '// The named surfaces below are consumed by the stage input deck.',
+        f'Physical Surface("rod_bottom") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-1e-8}, {y_tool-ROD_RADIUS_MM*MM-1e-8}, {rod_base_z-1e-8}, {ROD_RADIUS_MM*MM+1e-8}, {y_tool+ROD_RADIUS_MM*MM+1e-8}, {rod_base_z+1e-8}}} }};',
+        f'Physical Surface("workpiece_base") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-1e-8}, {-1e-8}, {-1e-8}, {PLATE_LX_MM*MM/2+1e-8}, {PLATE_LY_MM*MM+1e-8}, {1e-8}}} }};',
         f'// Active volumes: {volumes}',
         '',
     ])
@@ -133,7 +140,8 @@ def main() -> None:
     root.mkdir(parents=True, exist_ok=True)
     stages = stage_schedule(args.feed_increment_mm)
     manifest = {
-        'units': 'mm, s, kg assumed by MOOSE material conversion layer',
+        'mesh_units': 'm (SI; compatible with the MOOSE AA5083 model)',
+        'process_units': 'mm and s',
         'flash_fraction': FLASH_FRACTION,
         'dwell_s': DWELL_S,
         'deposition_s': DEPOSITION_S,
