@@ -80,7 +80,7 @@ def compute_frame_states(num_frames=160):
 
     states = []
     plate_w, plate_l, plate_t = 120.0, 300.0, 20.0
-    rod_r, rod_h = 12.5, 60.0
+    rod_r, rod_h = 12.5, 50.0
 
     cumulative_mushroom = 0.0
     for i, t in enumerate(t_eval):
@@ -137,8 +137,6 @@ def compute_frame_states(num_frames=160):
         torque_nm = (power_val * 1000.0 / omega) if (rpm_val > 10.0 and is_contact) else 0.0
 
         # Physical Deformation Ability Criterion (T >= 450 K onset, full at 540 K):
-        # Material remains rigid / undeformed until thermal softening activates.
-        # Once deformation ability is reached, rotational resistance + axial plunge force material outward!
         def_ability = compute_material_deformation_ability(temp_val)
 
         f_drive = min(1.0, force_val / 5.0)
@@ -166,20 +164,24 @@ def compute_frame_states(num_frames=160):
             torque_state = "UNLOADED (Spindle Retracted)"
 
         # Consumable Rod Shortening Dynamics (Continuous Axial Consumption into Bead Layer)
-        # Initial rod length = 60.0 mm
+        # Initial rod length = 50.0 mm
         # Dwell: initial plastic burn-off creates mushroom base (-3.0 mm)
         # Traverse: continuous mass-conserving consumption (-32.0 mm across 200 mm bead)
-        # Retraction: leaves remaining 25.0 mm shortened stub
+        # Retraction: leaves remaining 15.0 mm shortened stub
         if t <= 1.6:
-            current_rod_h = 60.0
+            current_rod_h = 50.0
+            feed_rate = 0.0
         elif t <= 5.6:
-            current_rod_h = 60.0 - 3.0 * ((t - 1.6) / 4.0)
+            current_rod_h = 50.0 - 3.0 * ((t - 1.6) / 4.0)
+            feed_rate = 45.0
         elif t <= 45.6:
-            current_rod_h = 57.0 - 32.0 * ((t - 5.6) / 40.0)
+            current_rod_h = 47.0 - 32.0 * ((t - 5.6) / 40.0)
+            feed_rate = 48.0
         else:
-            current_rod_h = 25.0
+            current_rod_h = 15.0
+            feed_rate = 0.0
         
-        consumed_len = 60.0 - current_rod_h
+        consumed_len = 50.0 - current_rod_h
 
         # Solid-State Layer Formation Criterion: 0.6 to 0.9 T_solidus (350 °C to 525 °C / 623 K to 798 K)
         # Layer forms and solidifies ONLY when material is within 350 - 525 °C!

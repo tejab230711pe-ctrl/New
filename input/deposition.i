@@ -139,6 +139,17 @@
     type = ParsedFunction
     expression = 'if(t >= 1.6 & t < 5.6, 45.0, if(t >= 5.6 & t < 45.6, 48.0, 0.0))'
   []
+  # Kinematic ALE Mesh Motion for Consumable Tool Rod:
+  # - Bottom tip (z=0.025): plunges 5mm, dwells/traverses at z=20mm, retracts 5mm
+  # - Top feed end (z=0.075): feeds downward by 35mm, compressing the rod from 50mm to 15mm
+  # - Across rod height (0.025 <= z <= 0.075): smooth linear ALE mesh compression with strictly positive Jacobians
+  [rod_motion_z_ale]
+    type = ParsedFunction
+    expression = 'if(t < 1.6, -0.005 * t / 1.6,
+                  if(t < 5.6, -0.005 - ((z - 0.025) / 0.050) * 0.003 * (t - 1.6) / 4.0,
+                  if(t < 45.6, -0.005 - ((z - 0.025) / 0.050) * (0.003 + 0.032 * (t - 5.6) / 40.0),
+                  -0.005 * (1.0 - min(1.0, (t - 45.6)/2.4)) - ((z - 0.025) / 0.050) * 0.035)))'
+  []
 []
 
 [Variables]
@@ -481,19 +492,12 @@
     boundary = 'rod_boundary'
     function = rod_motion_y
   []
-  # Consumable Tool Rod Plunge & Contact Interface Kinematics (at bottom tip z=25mm)
-  [rod_bottom_z_bc]
+  # Kinematic ALE Mesh Motion for Consumable Tool Rod (Axial Height Shortening 50mm -> 15mm)
+  [rod_motion_z_bc]
     type = FunctionDirichletBC
     variable = Uz
-    boundary = 'rod_bottom'
-    function = rod_motion_z_bottom
-  []
-  # Consumable Tool Rod Axial Feeding & Consumption Kinematics (at top feed end z=75mm)
-  [rod_top_z_bc]
-    type = FunctionDirichletBC
-    variable = Uz
-    boundary = 'rod_top'
-    function = rod_motion_z_top
+    boundary = 'rod_boundary'
+    function = rod_motion_z_ale
   []
 
   # Backing plate conductive/convective heat dissipation into steel anvil table
