@@ -5,6 +5,20 @@
   file = ../remesh_stages/feed_5mm/stage_01.msh
 []
 
+[Variables]
+  [mesh_probe]
+    order = FIRST
+    family = LAGRANGE
+  []
+[]
+
+[Kernels]
+  [mesh_probe_diffusion]
+    type = Diffusion
+    variable = mesh_probe
+  []
+[]
+
 [Executioner]
   type = Steady
   solve_type = NEWTON
