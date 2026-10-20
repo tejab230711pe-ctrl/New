@@ -133,10 +133,11 @@
     type = ParsedFunction
     expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.005, if(t < 48.0, -0.005 * (1.0 - (t - 45.6)/2.4), 0.0)))'
   []
-  # Top feed end of consumable rod: continuous downward axial feed reduces rod height from 50mm to 15mm
+  # Top-quill motion for the coupled contact solve. Continuous rod consumption
+  # requires ALE/remeshing; it must not be imposed as solid compression.
   [rod_motion_z_top]
     type = ParsedFunction
-    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 5.6, -0.005 - 0.003 * (t - 1.6) / 4.0, if(t < 45.6, -0.008 - 0.032 * (t - 5.6) / 40.0, -0.040 + 0.005 * min(1.0, (t - 45.6)/2.4))))'
+    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.00525, if(t < 48.0, -0.00525 * (1.0 - (t - 45.6)/2.4), 0.0)))'
   []
   # Instantaneous physical rod height in mm
   [rod_height_func]
@@ -562,7 +563,7 @@
     formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
-    penalty = 1.0e12
+    penalty = 1.0e10
   []
 []
 
@@ -621,16 +622,8 @@
     function = rod_motion_z_top
   []
 
-  # Contact elevation boundary conditions on the BOTTOM tip of the tool rod (z = 0.025)
-  # - Plunges 5mm downward during approach (t < 1.6s) to contact plate at z = 20mm
-  # - Held in contact on the substrate surface throughout dwell & traverse (1.6 <= t < 45.6s)
-  # - Retracts 5mm upward during retraction phase (t >= 45.6s)
-  [rod_bottom_z]
-    type = FunctionDirichletBC
-    variable = Uz
-    boundary = 'back_to_rod'
-    function = rod_motion_z_bottom
-  []
+  # Tip Uz is free: the contact constraint solves it. Prescribing it here as
+  # well over-constrained contact and inverted the plate mesh.
   [rod_bottom_x]
     type = DirichletBC
     variable = Ux
@@ -814,7 +807,7 @@
   start_time = 0.0
   end_time = 48.0
   dtmin = 1.0e-4
-  dtmax = 1.0
+  dtmax = 0.05
 
   [TimeStepper]
     type = IterationAdaptiveDT
