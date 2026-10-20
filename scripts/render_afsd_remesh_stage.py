@@ -127,10 +127,17 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
     text = text.replace("function = rod_motion_y", "function = rod_stage_translation_y")
     text = text.replace("function = rod_motion_z_top", "function = rod_stage_translation_z")
     text = text.replace("tool_center_y = rod_motion_y", "tool_center_y = rod_stage_center_y")
+    z_function = (
+        "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
+        if not low_ram
+        else "  [rod_stage_translation_z]\n    type = ParsedFunction\n"
+             f"    expression = 'if(t < {stage['time_start_s'] + 1.0}, -2.0e-5 * (t - {stage['time_start_s']}), -2.0e-5)'\n"
+             "  []\n"
+    )
     function_insertion = (
         "\n  # Local frame for this re-zoned stage; geometry already contains travel/feed.\n"
         "  [rod_stage_translation_y]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
-        "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
+        + z_function
         "  [rod_stage_center_y]\n    type = ConstantFunction\n"
         f"    value = {stage['tool_center_y_mm'] * 1.0e-3:.12g}\n  []\n"
     )
@@ -155,19 +162,19 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
     text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
     text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
     if low_ram:
-        # Sequential ILU is much less memory hungry than AMG for the first
-        # contact stabilization solve on an 8 GB laptop.
+        # A small sequential direct solve is more robust than AMG/ILU for the
+        # first penalty-contact increment and remains within the launcher cap.
         text = text.replace("penalty = 1.0e10", "penalty = 1.0e9")
         text = text.replace("gap_conductance = 1.0e8", "gap_conductance = 1.0e7")
         text = text.replace(
             "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
             "  petsc_options_value = 'hypre boomeramg 200'",
-            "petsc_options_iname = '-ksp_type -pc_type -pc_factor_levels -ksp_gmres_restart'\n"
-            "  petsc_options_value = 'gmres ilu 1 50'",
+            "petsc_options_iname = '-ksp_type -pc_type'\n"
+            "  petsc_options_value = 'preonly lu'",
         )
         text = text.replace("line_search = 'none'", "line_search = 'bt'")
         text = text.replace("l_tol = 1.0e-2", "l_tol = 5.0e-2")
-        text = text.replace("l_max_its = 200", "l_max_its = 80")
+        text = text.replace("l_max_its = 200", "l_max_its = 1")
         text = text.replace("dtmax = 0.05", "dtmax = 0.025")
         text = text.replace("    dt = 0.25", "    dt = 0.025")
     target.write_text(text, encoding="utf-8")
