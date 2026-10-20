@@ -1,0 +1,2403 @@
+verbosity = 1;
+
+
+real rpm       = 1200.0;
+// Deposition activation threshold: 3 MPa is a calibrated process gate, not
+// an AA5083 yield stress or a universal contact-pressure limit.  The local
+// transfer fraction ramps linearly from zero at 0 MPa to one at 3 MPa.
+// Calibrate it to the first measured, stable deposited track at this tool,
+// rpm, feed, and plate condition; it gives about 1.47 kN over a 12.5 mm disk.
+real criticalContactPressure = 3e6;
+real contactPressureTolerance = 1.0e4;
+real initialRodPlateGap = 0.0030;
+// Machine coordinates are defined with Z=0 at plate contact.  Negative Z is
+// above the plate, so the detailed approach is Z-3 to Z0.
+real gcodeStartZ = -initialRodPlateGap;
+real gcodeContactZ = 0.0;
+
+real gcodeDwellZ = gcodeContactZ;
+real gcodeApproachZ = gcodeContactZ;
+
+// After reaching Z=0 contact, positive machine Z is a downward, compliant
+// process feed.  It supplies the 35 mm commanded shortening that drives rod
+// deformation and deposition during the simultaneous Y traverse.
+real gcodeTraverseZ = 0.035;
+real gcodeRetractZ = gcodeStartZ;
+real gcodeTraverseY = 0.050;
+real gcodeFeedProcess = 0.075/60.0;
+real gcodeFeedRetract = 0.100/60.0;
+real gcodeDwellTime = 4.0;
+real machineAxialStiffness = 2.0e8;     
+// Normal-contact penalty stiffness: p_n = k_p max(0,-g_n).  Retain a value
+// high enough to limit interpenetration while the 15 kN machine ceiling
+// protects the displacement-controlled experiment.
+real contactPenaltyStiffness = 1.0e9;    // Pa/m
+real plasticComplianceGain = 8.0;        // compliance growth with plasticization
+// The machine is position commanded, but its normal axis responds compliantly
+// to reaction force.  This produces a variable predicted Fz, subject to the
+// explicit machine-protection ceiling below.
+real normalServoBaseStiffness = 5.0e5;   // N/m
+real normalServoForceScale = 5.0e3;      // N; stiffness softens above this load
+real normalServoUpdateRelax = 0.25;      // stable update of compliant Z response
+real dwellPreloadForce = 1.0e3;          // N, ramped after first Z=0 contact
+real dwellPreloadRampTime = 0.50;        // s
+// Z remains the command variable.  This is a machine-protection ceiling on
+// solved Fz, not a normal operating-force target.
+real axialForceMax = 15.0e3;
+real rpmMax    = 2000.0;
+real motorPowerMax = 22.0e3;
+real torqueTransferEfficiency = 0.55;
+real spindleFrictionPowerFraction = 0.80;
+real rodRadius = 0.0125;
+real loadedContactRadiusMin = 0.0080;
+real rodHeight = 0.300;
+real rodStopHeightFraction = 0.20;
+// Set this to 0 in the constant-friction comparison case.
+int useVariableMu = 1;
+real muReference = 0.70;
+real muMin     = 0.25;
+real muMax     = 0.70;
+// ANSYS-style FWGT equivalent.  With the default 0, use the physically based
+// effusivity split below; set to 1 to impose the calibrated fixed plate share.
+int useFixedFrictionHeatPartition = 0;
+real frictionHeatPlateWeight = 0.50;
+real plateHeatPartition = 0.50;
+
+
+
+real contactHeatRadius = rodRadius;
+real contactEdgeWidth = 0.003;
+real penetrationDwellTime = gcodeDwellTime;
+real travelV   = gcodeFeedProcess;
+real travelVx  = 0.0;
+real travelVy  = travelV;
+real travelSpeed = max(1.e-12, sqrt(travelVx^2 + travelVy^2));
+real travelDirX = travelVx/travelSpeed;
+real travelDirY = travelVy/travelSpeed;
+
+
+// AA5083 values at 20 C, linearly interpolated from the supplied -20/80 C data.
+real rhoRT     = 2661.42;
+real cpRT      = 948.14;
+real kRT       = 116.58;
+real alphaRT   = 23.8e-6;
+real ERT       = 70.3e9;
+real mechanicalModulusFloor = 1.0e6;
+real yieldRT   = 145.0e6;
+real nuRT      = 0.33;
+real hConv     = 25.0;
+real emiss     = 0.20;
+real Tair      = 293.15;
+real sigmaSB   = 5.670374419e-8;
+
+
+real Tsol   = 864.15; // 591 C, AA5083-O solidus
+real Tliq   = 911.15; // 638 C, AA5083-O liquidus
+real TplasticLow  = 273.15 + 0.6*(Tsol-273.15);
+real TplasticHigh = 273.15 + 0.9*(Tsol-273.15);
+real Lf     = 387000.0;
+// The requested effective latent-heat/plasticization interval is 0.6--0.9
+// of solidus temperature.  It is a model regularization interval, not the
+// measured solidus--liquidus range.
+real dTmush = TplasticHigh-TplasticLow;
+// Keep heat input within the requested plasticization interval: begin
+// reducing at 0.6*Tsolidus and taper continuously through the full band.
+real TcontrolHardLimit = TplasticHigh;
+real TcontrolTarget    = TplasticLow;
+
+func real interpAA5083Thermal(real Tk,
+                              real vm20, real v80, real v180, real v280,
+                              real v380, real v480, real v580)
+{
+    real Tc = Tk-273.15;
+    if (Tc <= -20.0) return vm20;
+    if (Tc <= 80.0)  return vm20+(v80-vm20)*(Tc+20.0)/100.0;
+    if (Tc <= 180.0) return v80+(v180-v80)*(Tc-80.0)/100.0;
+    if (Tc <= 280.0) return v180+(v280-v180)*(Tc-180.0)/100.0;
+    if (Tc <= 380.0) return v280+(v380-v280)*(Tc-280.0)/100.0;
+    if (Tc <= 480.0) return v380+(v480-v380)*(Tc-380.0)/100.0;
+    if (Tc <= 580.0) return v480+(v580-v480)*(Tc-480.0)/100.0;
+    // Continue the final measured slope only to the liquidus reference.
+    real TcCapped = min(Tc, Tliq-273.15);
+    return max(0.0, v580+(v580-v480)*(TcCapped-580.0)/100.0);
+}
+
+func real rhoOfT(real Tk) {
+    return interpAA5083Thermal(Tk, 2673.9, 2642.7, 2629.4, 2611.5,
+                                2589.3, 2567.0, 2549.2);
+}
+func real kOfT(real Tk) {
+    return interpAA5083Thermal(Tk, 112.5, 122.7, 131.6, 142.3,
+                                152.5, 159.5, 177.2);
+}
+func real cpOfT(real Tk) {
+    return interpAA5083Thermal(Tk, 924.1, 984.2, 1039.6, 1081.2,
+                                1136.6, 1178.2, 1261.4);
+}
+func real alphaOfT(real Tk) {
+    return 23.8e-6;
+}
+func real EOfT(real Tk) {
+    return 70.3e9;
+}
+func real yieldOfT(real Tk) {
+    real Tc = Tk-273.15;
+    // AA5083-O tensile yield-strength data supplied by the user (MPa).
+    if (Tc <= -195.0) return 165.0e6;
+    if (Tc <= -80.0)  return 165.0e6+(145.0e6-165.0e6)*(Tc+195.0)/115.0;
+    if (Tc <= -30.0)  return 145.0e6;
+    if (Tc <= 25.0)   return 145.0e6;
+    if (Tc <= 100.0)  return 145.0e6;
+    if (Tc <= 150.0)  return 145.0e6+(130.0e6-145.0e6)*(Tc-100.0)/50.0;
+    if (Tc <= 205.0)  return 130.0e6+(115.0e6-130.0e6)*(Tc-150.0)/55.0;
+    if (Tc <= 260.0)  return 115.0e6+(75.0e6-115.0e6)*(Tc-205.0)/55.0;
+    if (Tc <= 315.0)  return 75.0e6+(50.0e6-75.0e6)*(Tc-260.0)/55.0;
+    if (Tc <= 370.0)  return 50.0e6+(29.0e6-50.0e6)*(Tc-315.0)/55.0;
+    return 29.0e6;
+}
+func real nuOfT(real Tk) {
+    return 0.33;
+}
+
+func real mushyFraction(real Tk){
+    if (Tk <= TplasticLow) return 0.0;
+    if (Tk >= TplasticHigh) return 1.0;
+    return (Tk-TplasticLow)/dTmush;
+}
+
+func real dmushyFractiondT(real Tk){
+    if (Tk <= TplasticLow || Tk >= TplasticHigh) return 0.0;
+    return 1.0 / dTmush;
+}
+
+
+func real kSolid(real Tk){
+    return kOfT(Tk);
+}
+real kLiquid = 177.2;
+
+func real cpSolid(real Tk){
+    return cpOfT(Tk);
+}
+real cpLiquid = 1261.4;
+
+
+func real kEff(real Tk){
+    real fl = mushyFraction(Tk);
+    return (1.0 - fl)*kSolid(Tk) + fl*kLiquid;
+}
+func real cpEff(real Tk){
+    real fl    = mushyFraction(Tk);
+    real base  = (1.0 - fl)*cpSolid(Tk) + fl*cpLiquid;
+    real spike = Lf * dmushyFractiondT(Tk);
+
+    return base + spike;
+}
+
+
+real jcA       = 255.21e6;
+real jcB       = 735.80e6;
+real jcN       = 1.075;
+real epsPlastic0 = 1.0e-4;
+real epsDot0   = 1.0;
+real jcC       = 0.0028;
+real jcM       = 0.654;
+real TroomJC   = Tair;
+real betaTaylor = 0.90;
+real Tmelt     = Tliq;
+
+func real muOfT(real Tk) {
+    if (!useVariableMu) return muReference;
+    real theta = min(1.0, max(0.0, (Tk-Tair)/max(1.0, Tsol-Tair)));
+    return min(muMax, max(muMin, muReference-(muReference-muMin)*theta));
+}
+func real softeningFactor(real Tk) {
+    real tStar = min(1.0, max(0.0,
+                     (Tk-TroomJC)/max(1.0, Tmelt-TroomJC)));
+    return max(0.0, 1.0-tStar^jcM);
+}
+func real jcThermalFactor(real Tk) {
+    return softeningFactor(Tk);
+}
+func real jcRateFactor(real epsRate) {
+    // Standard Johnson--Cook rate term with only a zero-rate numerical guard.
+    return 1.0 + jcC*log(max(epsRate, 1.e-12)/epsDot0);
+}
+func real jcFlowStress(real epsp, real epsRate, real Tk) {
+    return (jcA + jcB*max(0.0, epsp)^jcN)
+          *jcRateFactor(epsRate)
+          *jcThermalFactor(Tk);
+}
+func real heatGovernor(real Tk) {
+    if (Tk <= TcontrolTarget) return 1.0;
+    if (Tk >= TcontrolHardLimit) return 0.0;
+    return (TcontrolHardLimit-Tk)
+         / max(1.0, TcontrolHardLimit-TcontrolTarget);
+}
+// Full Coulomb rotating-disk torque.  This is the requested friction-only
+// model: no sticking/sliding switch or relative-velocity multiplier is used.
+func real diskFrictionTorque(real mu, real pMean, real radiusNow) {
+    return max(0.0, mu)*max(0.0, pMean)
+         * 2.0*pi*max(0.0, radiusNow)^3/3.0;
+}
+// Angular speed converts torque to mechanical power (W).  The efficiency is
+// a heat-conversion calibration factor, not part of the mechanical torque.
+func real diskFrictionPower(real efficiency, real mu, real pMean,
+                            real omegaNow, real radiusNow) {
+    return max(0.0, efficiency)*diskFrictionTorque(mu, pMean, radiusNow)
+         * max(0.0, omegaNow);
+}
+real plateLx   = 0.250;
+real plateLy   = 0.300;
+real plateT    = 0.020;
+// Machine datum: rod-tip home is 300 mm above the base-plate top surface.
+// The detailed thermo-mechanical model begins at the final 3 mm approach;
+// the long non-contact home-to-approach travel is intentionally not meshed.
+real rodHomeTipZ = plateT + rodHeight;
+real simulatedApproachStartTipZ = plateT + initialRodPlateGap;
+real gcodeHomeZ = -(rodHomeTipZ-plateT);
+real spatialCoordinateTolerance = 0.0005;
+real plateCompactionFraction = 0.10;
+real plateCompactionMax = 0.20*plateT;
+real depositW  = 2.0*rodRadius;
+real depositL  = gcodeTraverseY;
+real activeDepth = plateT;
+real heatSourceDepth = min(activeDepth, 0.0030);
+real topActivationDepth = min(activeDepth, 0.0030);
+real plasticHeatRadius = contactHeatRadius;
+real plasticHeatDepth = min(plateT, 0.010);
+real plasticShearThickness = 0.010;
+real rodPlasticDepth = rodHeight;
+
+
+real etaMin = 2.0e3;
+real etaMax = 2.0e8;
+real etaReg = 1.0e-4; // smooth regularization for the velocity tangent
+real etaMushyMin = 8.0e3;
+real velocityRelax = 0.35;
+real toolCoupling = 5.0e8;
+real topMeshPower = 2.75;
+real activationRate = 10.0;
+real inactiveLayerDamping = 1.0e6;
+real rodHeatLossFraction = 1.0-plateHeatPartition;
+// ANSYS-style thermal contact conductance (TCC): pressure/temperature
+// dependent rather than a fixed value.  These are calibration parameters.
+real rodContactConductanceRef = 2.0e4;   // W/(m^2 K), at 3 MPa and Tair
+real contactConductancePressureRef = 3.e6;
+real contactConductancePressureExponent = 0.50;
+real contactConductanceTempExponent = 0.25;
+real fixtureConductance = 5.0e3;         // W/(m^2 K), bottom backing plate
+real sideConvection = 25.0;               // W/(m^2 K), exposed plate sides
+real rodMassDiffusivity = 1.0e-8;
+
+// Thermal contact conductance follows the common TCC calibration form: it
+// increases with compressive pressure and varies mildly with temperature.
+func real contactConductanceOfTP(real Tk, real pMean) {
+    real pRatio = max(0.0, pMean)/max(1.0, contactConductancePressureRef);
+    real tRatio = max(0.1, Tk/max(1.0, Tair));
+    return rodContactConductanceRef
+         * max(0.05, pRatio^contactConductancePressureExponent)
+         * tRatio^contactConductanceTempExponent;
+}
+
+real contactRadiusRelax = 0.35;
+real stickSlipVelocityTolerance = 1.e-3;
+// All modeled frictional dissipation is converted to heat by the calibrated
+// efficiency.  No stick/slip partition is imposed on the plate interface.
+real frictionHeatEfficiency = 1.0;
+real heatInputRelax = 1.0;
+real heatRampTime = 1.0;
+int enableALE = 1;
+int aleMoveEvery = 2;
+real aleRelax = 0.20;
+real aleMaxStep = 0.00010;
+real minMeshVolume = 1.e-14;
+real aleQualityLimit = 0.20;
+
+real dt        = 0.25;
+int debugMode = 0;
+int debugSteps = 1;
+int nx         = debugMode ? 8 : 20;
+int ny         = debugMode ? 8 : 20;
+int nz         = debugMode ? 6 : 16;
+real pspgElementLength = min(plateLx/nx, min(plateLy/ny, plateT/nz));
+int rodNx      = debugMode ? 5 : 12;
+int rodNy      = debugMode ? 8 : 24;
+int rodNz      = debugMode ? 6 : 16;
+int nPasses    = 1;
+bool showPlots = false;
+int historyEvery = 2;
+int printEvery = 1;
+int writeSpatialSnapshots = debugMode ? 0 : 2;
+int outputEvery = 2;
+int writeHeatValidationEveryStep = 2;
+
+
+bool machineLimited = rpm <= rpmMax;
+if (!machineLimited)
+    cout << "[WARNING] rpm exceeds the 2000 rpm machine limit and will be clamped." << endl;
+real rpmCommand = min(rpm, rpmMax);
+rpm = rpmCommand;
+real omegaCommand = 2.0*pi*rpmCommand/60.0;
+real omega = omegaCommand;
+real contactArea = pi*rodRadius^2;
+real axialLoad = 0.0;
+real currentMu = muOfT(Tair);
+real currentSoftening = softeningFactor(Tair);
+rpmCommand = min(rpmCommand, rpmMax);
+rpm = rpmCommand;
+omegaCommand = 2.0*pi*rpmCommand/60.0;
+omega = omegaCommand;
+real spindleLoadTorque = 0.0;
+real spindleRequiredPower = 0.0;
+real spindlePowerAvailable = torqueTransferEfficiency*motorPowerMax;
+real spindleFrictionPowerBudget = spindleFrictionPowerFraction*spindlePowerAvailable;
+real contactPressure = 0.0;
+real cpContactEff = cpRT;
+real frictionPower = 0.0;
+real heatPower = 0.0;
+real rodContactPressure = 0.0;
+real rodStopHeight = rodStopHeightFraction*rodHeight;
+real rodConsumableHeight = (1.0-rodStopHeightFraction)*rodHeight;
+real oneRodVolume = contactArea*rodHeight;
+real rodSolidVolumeRemaining = oneRodVolume;
+
+real gcodeApproachTime = 1.6;
+real xStart = 0.5*plateLx - 0.5*depositL*travelDirX;
+real xEnd   = 0.5*plateLx + 0.5*depositL*travelDirX;
+real yStart = 0.5*plateLy - 0.5*depositL*travelDirY;
+real yEnd   = 0.5*plateLy + 0.5*depositL*travelDirY;
+real xMin = min(xStart, xEnd)-rodRadius;
+real xMax = max(xStart, xEnd)+rodRadius;
+real yMin = min(yStart, yEnd)-rodRadius;
+real yMax = max(yStart, yEnd)+rodRadius;
+real traverseTime = depositL/travelSpeed;
+real dwellTimeBudget = penetrationDwellTime;
+real retractTime = abs(gcodeRetractZ-gcodeTraverseZ)/gcodeFeedRetract;
+real processEndTime = gcodeApproachTime + dwellTimeBudget + traverseTime;
+real passTime = processEndTime + retractTime;
+real totalTime = passTime;
+int nSteps = ceil(totalTime/dt);
+
+cout << "=== Consumable rod friction deposition ===" << endl;
+cout << "Rotation speed       = " << rpm << " rpm" << endl;
+cout << "Axial load           = predicted contact reaction from commanded Z motion" << endl;
+cout << "Normal servo         = compliant; " << dwellPreloadForce/1000.0
+     << " kN dwell preload, variable Fz response (15 kN safety ceiling)" << endl;
+cout << "Initial rod-tip gap  = " << initialRodPlateGap*1000.0
+     << " mm above the plate; G-code approach/contact Z = "
+     << gcodeStartZ*1000.0 << "/" << gcodeContactZ*1000.0 << " mm" << endl;
+cout << "Rod-tip machine home = " << rodHomeTipZ*1000.0
+     << " mm above global z=0 (G-code Z=" << gcodeHomeZ*1000.0
+     << " mm); detailed model starts at z="
+     << simulatedApproachStartTipZ*1000.0 << " mm" << endl;
+cout << "ALE meshing          = " << (enableALE ? "active" : "disabled")
+     << ", update interval=" << aleMoveEvery << " step(s)" << endl;
+cout << "G-code dwell         = P" << gcodeDwellTime
+     << " s at Z0; a ramped normal-servo preload is applied after contact" << endl;
+cout << "G-code traverse      = simultaneous Y0 to Y50 and Z0 to Z35 after dwell" << endl;
+cout << "G-code retract       = Z35 to Z-3 at F100" << endl;
+cout << "Machine power limit  = " << motorPowerMax << " W" << endl;
+cout << "Interface power cap  = " << spindlePowerAvailable << " W" << endl;
+cout << "Friction power budget= " << spindleFrictionPowerBudget << " W" << endl;
+cout << "Contact pressure     = compressive component of solved momentum pressure" << endl;
+cout << "Heat contact radius  = " << contactHeatRadius*1000.0 << " mm" << endl;
+cout << "mu(Tair)             = " << currentMu << endl;
+cout << "Flow-stress softening= Johnson-Cook temperature dependent" << endl;
+cout << "Raw friction power   = " << frictionPower << " W" << endl;
+cout << "Heat into plate      = " << heatPower << " W" << endl;
+cout << "Travel speed X,Y     = " << travelVx*1000.0 << ", "
+     << travelVy*1000.0 << " mm/s" << endl;
+cout << "Tool path            = Z-3 to Z0 approach, 4 s dwell at Z0, simultaneous Y0 to Y50 and Z0 to Z35, then Z35 to Z-3 retract" << endl;
+cout << "Contact dwell        = " << penetrationDwellTime
+     << " s at Z0" << endl;
+cout << "Dwell temperature    = solved result only; no target-temperature heater" << endl;
+cout << "Plasticizing/latent-heat band = " << TplasticLow-273.15 << " to "
+     << TplasticHigh-273.15 << " C" << endl;
+cout << "Effective latent interval     = " << TplasticLow-273.15 << " to "
+     << TplasticHigh-273.15 << " C in cpEff(T)" << endl;
+cout << "cpEff at band low    = " << cpEff(TplasticLow) << " J/(kg K)" << endl;
+cout << "cpEff at band high   = " << cpEff(TplasticHigh) << " J/(kg K)" << endl;
+cout << "Active/heat depths   = " << activeDepth*1000.0 << " / "
+     << heatSourceDepth*1000.0 << " mm" << endl;
+cout << "Qf is controlled by spindle speed, Coulomb friction, loaded radius, and computed contact pressure." << endl;
+cout << "One rod volume       = " << oneRodVolume*1.e9 << " mm^3" << endl;
+cout << "Base plate mechanics = deformable; bottom surface is fixture-clamped" << endl;
+cout << "Rod plasticizing model = H(rodEqStress-rodFlowStress) H(Trod-TplasticLow) H(TplasticHigh-T)" << endl;
+cout << "Rod stop length      = " << rodStopHeight*1000.0
+     << " mm (" << rodStopHeightFraction*100.0 << "% remaining)" << endl;
+cout << "Traverse duration    = " << traverseTime << " s" << endl;
+cout << "Contact/heat duration= " << passTime << " s" << endl;
+cout << "Total simulated time = " << totalTime << " s" << endl;
+cout << "Time steps           = " << nSteps << endl;
+
+load "msh3"
+int bottomLabel = 5;
+int topLabel = 6;
+mesh3 Th = cube(nx, ny, nz,
+                [plateLx*x,
+                 plateLy*y,
+                 plateT*(1.0-(1.0-z)^topMeshPower)]);
+mesh3 Rod = cube(rodNx, rodNy, rodNz,
+                 [xMin + (xMax-xMin)*x,
+                  yMin + (yMax-yMin)*y,
+                  plateT + rodHeight*z]);
+fespace Vh(Th, P1);
+// Low-memory equal-order velocity/pressure pair.  The PSPG/GLS term in the
+// momentum form below stabilizes the P1 hydrostatic-pressure field.
+fespace Xh(Th, [P1, P1, P1, P1]);
+fespace Rh(Rod, P1);
+fespace RXh(Rod, [P1, P1, P1, P1]);
+Vh T = Tair, Told = Tair, v;
+Vh source, frictionSource, frictionSurfaceFlux, plasticSource, plasticized, mushyFractionField, contactMask, rContact;
+Vh heatLayerMask, mushyZoneMask, plasticZoneMask, shearAnnulusMask;
+Vh plasticizingTemperatureMask, frictionCoefficientField = muReference;
+Vh depositHeight = 0.0, flashHeight = 0.0, heightMM, flashMM;
+Vh freeSurfaceHeight = 0.0;
+Vh phi = z-plateT, phiOld = z-plateT, levelSetAdvection = 0.0;
+Vh interfaceVx = 0.0, interfaceVy = 0.0, interfaceVz = 0.0;
+Vh freeSurfaceIndicator = 0.0;
+real levelSetBand = 0.00025;
+Vh plateCompactionHeight = 0.0, effectivePlateSurfaceZ = plateT;
+Vh rhoField = rhoRT, cpField = cpRT, kField = kRT;
+Vh alphaField = alphaRT, EField = ERT, yieldField = yieldRT, nuField = nuRT;
+Vh pressureField;
+Vh normalContactPressure = 0.0;
+Vh contactGap = 0.0;
+Vh etaField = etaMax;
+Vh meshUx = 0.0, meshUy = 0.0, meshUz = 0.0;
+Vh oldMeshUz = 0.0, aleTopTarget = 0.0;
+Vh meshVx = 0.0, meshVy = 0.0, meshVz = 0.0;
+Vh elemActivation = 0.0, activationCandidate = 0.0, activeDeposit = 0.0;
+Vh topProcessLayer, relVx = 0.0, relVy = 0.0, relVz = 0.0;
+Vh speedField = 0.0, meshSpeedField = 0.0;
+Vh strainRateEff = 0.0, plasticDissipation = 0.0, contactState = 0.0;
+Vh plasticStrainEq = epsPlastic0, plasticStrainRateEq = 0.0;
+Vh flowStressField = yieldRT, yieldCriterion = 0.0;
+Vh shearCritField = 0.0, frictionShearField = 0.0, plasticWorkRampField = 0.0;
+Vh normalGapField = 0.0, contactPenetration = 0.0, normalContactMask = 0.0;
+Vh contactPressureMask = 0.0, localStickField = 0.0;
+Vh localSlipVelocity = 0.0, effectiveSlipVelocity = 0.0, frictionHeatFlux = 0.0;
+Vh frictionTractionX = 0.0, frictionTractionY = 0.0;
+Vh trialShearField = 0.0;
+Vh radialVelocity = 0.0, tangentialVelocity = 0.0, annulusIndicator = 0.0;
+real annulusStrainRateCritical = 1.0;
+real annulusRadialVelocityCritical = 1.e-6;
+Vh jcRateFactorField = 1.0, jcThermalFactorField = 1.0;
+Vh jcFlowStressField = yieldRT;
+
+Vh Dxx = 0.0, Dyy = 0.0, Dzz = 0.0, Dxy = 0.0, Dyz = 0.0, Dzx = 0.0;
+
+// Stored plate Cauchy stress and total-strain history for J2 radial return.
+// Cauchy stress is tension-positive; hydrostatic pressure remains the mixed
+// incompressibility multiplier P.
+Vh sigXX = 0.0, sigYY = 0.0, sigZZ = 0.0;
+Vh sigXY = 0.0, sigYZ = 0.0, sigZX = 0.0;
+Vh totalDispX = 0.0, totalDispY = 0.0, totalDispZ = 0.0;
+Vh epsXXOld = 0.0, epsYYOld = 0.0, epsZZOld = 0.0;
+Vh epsXYOld = 0.0, epsYZOld = 0.0, epsZXOld = 0.0;
+Vh epsXX = 0.0, epsYY = 0.0, epsZZ = 0.0;
+Vh epsXY = 0.0, epsYZ = 0.0, epsZX = 0.0;
+Vh dEpsXX = 0.0, dEpsYY = 0.0, dEpsZZ = 0.0;
+Vh dEpsXY = 0.0, dEpsYZ = 0.0, dEpsZX = 0.0;
+Vh trSigXX = 0.0, trSigYY = 0.0, trSigZZ = 0.0;
+Vh trSigXY = 0.0, trSigYZ = 0.0, trSigZX = 0.0;
+Vh qTrial = 0.0, returnFactor = 1.0, plasticIncrement = 0.0;
+Vh shearModulusField = 0.0, bulkModulusField = 0.0;
+
+Vh sigDevxx = 0.0, sigDevyy = 0.0, sigDevzz = 0.0;
+Vh sigDevxy = 0.0, sigDevyz = 0.0, sigDevzx = 0.0;
+Vh momentumDelta = 0.0;
+Vh realDepositDensity = 0.0, virtualVoid = 1.0, rodContactFlux = 0.0;
+Vh rodTrackDensity = 0.0, rodTrackDensityOld = 0.0, rodMassSource = 0.0;
+Vh rodMassFluxX = 0.0, rodMassFluxY = 0.0, rodMassFluxZ = 0.0, rodMassFluxMag = 0.0;
+Vh rodMassAdvection = 0.0;
+Vh defX = 0.0, defY = 0.0, defZ = 0.0, defMag = 0.0;
+Vh strainTrace = 0.0, vonMisesStrain = 0.0, vonMisesStress = 0.0;
+Vh heatFluxX = 0.0, heatFluxY = 0.0, heatFluxZ = 0.0, heatFluxMag = 0.0;
+Xh [Ux, Uy, Uz, P] = [0.0, 0.0, 0.0, 0.0];
+Xh [Uoldx, Uoldy, Uoldz, Pold] = [0.0, 0.0, 0.0, 0.0];
+Xh [Wx, Wy, Wz, Q];
+Xh [UxSolve, UySolve, UzSolve, pressureUnknown] = [0.0, 0.0, 0.0, 0.0];
+Xh [vx, vy, vz, q];
+Rh TrodField = Tair, TrodOld = Tair, rv;
+Rh rodMask, rodContactMask, rodActiveLayer, rodSource, rodFrictionSource;
+Rh rodContactState = 0.0;
+Rh rodPlasticDissipationField, rodPlasticAppliedField = 0.0, rodEtaField = etaMax;
+Rh rodStrainRateField = 0.0, rodEqStressField = 0.0, rodFlowStressField = yieldRT;
+RXh [RUx, RUy, RUz, RP] = [0.0, 0.0, 0.0, 0.0];
+RXh [RUoldx, RUoldy, RUoldz, RPold] = [0.0, 0.0, 0.0, 0.0];
+RXh [RWx, RWy, RWz, RQ];
+Rh RUxSolve = 0.0, RUySolve = 0.0, RUzSolve = 0.0;
+
+
+macro div3(ux,uy,uz) (dx(ux)+dy(uy)+dz(uz)) //
+macro Sxx(ux,uy,uz) (dx(ux)) //
+macro Syy(ux,uy,uz) (dy(uy)) //
+macro Szz(ux,uy,uz) (dz(uz)) //
+macro Sxy(ux,uy,uz) (0.5*(dy(ux)+dx(uy))) //
+macro Syz(ux,uy,uz) (0.5*(dz(uy)+dy(uz))) //
+macro Szx(ux,uy,uz) (0.5*(dz(ux)+dx(uz))) //
+T = Tair;
+Told = T;
+TrodField = Tair;
+TrodOld = TrodField;
+
+
+ofstream history("consumable_rod_history.csv");
+history << "time_s,x_tool_m,y_tool_m,Tmax_K,Tavg_K,base_plate_plastic_volume_m3,max_height_m"
+        << ",max_flash_m,axial_feed_mm_min,Qf_plate_applied_W,Qf_raw_interface_W,Qf_disk_formula_W,friction_model_active,Qplastic_W"
+        << ",Qrod_plastic_W,Qplate_W,Qtotal_system_W,Qconv_loss_W,Qfixture_loss_W,Qside_loss_W,Qrad_loss_W,Qrad_emit_W,Qstored_W,Qnet_W"
+        << ",mu_contact,flow_stress_softening_factor,rpm_actual,rpm_command,spindle_torque_Nm,spindle_required_power_W"
+        << ",axial_load_kN,force_limit_active,p_rod_MPa,k_contact_W_mK,thermal_contact_conductance_W_m2K"
+        << ",cp_contact_J_kgK,cp_eff_contact_J_kgK,rho_contact_kg_m3,E_contact_GPa,yield_contact_MPa"
+        << ",deposited_volume_mm3,flash_volume_mm3,max_velocity_m_s,max_mesh_velocity_m_s"
+        << ",max_activation,min_eta_Pa_s,max_pressure_MPa,rod_temp_K"
+        << ",rod_plasticized,rod_eq_stress_MPa,rod_flow_stress_MPa,rod_strain_rate_1_s"
+        << ",loaded_contact_radius_mm,expanded_material_shoulder_radius_mm,annulus_equivalent_inner_radius_mm,annulus_outer_radius_mm,annulus_width_mm,annulus_resolved_area_mm2"
+        << ",effective_contact_area_mm2,geometric_contact_area_mm2,integrated_contact_area_mm2"
+        << ",mushy_volume_m3,mean_total_strain_rate_in_plastic_zone_1_s,mean_plastic_strain_rate_1_s,mean_jc_rate_factor,mean_plastic_strain,mean_jc_flow_stress_MPa,real_deposit_density"
+        << ",plate_effusivity_share,rod_effusivity_share,max_friction_shear_MPa,max_shear_critical_MPa"
+        << ",base_plate_max_deformation_m,base_plate_vm_strain,base_plate_vm_stress_MPa"
+        << ",base_plate_plastic_strain,base_plate_plastic_strain_rate_1_s,max_heat_flux_W_m2"
+        << ",effective_rod_radius_mm,effective_rod_diameter_mm,rod_length_remaining_mm"
+        << ",contact_indentation_um,stick_fraction"
+        << ",rod_elastic_axial_um,rod_elastic_bending_um,rod_elastic_twist_rad"
+        << ",eulerian_mesh_fixed"
+        << endl;
+
+
+ofstream snapshots("consumable_rod_snapshots.csv");
+snapshots << "frame,time_s,x_m,y_m,z_m,T_K,height_mm,flash_mm"
+          << ",base_plate_compaction_m,material_free_surface_z_m,base_plate_plasticized,mushy_fraction"
+          << ",activation,ux_m_s,uy_m_s,uz_m_s,mesh_vz_m_s,pressure_Pa,eta_Pa_s"
+          << ",rod_track_density_kg_m3,rod_mass_flux_x_kg_m2_s,rod_mass_flux_y_kg_m2_s,rod_mass_flux_z_kg_m2_s,rod_mass_flux_mag_kg_m2_s"
+          << ",strain_rate_1_s,jc_rate_factor,jc_thermal_factor,jc_flow_stress_Pa"
+          << ",plastic_strain_eq,plastic_strain_rate_1_s"
+          << ",plastic_dissipation_W_m3,flow_stress_Pa,real_deposit_density"
+          << ",deformation_m,accumulated_traverse_plastic_vm_strain,vonmises_stress_Pa"
+          << ",heat_flux_x_W_m2,heat_flux_y_W_m2,heat_flux_z_W_m2,heat_flux_mag_W_m2"
+          << endl;
+
+
+
+
+ofstream spatialFrames("consumable_rod_spatial_frames.csv");
+spatialFrames << "frame,time_s,object,center_x_m,center_y_m,base_z_m"
+              << ",size_x_m,size_y_m,height_m,radius_m,base_plate_reduction_m"
+              << ",plate_x_m,plate_y_m,plate_z_m"
+              << ",machine_g55_x_m,machine_g55_y_m,machine_g55_z_m" << endl;
+
+
+
+ofstream limitCheck("consumable_rod_limit_violations.csv");
+limitCheck << "step,time_s,quantity,measured_value,limit_value,limit_kind,percent_deviation"
+           << ",tool_x_mm,tool_y_mm,tool_z_machine_mm,rod_remaining_mm" << endl;
+
+
+ofstream heatCheck("heat_validation_summary.csv");
+heatCheck << "step,time_s,Tmax_K,Tmax_C,mushy_fraction"
+           << ",Qf_raw_interface_W,Qf_disk_formula_W,friction_model_active,Qf_plate_applied_W,Qf_relaxation_error"
+          << ",Qp_equation_W,Qp_applied_W,Qrod_plastic_W,Qp_relative_error"
+          << ",Qplate_W,Qtotal_system_W,Qsource_integrated_W,Qrod_source_integrated_W,Qtotal_source_relative_error"
+          << ",Qconv_loss_W,Qfixture_loss_W,Qside_loss_W,Qrad_loss_W,Qrad_emit_W,Qstored_W,Qnet_W"
+          << ",mu_contact,flow_stress_softening_factor,process_control,dwell_heat_W"
+          << ",rpm_actual,rpm_command,spindle_torque_Nm,spindle_required_power_W"
+          << ",axial_load_kN,force_limit_active,loaded_contact_radius_mm,expanded_material_shoulder_radius_mm,annulus_equivalent_inner_radius_mm,annulus_outer_radius_mm,annulus_width_mm,annulus_resolved_area_mm2"
+          << ",effective_contact_area_mm2,geometric_contact_area_mm2,integrated_contact_area_mm2"
+          << ",p_rod_MPa,mean_jc_flow_stress_MPa"
+          << ",mean_total_strain_rate_1_s,mean_jc_rate_factor,mean_plastic_strain,max_plastic_strain,max_plastic_strain_rate_1_s"
+          << ",plate_effusivity_share,rod_effusivity_share,max_friction_shear_MPa,max_shear_critical_MPa"
+          << ",plastic_zone_volume_m3,mushy_zone_volume_m3,deposit_height_mm,flash_height_mm"
+          << ",tool_x_mm,tool_y_mm,in_contact,contact_indentation_um"
+          << ",effective_rod_radius_mm,effective_rod_diameter_mm"
+          << ",material_free_surface_z_min_mm,rod_tip_z_mm,gcode_z_machine_mm,cp_eff_contact_J_kgK"
+          << ",rod_consumed_volume_m3,deposit_mask_volume_m3,deposition_efficiency_calc"
+          << endl;
+
+real t = 0.0;
+real toolX = xStart;
+real toolY = yStart;
+real Tmax = Tair;
+real Tavg = Tair;
+real plasticVolume = 0.0;
+real appliedQf = heatPower;
+real appliedQp = 0.0;
+real commandedAxialTravel = max(0.0, gcodeTraverseZ-gcodeContactZ);
+real axialFeedV = commandedAxialTravel/traverseTime;
+real rodCrossSectionArea = pi*rodRadius^2;
+real volumeFeedRate = rodCrossSectionArea*axialFeedV;
+real rodConsumedVolume = 0.0;
+real depositVolume = 0.0;
+real depositionEfficiency = 0.0;
+real expectedBeadH = volumeFeedRate*traverseTime/(2.0*rodRadius*depositL);
+real footprintIntegral = pi*rodRadius^2;
+real localGrowthRate = volumeFeedRate/footprintIntegral;
+real nominalToolShearRate = max(1.0, omega*plasticHeatRadius/plasticShearThickness);
+
+cout << "Axial feed/consumption = " << axialFeedV*60000.0 << " mm/min" << endl;
+cout << "Mass-conserved mean layer thickness = "
+     << expectedBeadH*1000.0 << " mm" << endl;
+cout << "Flash formulation    = removed; deposition is pressure/stress/feed gated" << endl;
+cout << "Nominal tool shear-rate scale = " << nominalToolShearRate << " 1/s" << endl;
+cout << "Plastic heat zone    = radius " << plasticHeatRadius*1000.0
+     << " mm, depth " << plasticHeatDepth*1000.0 << " mm" << endl;
+cout << "Heat source model    = normalized surface friction flux on the contact footprint" << endl;
+cout << "Heat source depth    = " << heatSourceDepth*1000.0 << " mm" << endl;
+
+
+
+real hRad = 0.0;
+real hLoss = hConv;
+real convLossPower = 0.0, fixtureLossPower = 0.0, sideLossPower = 0.0;
+real radEmitPower = 0.0;
+real radAmbientPower = 0.0;
+real radLossPower = 0.0;
+real storedPower = 0.0;
+real netHeatPower = 0.0;
+real maxVelocity = 0.0;
+real maxMeshVelocity = 0.0;
+real meshVolumeBefore = 0.0, meshVolumeAfter = 0.0, meshVolumeRatio = 1.0;
+int eulerianMeshFixed = 0;
+real Trod = Tair;
+real rodMassRemaining = rhoRT*oneRodVolume;
+real rodLengthRemaining = rodHeight;
+real rodHeatCapacity = max(1.0, rodMassRemaining*cpRT);
+real rodStrainRate = 1.0;
+real rodFlowStress = yieldRT;
+real rodEqStress = 0.0;
+real rodPlasticFactor = 0.0;
+real rodPlasticPower = 0.0;
+real rodPlasticStrainEq = epsPlastic0;
+real rodContactTorque = 0.0;
+real rodAxialStress = 0.0;
+real rodShearStress = 0.0;
+real contactAreaEvolving = contactArea;
+real meanStrainRate = 0.0;
+real meanPlasticStrain = epsPlastic0;
+real meanPlasticStrainRate = 0.0;
+real meanFlowStress = yieldRT;
+real meanJcRateFactor = 1.0;
+real plasticPower = 0.0;
+// Contact and plate velocity must converge together; four updates are often
+// insufficient once the rotating shoulder first loads the plate.
+int momentumPicardMax = 12;
+real momentumPicardTol = 1.e-3;
+real momentumPicardError = 1.0;
+real effectiveRodRadius = rodRadius;
+real effectiveContactRadius = rodRadius;
+real expandedShoulderRadius = rodRadius;
+real effectiveRodHeight = rodHeight;
+real rodConsumedFraction = 0.0;
+real rodRadiusRate = 0.0;
+real contactIndentation = 0.0;
+real activeShearRadius = 0.0;
+real stickFraction = 1.0;
+real appliedQfPrev = 0.0;
+real appliedQpPrev = 0.0;
+real rodElasticAxialDeflection = 0.0;
+real rodElasticBendingDeflection = 0.0;
+real rodElasticTwist = 0.0;
+int forceLimitActive = 0;
+real rodSecondMoment = pi*rodRadius^4/4.0;
+real rodPolarMoment = pi*rodRadius^4/2.0;
+real maxDeformation = 0.0;
+real maxVonMisesStrain = 0.0;
+real maxVonMisesStress = 0.0;
+real maxHeatFlux = 0.0;
+real qfEquationPower = 0.0;
+real qfFullSlidingPower = 0.0;
+real frictionSlipFraction = 0.0;
+real heatGovernorFactor = 1.0;
+real qpEquationPower = 0.0;
+real qfRelativeError = 0.0;
+real qpRelativeError = 0.0;
+real sourceIntegratedPower = 0.0;
+real sourceRelativeError = 0.0;
+real rodSourceIntegratedPower = 0.0;
+real totalSystemHeatPower = 0.0;
+real totalSourceRelativeError = 0.0;
+real frictionFluxScale = 0.0;
+real mushyVolume = 0.0;
+real maxPlasticStrain = epsPlastic0;
+real maxPlasticStrainRate = 0.0;
+real toolZPosition = plateT+initialRodPlateGap;
+real toolZCommandPosition = plateT+initialRodPlateGap;
+real commandedAxialAdvance = 0.0;
+real rodConsumedAxialTravel = 0.0;
+real effectiveAxialStiffness = machineAxialStiffness;
+real contactComplianceFactor = 1.0;
+real gcodeXCommand = 0.0;
+real gcodeYCommand = 0.0;
+real gcodeZCommand = 0.0;
+real dwellComplete = 0.0;
+real dwellElapsed = 0.0;
+
+{
+    cout << "[PHASE CHANGE] Effective mushy zone: " << TplasticLow-273.15 << " to "
+         << TplasticHigh-273.15 << " C" << endl;
+    cout << "[PHASE CHANGE] L_f spike in cp_eff = " << Lf/dTmush
+         << " J/kg*K" << endl;
+}
+
+for (int it = 1; it <= nSteps; ++it)
+{
+    if (debugMode && it > debugSteps) break;
+    t = it*dt;
+    forceLimitActive = 0;
+
+    int pass = 0;
+    // Heat generation and contact are active only through the end of the
+    // deposition traverse.  The subsequent retract is kinematic only.
+    real processActive = (t <= processEndTime);
+    real approachFraction = min(1.0, max(0.0, t/max(1.e-12, gcodeApproachTime)));
+    real dwellActive = (t > gcodeApproachTime)
+                     * (t <= gcodeApproachTime+dwellTimeBudget);
+    real traverseLocalTime = min(traverseTime,
+                            max(0.0, t-gcodeApproachTime-dwellTimeBudget));
+    real traverseActive = (traverseLocalTime < traverseTime)
+                       * (t > gcodeApproachTime+dwellTimeBudget);
+    real retractLocalTime = min(retractTime,
+                            max(0.0, t-processEndTime));
+    // After the nominal Z=0 contact point, preload is introduced gradually.
+    // It stays active through traversal; it is not a prescribed Fz limit.
+    real normalServoActive = dwellActive || traverseActive;
+    real dwellPreloadRamp = min(1.0, max(0.0,
+        (t-gcodeApproachTime)/max(1.e-12, dwellPreloadRampTime)));
+    real commandedPreloadForce = normalServoActive*dwellPreloadRamp*dwellPreloadForce;
+    // Deposition is a travel operation.  The rod may still plastically heat
+    // or strain during dwell, but material is not deposited until Y travel.
+    real depositionActive = traverseActive;
+    real axialFeedStepV = traverseActive*axialFeedV;
+    real travelStepVx = 0.0;
+    real travelStepVy = traverseActive*travelVy;
+
+    dwellElapsed = min(dwellTimeBudget, max(0.0, t-gcodeApproachTime));
+    dwellComplete = (t >= gcodeApproachTime+dwellTimeBudget);
+    gcodeXCommand = 0.0;
+    gcodeYCommand = depositL*traverseLocalTime/max(1.e-12, traverseTime);
+    gcodeZCommand = gcodeStartZ
+                  + (gcodeApproachZ-gcodeStartZ)*approachFraction
+                  + (gcodeTraverseZ-gcodeDwellZ)
+                    *traverseLocalTime/max(1.e-12, traverseTime)
+                  + (gcodeRetractZ-gcodeTraverseZ)
+                    *retractLocalTime/max(1.e-12, retractTime);
+    toolX = xStart;
+    toolY = yStart + gcodeYCommand;
+    // In this machine convention Z=-3 mm is a 3 mm gap, Z=0 is plate
+    // contact, and positive Z is downward process feed.  The physical global
+    // tip coordinate is therefore plateT-Zgcode.
+    commandedAxialAdvance = max(0.0, gcodeZCommand-gcodeStartZ);
+    rodConsumedAxialTravel = max(0.0, rodHeight-rodLengthRemaining);
+    effectiveRodHeight = max(rodStopHeight, rodLengthRemaining);
+    rodConsumedFraction = min(1.0, max(0.0,
+                          (rodHeight-effectiveRodHeight)
+                          /max(1.e-12, rodConsumableHeight)));
+
+
+    // Incompressible rod kinematics: pi*R^2*L equals the remaining rod
+    // volume.  This replaces the empirical pressure/mushroom radius law.
+    real previousRodRadius = effectiveRodRadius;
+    rodSolidVolumeRemaining = max(0.0, oneRodVolume-rodConsumedVolume);
+    effectiveRodRadius = sqrt(rodSolidVolumeRemaining
+                         /max(1.e-12, pi*effectiveRodHeight));
+    rodRadiusRate = (effectiveRodRadius-previousRodRadius)/dt;
+    expandedShoulderRadius = effectiveRodRadius;
+    effectiveContactRadius = min(expandedShoulderRadius,
+                                 max(loadedContactRadiusMin, effectiveContactRadius));
+    rodMassRemaining = rhoRT*rodSolidVolumeRemaining;
+    rContact = sqrt((x-toolX)^2+(y-toolY)^2);
+    contactMask = min(1.0, max(0.0, (effectiveContactRadius+contactEdgeWidth-rContact)/contactEdgeWidth));
+    effectivePlateSurfaceZ = plateT+oldMeshUz;
+    topProcessLayer = (z >= effectivePlateSurfaceZ-topActivationDepth);
+    heatLayerMask = contactMask*(z >= effectivePlateSurfaceZ-heatSourceDepth);
+    contactAreaEvolving = max(1.e-12, int2d(Th, topLabel)(contactMask));
+
+    rodMask = (sqrt((x-toolX)^2+(y-toolY)^2) <= effectiveRodRadius);
+    rodContactMask = rodMask*(z <= plateT+plasticHeatDepth);
+    rodActiveLayer = rodMask*(z <= plateT+rodPlasticDepth);
+    Trod = int3d(Rod)(TrodOld*rodActiveLayer)
+         / max(1.e-12, int3d(Rod)(rodActiveLayer));
+    // The source is local to the shoulder.  Use the hottest part of that
+    // contact-adjacent rod layer for thermal protection, rather than only the
+    // full-rod average Trod.
+    rodContactState = TrodOld*rodContactMask;
+    real rodContactHot = max(Tair, rodContactState[].max);
+
+    Tmax = Told[].max;
+    real workpieceContactTemp =
+        int3d(Th)(Told*heatLayerMask)/max(1.e-12, int3d(Th)(heatLayerMask));
+    contactState = Told*heatLayerMask;
+    real workpieceContactHot = max(Tair, contactState[].max);
+    real heatControlTemp = max(workpieceContactTemp, workpieceContactHot);
+    real dwellControlTemp = max(Trod, heatControlTemp);
+    real Tcontact = min(Tmelt-1.0, max(Tair, max(heatControlTemp, Trod)));
+    real rhoContact = rhoOfT(Tcontact);
+    real cpContact = cpOfT(Tcontact);
+    cpContactEff = cpEff(Tcontact);
+    real kContact = kOfT(Tcontact);
+    real EContact = EOfT(Tcontact);
+    real yieldContact = yieldOfT(Tcontact);
+    currentMu = muOfT(Tcontact);
+    currentSoftening = softeningFactor(Tcontact);
+    if (useVariableMu)
+        frictionCoefficientField = min(muMax, max(muMin,
+            muReference-(muReference-muMin)
+            *min(1.0, max(0.0, (T-Tair)/max(1.0, Tsol-Tair)))));
+    else
+        frictionCoefficientField = muReference;
+    strainRateEff =
+        sqrt(2.0*(dx(Uoldx)^2 + dy(Uoldy)^2 + dz(Uoldz)^2)
+           + (dy(Uoldx)+dx(Uoldy))^2
+           + (dz(Uoldx)+dx(Uoldz))^2
+           + (dz(Uoldy)+dy(Uoldz))^2);
+    
+    // Before thermo-mechanical localization develops, the entire shoulder is
+    // active.  Do not create an artificial ring at the initial contact step.
+    activeShearRadius = min(effectiveContactRadius,
+                            max(0.0, activeShearRadius));
+    // Before the stress-based annulus is evaluated after the momentum solve,
+    // retain the complete contact footprint for the provisional heat solve.
+    shearAnnulusMask = contactMask*(z >= plateT-topActivationDepth);
+    plasticZoneMask = shearAnnulusMask;
+    meanStrainRate = int3d(Th)(strainRateEff*plasticZoneMask)
+                   / max(1.e-12, int3d(Th)(plasticZoneMask));
+    meanPlasticStrain = max(epsPlastic0,
+                            int3d(Th)(plasticStrainEq*plasticZoneMask)
+                            /max(1.e-12, int3d(Th)(plasticZoneMask)));
+    meanPlasticStrainRate = int3d(Th)(plasticStrainRateEq*plasticZoneMask)
+                          / max(1.e-12, int3d(Th)(plasticZoneMask));
+    meanJcRateFactor = jcRateFactor(meanPlasticStrainRate);
+    meanFlowStress = jcFlowStress(meanPlasticStrain, meanPlasticStrainRate, Tcontact);
+    
+
+    toolZCommandPosition = plateT-gcodeZCommand+rodConsumedAxialTravel;
+    // The upward elastic compliance reduces the commanded approach under load.
+    real rodAxialStiffness = EOfT(Trod)*pi*effectiveRodRadius^2
+                           / max(1.e-12, effectiveRodHeight);
+    real contactThermalState = min(1.0, max(0.0,
+        (Tcontact-TplasticLow)/max(1.0, TplasticHigh-TplasticLow)));
+    contactComplianceFactor = 1.0 + plasticComplianceGain
+                             *(contactThermalState
+                               + min(1.0, meanPlasticStrain));
+    // Series compliance of machine, rod, thermal/plastic response, and the
+    // normal-axis servo.  The servo progressively softens as the solved Fz
+    // rises, preventing displacement-control overshoot without force capping.
+    real normalServoStiffness = normalServoBaseStiffness
+                              / (1.0 + max(0.0, axialLoad)
+                                       /max(1.e-12, normalServoForceScale));
+    effectiveAxialStiffness = 1.0
+                          / max(1.e-12,
+                              contactComplianceFactor
+                             *(1.0/machineAxialStiffness
+                              +1.0/max(1.e-12, rodAxialStiffness))
+                              +1.0/max(1.e-12, normalServoStiffness));
+    // The preload is represented as a small commanded servo deflection.  The
+    // penalty-contact reaction remains an output, not a prescribed force.
+    toolZCommandPosition = toolZCommandPosition
+                          - commandedPreloadForce/effectiveAxialStiffness;
+    toolZPosition = toolZCommandPosition
+                  + axialLoad/effectiveAxialStiffness;
+    // Signed KKT gap: positive = open, negative = penetration.
+    contactGap = toolZPosition-(effectivePlateSurfaceZ+defZ);
+    normalGapField = contactGap;
+    contactPenetration = max(0.0, -contactGap);
+    normalContactMask = processActive*contactMask*(contactPenetration > 0.0);
+    normalContactPressure = normalContactMask
+                          * contactPenaltyStiffness*contactPenetration;
+    pressureField = normalContactPressure;
+    real fullShoulderArea = max(1.e-12, int2d(Th, topLabel)(contactMask));
+    axialLoad = int2d(Th, topLabel)(pressureField);
+    if (axialLoad > axialForceMax)
+    {
+        forceLimitActive = 1;
+        normalContactPressure = normalContactPressure*(axialForceMax/axialLoad);
+        pressureField = normalContactPressure;
+        axialLoad = int2d(Th, topLabel)(pressureField);
+    }
+    contactPressure = axialLoad
+                    / max(1.e-12, int2d(Th, topLabel)(contactMask));
+    rodContactPressure = contactPressure;
+    contactIndentation = max(0.0, effectivePlateSurfaceZ[].max-toolZPosition);
+    // Contact geometry follows the volume-conserving rod radius above.
+    // The loaded radius may be smaller than, but never exceed, this surface.
+    real contactRadiusTarget = expandedShoulderRadius;
+    contactRadiusTarget =
+        min(expandedShoulderRadius,
+            max(loadedContactRadiusMin, contactRadiusTarget));
+    effectiveContactRadius =
+        (1.0-contactRadiusRelax)*effectiveContactRadius
+      + contactRadiusRelax*contactRadiusTarget;
+    effectiveRodHeight = max(rodStopHeight, rodLengthRemaining);
+    rodMassRemaining = rhoRT*pi*effectiveRodRadius^2*effectiveRodHeight;
+    rContact = sqrt((x-toolX)^2+(y-toolY)^2);
+    contactMask = min(1.0, max(0.0, (effectiveContactRadius+contactEdgeWidth-rContact)/contactEdgeWidth));
+    rodMask = (sqrt((x-toolX)^2+(y-toolY)^2) <= effectiveRodRadius);
+    rodContactMask = rodMask*(z <= plateT+plasticHeatDepth);
+    rodActiveLayer = rodMask*(z <= plateT+rodPlasticDepth);
+    shearAnnulusMask = contactMask*(z >= effectivePlateSurfaceZ-topActivationDepth);
+    // Frictional heat is generated across the complete loaded shoulder, not
+    // only in a resolved post-processing annulus.  It is deposited through
+    // the near-interface plate layer and then spreads by conduction.
+    heatLayerMask = contactMask*(z >= effectivePlateSurfaceZ-heatSourceDepth);
+    plasticZoneMask = shearAnnulusMask;
+    real activeAnnulusArea = max(1.e-12, int2d(Th, topLabel)(shearAnnulusMask));
+    contactAreaEvolving = activeAnnulusArea;
+    {
+        fullShoulderArea = max(1.e-12, int2d(Th, topLabel)(contactMask));
+        activeAnnulusArea = max(1.e-12, int2d(Th, topLabel)(shearAnnulusMask));
+        axialLoad = int2d(Th, topLabel)(pressureField);
+        contactPressure = axialLoad
+                        / fullShoulderArea;
+        rodContactPressure = contactPressure;
+        contactIndentation = max(0.0, effectivePlateSurfaceZ[].max-toolZPosition);
+    }
+    
+    // Experimental RPM is prescribed.  Power-limit exceedance is reported
+    // for validation; it must not silently change the imposed spindle speed.
+    omega = omegaCommand;
+    rpm = rpmCommand;
+    nominalToolShearRate = max(1.0, omega*plasticHeatRadius/plasticShearThickness);
+    stickFraction = 0.0;
+
+
+
+
+    localSlipVelocity = sqrt((travelStepVx - omega*(y-toolY) - Uoldx)^2
+                           + (travelStepVy + omega*(x-toolX) - Uoldy)^2);
+    real plateEffusivity = sqrt(max(1.e-12, kOfT(Tcontact)*rhoOfT(Tcontact)*cpEff(Tcontact)));
+    real rodEffusivity = sqrt(max(1.e-12, kOfT(Trod)*rhoOfT(Trod)*cpEff(Trod)));
+    plateHeatPartition = plateEffusivity/max(1.e-12, plateEffusivity+rodEffusivity);
+    if (useFixedFrictionHeatPartition)
+        plateHeatPartition = min(1.0, max(0.0, frictionHeatPlateWeight));
+    rodHeatLossFraction = 1.0-plateHeatPartition;
+    // Frictional shear limiting is local, so it uses the local JC field;
+    // meanPlasticStrain is not substituted into this spatial calculation.
+    shearCritField = flowStressField/sqrt(3.0);
+    frictionShearField = frictionCoefficientField*pressureField;
+    trialShearField = toolCoupling*heatSourceDepth*localSlipVelocity;
+    localStickField = 0.0;
+    effectiveSlipVelocity = (1.0-localStickField)*localSlipVelocity;
+    stickFraction = int2d(Th, topLabel)(localStickField*contactMask)
+                 / max(1.e-12, int2d(Th, topLabel)(contactMask));
+    // Surface-flux shape for the rotating-disk heat model.  Qf itself is
+    // evaluated from the disk formula below and this field is only normalized
+    // later to distribute the applied plate share through the heat layer.
+    frictionHeatFlux = processActive*contactMask
+                     * frictionHeatEfficiency
+                     * currentMu*contactPressure*omega*rContact;
+    frictionTractionX = frictionShearField
+                      *(travelStepVx - omega*(y-toolY) - Uoldx)
+                      /max(stickSlipVelocityTolerance, localSlipVelocity);
+    frictionTractionY = frictionShearField
+                      *(travelStepVy + omega*(x-toolX) - Uoldy)
+                      /max(stickSlipVelocityTolerance, localSlipVelocity);
+    qfEquationPower = diskFrictionPower(frictionHeatEfficiency, currentMu,
+                                         contactPressure, omega,
+                                         effectiveContactRadius);
+    spindleLoadTorque = diskFrictionTorque(currentMu, contactPressure,
+                                           effectiveContactRadius);
+    spindleRequiredPower = spindleLoadTorque*omega;
+    frictionPower = qfEquationPower;
+    real preRampControl = processActive*min(1.0, max(0.0, t/heatRampTime));
+    // The raw interface work is split by effusivity only after the same
+    // The actual friction power is partitioned by thermal effusivity only.
+    // Enforce the usable spindle-friction budget and temperature window.
+    // qf is the plate share; cap total interface friction before partitioning.
+    real preFrictionPowerCommand = min(frictionPower, spindleFrictionPowerBudget);
+    real preQfCommand = processActive*preRampControl
+                      * heatGovernor(max(rodContactHot, heatControlTemp))
+                      * plateHeatPartition*preFrictionPowerCommand;
+    plasticWorkRampField = 1.0;
+    // Plastic dissipation is evaluated after the mechanical update below.
+    // Do not insert a separate pre-estimate here, which would double count it.
+    real preFrictionIntegral = max(1.e-12, int3d(Th)(
+                                   plateHeatPartition*frictionShearField
+                                   *effectiveSlipVelocity*heatLayerMask));
+    frictionFluxScale = preQfCommand/preFrictionIntegral;
+    frictionSource = frictionFluxScale
+                   * plateHeatPartition*frictionShearField
+                   * effectiveSlipVelocity*heatLayerMask;
+    // Do not solve a thermal predictor with sources retained from the prior
+    // step.  The complete, current-step source is assembled after contact and
+    // mechanics, then applied once by the conservative solve below.
+    rhoField = rhoOfT(Told);
+    cpField = cpEff(Told);
+    kField = kEff(Told);
+    real TradMean = max(Tair, 0.5*(Tmax+Tair));
+    hRad = 2.0*emiss*sigmaSB*(TradMean+Tair)
+                         *(TradMean^2+Tair^2);
+    hLoss = hConv+hRad;
+    convLossPower = int2d(Th, topLabel)(hConv*max(Told-Tair, 0.0));
+    radEmitPower = int2d(Th, topLabel)(emiss*sigmaSB*Told^4);
+    radAmbientPower = int2d(Th, topLabel)(emiss*sigmaSB*Tair^4);
+    radLossPower = radEmitPower-radAmbientPower;
+    netHeatPower = 0.0;
+    rodStrainRate = max(1.0,
+                        sqrt((omega*effectiveContactRadius/plasticShearThickness)^2
+                           + (axialFeedStepV/max(1.e-9, effectiveRodHeight))^2));
+    rodFlowStress = jcFlowStress(rodPlasticStrainEq, rodStrainRate, Trod);
+    // Use the FEM-integrated interface torque, not a uniform-pressure disk
+    // approximation, for the rod torsional response.
+    rodContactTorque = spindleLoadTorque;
+    rodShearStress = rodContactTorque/max(1.e-12, 0.5*pi*effectiveRodRadius^3);
+    rodAxialStress = rodContactPressure*contactAreaEvolving
+                   / max(1.e-12, pi*effectiveRodRadius^2);
+    rodEqStress = sqrt(rodAxialStress^2 + 3.0*rodShearStress^2);
+    // The rod plasticizes only when equivalent (von-Mises) stress exceeds
+    // flow stress inside the requested 0.6--0.9 Tsolidus temperature band.
+    rodPlasticFactor = (rodEqStress > rodFlowStress)
+                     * (Trod >= TplasticLow)*(Trod <= TplasticHigh);
+    rodPlasticStrainEq = rodPlasticStrainEq
+                        + dt*rodPlasticFactor*rodStrainRate;
+    rodSecondMoment = pi*effectiveRodRadius^4/4.0;
+    rodPolarMoment = pi*effectiveRodRadius^4/2.0;
+    rodElasticAxialDeflection =
+        rodAxialStress*effectiveRodHeight/max(1.e-12, EOfT(Trod));
+    rodElasticBendingDeflection =
+        currentMu*rodContactPressure*contactAreaEvolving*effectiveRodHeight^3
+        /(3.0*max(1.e-12, EOfT(Trod)*rodSecondMoment));
+    rodElasticTwist =
+        rodContactTorque*effectiveRodHeight
+        /max(1.e-12, (EOfT(Trod)/(2.0*(1.0+nuOfT(Trod))))*rodPolarMoment);
+
+    rodEtaField = min(etaMax,
+                      max(etaMin,
+                          rodFlowStress/(3.0*max(rodStrainRate, 1.e-6))));
+
+    
+    solve RodMomentumX(RUxSolve, rv, solver=sparsesolver)
+        = int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUxSolve*rv
+            + rodEtaField*(dx(RUxSolve)*dx(rv)
+                          +dy(RUxSolve)*dy(rv)
+                          +dz(RUxSolve)*dz(rv))
+            + toolCoupling*rodContactMask*RUxSolve*rv
+          )
+        - int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUoldx*rv
+            + toolCoupling*rodContactMask*(travelStepVx - omega*(y-toolY))*rv
+          );
+
+    solve RodMomentumY(RUySolve, rv, solver=sparsesolver)
+        = int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUySolve*rv
+            + rodEtaField*(dx(RUySolve)*dx(rv)
+                          +dy(RUySolve)*dy(rv)
+                          +dz(RUySolve)*dz(rv))
+            + toolCoupling*rodContactMask*RUySolve*rv
+          )
+        - int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUoldy*rv
+            + toolCoupling*rodContactMask*travelStepVy*rv
+            + toolCoupling*rodContactMask*(omega*(x-toolX))*rv
+          );
+
+    solve RodMomentumZ(RUzSolve, rv, solver=sparsesolver)
+        = int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUzSolve*rv
+            + rodEtaField*(dx(RUzSolve)*dx(rv)
+                          +dy(RUzSolve)*dy(rv)
+                          +dz(RUzSolve)*dz(rv))
+            + toolCoupling*rodContactMask*RUzSolve*rv
+          )
+        - int3d(Rod)(
+              rhoOfT(TrodOld)/dt*RUoldz*rv
+            + toolCoupling*rodContactMask*(-axialFeedStepV)*rv
+          );
+
+    [RUx, RUy, RUz, RP] =
+        [velocityRelax*RUxSolve + (1.0-velocityRelax)*RUoldx,
+         velocityRelax*RUySolve + (1.0-velocityRelax)*RUoldy,
+         velocityRelax*RUzSolve + (1.0-velocityRelax)*RUoldz,
+         0.0];
+    rodStrainRateField =
+        sqrt(2.0*(dx(RUx)^2 + dy(RUy)^2 + dz(RUz)^2)
+           + (dy(RUx)+dx(RUy))^2
+           + (dz(RUx)+dx(RUz))^2
+           + (dz(RUy)+dy(RUz))^2);
+    rodStrainRate = max(1.0,
+                        int3d(Rod)(rodStrainRateField*rodActiveLayer)
+                        /max(1.e-12, int3d(Rod)(rodActiveLayer)));
+    rodPlasticDissipationField = betaTaylor*rodFlowStress*rodStrainRateField
+                               * rodActiveLayer*rodPlasticFactor;
+
+    real plasticZoneVolume = max(1.e-12, int3d(Th)(plasticZoneMask));
+
+    localSlipVelocity = sqrt((travelStepVx - omega*(y-toolY) - Ux)^2
+                           + (travelStepVy + omega*(x-toolX) - Uy)^2);
+    shearCritField = flowStressField/sqrt(3.0);
+    frictionShearField = frictionCoefficientField*pressureField;
+    trialShearField = toolCoupling*heatSourceDepth*localSlipVelocity;
+    localStickField = 0.0;
+    effectiveSlipVelocity = (1.0-localStickField)*localSlipVelocity;
+    frictionHeatFlux = processActive*contactMask
+                     * frictionHeatEfficiency
+                     * currentMu*contactPressure*omega*rContact;
+    qfEquationPower = diskFrictionPower(frictionHeatEfficiency, currentMu,
+                                         contactPressure, omega,
+                                         effectiveContactRadius);
+    spindleLoadTorque = diskFrictionTorque(currentMu, contactPressure,
+                                           effectiveContactRadius);
+    spindleRequiredPower = spindleLoadTorque*omega;
+    frictionPower = qfEquationPower;
+    real rampControl = processActive*min(1.0, max(0.0, t/heatRampTime));
+
+    real dwellHeatCommand = 0.0*dwellActive;
+    real limitedFrictionPower = min(frictionPower, spindleFrictionPowerBudget);
+    real qfPlateCommand = processActive*rampControl
+                        * heatGovernor(max(dwellControlTemp, rodContactHot))
+                        * plateHeatPartition*limitedFrictionPower
+                        + dwellHeatCommand;
+    appliedQf = heatInputRelax*qfPlateCommand
+              + (1.0-heatInputRelax)*appliedQfPrev;
+
+
+    // The thermal source must use the same capped rod-plastic power reported
+    // in the energy balance.  Previously this value was capped here, but the
+    // uncapped dissipation field was used below in RodHeat, allowing a thermal
+    // runaway after plasticization.
+    real totalFrictionPowerApplied = appliedQf
+                                  / max(1.e-12, plateHeatPartition);
+    real spindlePowerRemaining = max(0.0, spindlePowerAvailable
+                                    - totalFrictionPowerApplied);
+    real rodPlasticRawPower = int3d(Rod)(rodPlasticDissipationField);
+    real thermalControl = heatGovernor(max(dwellControlTemp, rodContactHot));
+    heatGovernorFactor = thermalControl;
+    rodPlasticPower = processActive*thermalControl
+                    * min(rodPlasticRawPower, spindlePowerRemaining);
+    rodPlasticAppliedField = rodPlasticPower/max(1.e-12, rodPlasticRawPower)
+                           * rodPlasticDissipationField;
+    qfRelativeError = abs(appliedQf-qfPlateCommand)
+                    / max(1.e-12, abs(qfPlateCommand));
+    appliedQfPrev = appliedQf;
+    heatPower = appliedQf+appliedQp;
+    real contactIntegral = max(1.e-12, int3d(Th)(heatLayerMask));
+    // Recover the same relaxed total interface power from the plate share,
+    // then give the complementary effusivity share to the rod.
+    real rodFrictionHeat = rodHeatLossFraction*totalFrictionPowerApplied;
+    real contactThermalTransferActive = (axialLoad > 1.0);
+    real rodContactConductance = contactConductanceOfTP(
+                                      0.5*(Trod+workpieceContactTemp),
+                                      contactPressure);
+    real rawRodContactPowerToPlate =
+        contactThermalTransferActive
+       *rodContactConductance*contactAreaEvolving*(Trod-workpieceContactTemp);
+
+    real rodContactPowerToPlate = rawRodContactPowerToPlate;
+    rodContactFlux = rodContactPowerToPlate/contactIntegral*heatLayerMask;
+    // Match the rod heat equation: cpEff includes latent heat in the
+    // requested AA5083 plasticizing/mushy interval.
+    rodHeatCapacity = max(1.0, rodMassRemaining*cpEff(Trod));
+    real rodContactVolume = max(1.e-12, int3d(Rod)(rodContactMask));
+    real rodActiveVolume = max(1.e-12, int3d(Rod)(rodActiveLayer));
+    // The rod-side share of interface friction originates at the shoulder.
+    // Apply it in the contact-adjacent rod layer; conduction carries it into
+    // the remaining rod volume.  The temperature governor above bounds this
+    // physical local source instead of artificially smearing it.
+    rodFrictionSource = rodFrictionHeat/rodContactVolume*rodContactMask;
+    rodSource = rodFrictionSource
+              // Plastic work is generated in the rod.  It enters the plate
+              // only through the explicit, conservative contact conduction
+              // term above; otherwise its plate partition is lost when the
+              // equal-and-opposite transfer terms cancel in the total balance.
+              + rampControl*rodPlasticAppliedField
+              - rodContactPowerToPlate/rodContactVolume*rodContactMask;
+    // This is the rod-side source actually used in RodHeat this time step.
+    rodSourceIntegratedPower = int3d(Rod)(rodSource);
+
+    // The rod mesh is fixed, so its material velocity is the rod velocity.
+    // Keep advection on the left-hand side (implicit in TrodField) and add
+    // SUPG; using dz(TrodOld) as an RHS source is an explicit scheme and is
+    // the source of the small-dt restriction noted in the review.
+    Rh rodRelSpeed = sqrt(RUx^2+RUy^2+RUz^2);
+    real rodElementLength = min(rodRadius/rodNx,
+                                 min(2.0*pi*rodRadius/rodNy,
+                                     rodHeight/rodNz));
+    Rh rodSupgTau = min(0.5*dt,
+                         rodElementLength/(2.0*max(1.e-9, rodRelSpeed)));
+    solve RodHeat(TrodField, rv, solver=sparsesolver)
+        = int3d(Rod)(
+              rhoOfT(TrodOld)*cpEff(TrodOld)/dt*TrodField*rv
+            + kEff(TrodOld)*(dx(TrodField)*dx(rv)
+                            +dy(TrodField)*dy(rv)
+                            +dz(TrodField)*dz(rv))
+            + rhoOfT(TrodOld)*cpEff(TrodOld)
+             *(RUx*dx(TrodField)+RUy*dy(TrodField)+RUz*dz(TrodField))*rv
+            + rodSupgTau*rhoOfT(TrodOld)*cpEff(TrodOld)
+             *(RUx*dx(TrodField)+RUy*dy(TrodField)+RUz*dz(TrodField))
+             *(RUx*dx(rv)+RUy*dy(rv)+RUz*dz(rv))
+          )
+        + int2d(Rod, topLabel)(
+              hLoss*TrodField*rv
+          )
+        - int3d(Rod)(
+              rhoOfT(TrodOld)*cpEff(TrodOld)/dt*TrodOld*rv
+          )
+        - int2d(Rod, topLabel)(
+              hLoss*Tair*rv
+          )
+        - int3d(Rod)(
+              rodSource*rv
+          )
+        // RUz is downward during process feed, so the top of the fixed rod
+        // mesh is the thermal inflow boundary for fresh consumable material.
+        + on(topLabel, TrodField=Tair);
+    TrodField = max(Tair, TrodField);
+    Trod = int3d(Rod)(TrodField*rodActiveLayer)/rodActiveVolume;
+    heatPower = heatPower + rodContactPowerToPlate;
+    // Volumetric source is normalized from the actual plate-side Qf.  Its
+    // integral is exactly appliedQf, while conduction is solved over all Th.
+    real frictionIntegral = max(1.e-12, int3d(Th)(
+                                frictionHeatFlux*heatLayerMask));
+    frictionFluxScale = appliedQf/frictionIntegral;
+    frictionSource = frictionFluxScale*frictionHeatFlux*heatLayerMask;
+
+    rhoField = rhoOfT(T);
+    
+    cpField = cpEff(T);
+    kField = kEff(T);
+    alphaField = alphaOfT(T);
+
+
+
+    EField = max(mechanicalModulusFloor, EOfT(T));
+    yieldField = yieldOfT(T);
+    nuField = nuOfT(T);
+    mushyFractionField = mushyFraction(T);
+    topProcessLayer = (z >= effectivePlateSurfaceZ-topActivationDepth);
+    mushyZoneMask = (T >= TplasticLow)*(T <= TplasticHigh);
+    plasticizingTemperatureMask = mushyZoneMask;
+
+    Vh toolVx, toolVy, toolVz, swirlWindow, rodFeedWindow;
+    // The interface is friction-only.  No kinematic sticking velocity is
+    // imposed; all tangential loading is the Coulomb traction below.
+    swirlWindow = contactMask*topProcessLayer*localStickField;
+    rodFeedWindow = 0.0;
+    toolVx = (travelStepVx - omega*(y-toolY))*swirlWindow;
+    toolVy = (travelStepVy + omega*(x-toolX))*swirlWindow;
+
+
+    toolVz = 0.0;
+
+    // Mixed, nearly incompressible thermo-viscoplastic flow solve.  The
+    // pressure is a Lagrange multiplier for div(u)=0, rather than a
+    // kinematic reconstruction from the vertical velocity change.
+    momentumPicardError = 1.0;
+    for (int picard = 0; picard < momentumPicardMax; ++picard)
+    {
+        strainRateEff = sqrt(2.0*(dx(Ux)^2 + dy(Uy)^2 + dz(Uz)^2)
+                           + (dy(Ux)+dx(Uy))^2 + (dz(Ux)+dx(Uz))^2
+                           + (dz(Uy)+dy(Uz))^2);
+        // JC uses accumulated equivalent plastic strain and equivalent
+        // plastic strain rate, never the total deformation-rate field.
+        jcRateFactorField = jcRateFactor(plasticStrainRateEq);
+        jcThermalFactorField = jcThermalFactor(T);
+        flowStressField = jcFlowStress(plasticStrainEq, plasticStrainRateEq, T);
+        etaField = min(etaMax, max(etaMin,
+                   flowStressField/(3.0*(plasticStrainRateEq+etaReg))));
+        etaField = max(etaField, etaMushyMin*mushyZoneMask);
+
+        // Update contact/friction from the current Picard velocity iterate.
+        localSlipVelocity = sqrt((travelStepVx-omega*(y-toolY)-Ux)^2
+                               +(travelStepVy+omega*(x-toolX)-Uy)^2);
+        shearCritField = flowStressField/sqrt(3.0);
+        frictionShearField = frictionCoefficientField*normalContactPressure;
+        trialShearField = toolCoupling*heatSourceDepth*localSlipVelocity;
+        localStickField = 0.0;
+        effectiveSlipVelocity = (1.0-localStickField)*localSlipVelocity;
+        frictionTractionX = frictionShearField
+                          *(travelStepVx-omega*(y-toolY)-Ux)
+                          /max(stickSlipVelocityTolerance,localSlipVelocity);
+        frictionTractionY = frictionShearField
+                          *(travelStepVy+omega*(x-toolX)-Uy)
+                          /max(stickSlipVelocityTolerance,localSlipVelocity);
+        swirlWindow = contactMask*topProcessLayer*localStickField;
+        toolVx = (travelStepVx-omega*(y-toolY))*swirlWindow;
+        toolVy = (travelStepVy+omega*(x-toolX))*swirlWindow;
+
+        // Stabilized equal-order P1/P1 formulation.  tauPSPG has units of
+        // m^2/(Pa*s); it suppresses checkerboard hydrostatic pressure modes
+        // without entering the independent contact-pressure calculation.
+        Vh tauPSPG = min(1.e-8,
+                         max(1.e-12, pspgElementLength^2
+                                      /max(1.e-12, 4.0*etaField)));
+        // The stabilized P1/P1 system is deliberately much smaller than the
+        // former Taylor--Hood system.  Use a direct sparse solve here: bare
+        // GMRES has no block preconditioner and can break down on this mixed
+        // velocity--pressure operator.
+        solve MomentumMixed([UxSolve,UySolve,UzSolve,pressureUnknown],
+                            [vx,vy,vz,q], solver=sparsesolver)
+          = int3d(Th)(
+              rhoField/dt*(UxSolve*vx+UySolve*vy+UzSolve*vz)
+            + 2.0*etaField*( dx(UxSolve)*dx(vx) + dy(UySolve)*dy(vy) + dz(UzSolve)*dz(vz)
+              + 0.5*(dy(UxSolve)+dx(UySolve))*(dy(vx)+dx(vy))
+              + 0.5*(dz(UySolve)+dy(UzSolve))*(dz(vy)+dy(vz))
+              + 0.5*(dx(UzSolve)+dz(UxSolve))*(dx(vz)+dz(vx)) )
+            - pressureUnknown*(dx(vx)+dy(vy)+dz(vz))
+            + q*(dx(UxSolve)+dy(UySolve)+dz(UzSolve))
+            + tauPSPG*(dx(pressureUnknown)*dx(q)
+                       +dy(pressureUnknown)*dy(q)
+                       +dz(pressureUnknown)*dz(q))
+            + toolCoupling*swirlWindow*(UxSolve*vx+UySolve*vy)
+            + inactiveLayerDamping*(1.0-elemActivation)*topProcessLayer
+              *(UxSolve*vx+UySolve*vy+UzSolve*vz)
+            )
+          // Contact pressure is compressive: apply -p*n on the current top
+          // surface.  Using the boundary normal also remains correct after
+          // ALE surface motion rather than assuming the normal is always +z.
+          - int2d(Th, topLabel)(normalContactPressure
+                                *(N.x*vx + N.y*vy + N.z*vz))
+          - int3d(Th)(rhoField/dt*(Uoldx*vx+Uoldy*vy+Uoldz*vz)
+            + toolCoupling*(toolVx*vx+toolVy*vy))
+          - int3d(Th)(sigXX*dx(vx) + sigYY*dy(vy) + sigZZ*dz(vz)
+            + sigXY*(dy(vx)+dx(vy))
+            + sigYZ*(dz(vy)+dy(vz))
+            + sigZX*(dx(vz)+dz(vx)))
+          - int2d(Th, topLabel)(frictionTractionX*vx+frictionTractionY*vy)
+          // The plate sides are free.  Only the bottom fixture is clamped;
+          // constraining labels 1--4 suppresses local shoulder indentation.
+          + on(bottomLabel,UxSolve=0.0,UySolve=0.0,UzSolve=0.0);
+
+        momentumDelta = sqrt((Ux-UxSolve)^2+(Uy-UySolve)^2+(Uz-UzSolve)^2);
+        // Ux, Uy, Uz, and P are components of the four-component Xh field;
+        // assign them together rather than assigning a scalar to one Xh
+        // component, which FreeFEM interprets as a vector-field assignment.
+        [Ux, Uy, Uz, P] =
+            [velocityRelax*UxSolve+(1.0-velocityRelax)*Ux,
+             velocityRelax*UySolve+(1.0-velocityRelax)*Uy,
+             velocityRelax*UzSolve+(1.0-velocityRelax)*Uz,
+             pressureUnknown];
+        // Direct normal-penalty contact: compression exists only where the
+        // current gap is negative; no Uzawa multiplier is stored or updated.
+        real axialLoadBeforeContactUpdate = axialLoad;
+        contactGap = toolZPosition-(effectivePlateSurfaceZ+defZ);
+        normalGapField = contactGap;
+        contactPenetration = max(0.0, -contactGap);
+        normalContactMask = processActive*contactMask*(contactPenetration > 0.0);
+        normalContactPressure = normalContactMask
+                              * contactPenaltyStiffness*contactPenetration;
+        pressureField = normalContactPressure;
+        axialLoad = int2d(Th, topLabel)(normalContactPressure);
+        // Preserve the solved spatial pressure shape but scale it when the
+        // displacement-controlled contact reaction reaches the experimental
+        // 15 kN machine limit.
+        if (axialLoad > axialForceMax)
+        {
+            forceLimitActive = 1;
+            normalContactPressure = normalContactPressure*(axialForceMax/axialLoad);
+            pressureField = normalContactPressure;
+            axialLoad = int2d(Th, topLabel)(normalContactPressure);
+        }
+        // Under-relax the compliant-axis displacement.  A full update with a
+        // stiff penalty can overshoot upward, open contact, then re-penetrate
+        // on the following Picard iteration.
+        real toolZTarget = toolZCommandPosition
+                         + axialLoad/effectiveAxialStiffness;
+        toolZPosition = (1.0-normalServoUpdateRelax)*toolZPosition
+                      + normalServoUpdateRelax*toolZTarget;
+        speedField = sqrt(Ux^2+Uy^2+Uz^2);
+        momentumPicardError = momentumDelta[].max/max(1.e-9,speedField[].max);
+        real contactForceError = abs(axialLoad-axialLoadBeforeContactUpdate)
+                               / max(1.0, axialLoad);
+        if (momentumPicardError < momentumPicardTol
+            && contactForceError < momentumPicardTol) break;
+    }
+    // The converged penalty-pressure field provides the predicted Fz reaction.
+    contactGap = toolZPosition-(effectivePlateSurfaceZ+defZ);
+    normalGapField = contactGap;
+    contactPenetration = max(0.0, -contactGap);
+    normalContactMask = processActive*contactMask*(contactPenetration > 0.0);
+    normalContactPressure = normalContactMask
+                          * contactPenaltyStiffness*contactPenetration;
+    pressureField = normalContactPressure;
+    axialLoad = int2d(Th, topLabel)(pressureField);
+    if (axialLoad > axialForceMax)
+    {
+        forceLimitActive = 1;
+        normalContactPressure = normalContactPressure*(axialForceMax/axialLoad);
+        pressureField = normalContactPressure;
+        axialLoad = int2d(Th, topLabel)(pressureField);
+    }
+    contactPressure = axialLoad/max(1.e-12, int2d(Th, topLabel)(contactMask));
+    rodContactPressure = contactPressure;
+    // Resolve the active footprint from the normal-contact response.  The
+    // radius is an equivalent radius of p_n > p_tol, not a prescribed heat
+    // radius; the geometrical shoulder only bounds the possible contact area.
+    contactPressureMask = normalContactMask
+                        * (pressureField > contactPressureTolerance);
+    real resolvedContactArea = int2d(Th, topLabel)(contactPressureMask);
+    if (resolvedContactArea > 1.e-12)
+    {
+        real resolvedContactRadius = min(expandedShoulderRadius,
+                                  sqrt(resolvedContactArea/pi));
+        effectiveContactRadius = min(expandedShoulderRadius,
+                                 max(loadedContactRadiusMin,
+                                     (1.0-contactRadiusRelax)*effectiveContactRadius
+                                   + contactRadiusRelax*resolvedContactRadius));
+        contactAreaEvolving = resolvedContactArea;
+        contactMask = contactPressureMask;
+        // Use the same resolved pressure footprint for the final friction
+        // torque/power calculation; otherwise p and R refer to different
+        // contact areas in the disk formula.
+        contactPressure = axialLoad/resolvedContactArea;
+        rodContactPressure = contactPressure;
+    }
+    strainRateEff =
+        sqrt(2.0*(dx(Ux)^2 + dy(Uy)^2 + dz(Uz)^2)
+           + (dy(Ux)+dx(Uy))^2
+           + (dz(Ux)+dx(Uz))^2
+           + (dz(Uy)+dy(Uz))^2);
+    meanStrainRate = int3d(Th)(strainRateEff*plasticZoneMask)
+                   / max(1.e-12, int3d(Th)(plasticZoneMask));
+    Dxx = dx(Ux);
+    Dyy = dy(Uy);
+    Dzz = dz(Uz);
+    Dxy = 0.5*(dy(Ux)+dx(Uy));
+    Dyz = 0.5*(dz(Uy)+dy(Uz));
+    Dzx = 0.5*(dx(Uz)+dz(Ux));
+    // Incremental small-strain J2 update.  The total displacement is
+    // integrated from velocity, so the return map retains elastic unloading
+    // and stress history instead of reconstructing stress from viscosity.
+    totalDispX = totalDispX + dt*Ux;
+    totalDispY = totalDispY + dt*Uy;
+    totalDispZ = totalDispZ + dt*Uz;
+    epsXX = dx(totalDispX); epsYY = dy(totalDispY); epsZZ = dz(totalDispZ);
+    epsXY = 0.5*(dy(totalDispX)+dx(totalDispY));
+    epsYZ = 0.5*(dz(totalDispY)+dy(totalDispZ));
+    epsZX = 0.5*(dz(totalDispX)+dx(totalDispZ));
+    dEpsXX = epsXX-epsXXOld; dEpsYY = epsYY-epsYYOld; dEpsZZ = epsZZ-epsZZOld;
+    dEpsXY = epsXY-epsXYOld; dEpsYZ = epsYZ-epsYZOld; dEpsZX = epsZX-epsZXOld;
+    Vh dEpsTrace = dEpsXX+dEpsYY+dEpsZZ;
+    shearModulusField = EField/(2.0*(1.0+nuField));
+    bulkModulusField = EField/(3.0*(1.0-2.0*nuField));
+    trSigXX = sigXX+2.0*shearModulusField*(dEpsXX-dEpsTrace/3.0)+bulkModulusField*dEpsTrace;
+    trSigYY = sigYY+2.0*shearModulusField*(dEpsYY-dEpsTrace/3.0)+bulkModulusField*dEpsTrace;
+    trSigZZ = sigZZ+2.0*shearModulusField*(dEpsZZ-dEpsTrace/3.0)+bulkModulusField*dEpsTrace;
+    trSigXY = sigXY+2.0*shearModulusField*dEpsXY;
+    trSigYZ = sigYZ+2.0*shearModulusField*dEpsYZ;
+    trSigZX = sigZX+2.0*shearModulusField*dEpsZX;
+    Vh trSigMean = (trSigXX+trSigYY+trSigZZ)/3.0;
+    sigDevxx = trSigXX-trSigMean; sigDevyy = trSigYY-trSigMean; sigDevzz = trSigZZ-trSigMean;
+    sigDevxy = trSigXY; sigDevyz = trSigYZ; sigDevzx = trSigZX;
+    qTrial = sqrt(1.5*(sigDevxx^2+sigDevyy^2+sigDevzz^2)
+                + 3.0*(sigDevxy^2+sigDevyz^2+sigDevzx^2));
+    jcRateFactorField = jcRateFactor(plasticStrainRateEq);
+    jcThermalFactorField = jcThermalFactor(T);
+    flowStressField = jcFlowStress(plasticStrainEq, plasticStrainRateEq, T);
+    yieldCriterion = (qTrial >= flowStressField)*plasticizingTemperatureMask*plasticZoneMask;
+    plasticIncrement = yieldCriterion
+                     * max(0.0, (qTrial-flowStressField)
+                       /max(1.e-12, 3.0*shearModulusField));
+    returnFactor = 1.0-yieldCriterion
+                 + yieldCriterion*min(1.0, flowStressField/max(1.e-12, qTrial));
+    sigXX = trSigMean+returnFactor*sigDevxx;
+    sigYY = trSigMean+returnFactor*sigDevyy;
+    sigZZ = trSigMean+returnFactor*sigDevzz;
+    sigXY = returnFactor*sigDevxy; sigYZ = returnFactor*sigDevyz; sigZX = returnFactor*sigDevzx;
+    plasticStrainRateEq = plasticIncrement/dt;
+    plasticStrainEq = plasticStrainEq+plasticIncrement;
+    jcFlowStressField = jcFlowStress(plasticStrainEq, plasticStrainRateEq, T);
+    flowStressField = jcFlowStressField;
+    vonMisesStress = sqrt(1.5*((sigXX-(sigXX+sigYY+sigZZ)/3.0)^2
+                              +(sigYY-(sigXX+sigYY+sigZZ)/3.0)^2
+                              +(sigZZ-(sigXX+sigYY+sigZZ)/3.0)^2)
+                         +3.0*(sigXY^2+sigYZ^2+sigZX^2));
+    // Plastic displacement is updated only by the return-map plastic state;
+    // it may develop during dwell if the base actually reaches yield.
+    defX = defX + dt*yieldCriterion*Ux;
+    defY = defY + dt*yieldCriterion*Uy;
+    defZ = defZ + dt*yieldCriterion*Uz;
+    defMag = sqrt(defX^2+defY^2+defZ^2);
+    epsXXOld = epsXX; epsYYOld = epsYY; epsZZOld = epsZZ;
+    epsXYOld = epsXY; epsYZOld = epsYZ; epsZXOld = epsZX;
+    strainTrace = dx(defX)+dy(defY)+dz(defZ);
+    vonMisesStrain =
+        sqrt((2.0/3.0)*(
+              (dx(defX)-strainTrace/3.0)^2
+            + (dy(defY)-strainTrace/3.0)^2
+            + (dz(defZ)-strainTrace/3.0)^2
+            + 2.0*(0.5*(dy(defX)+dx(defY)))^2
+            + 2.0*(0.5*(dz(defX)+dx(defZ)))^2
+            + 2.0*(0.5*(dz(defY)+dy(defZ)))^2));
+    meanPlasticStrain = max(epsPlastic0,
+                            int3d(Th)(plasticStrainEq*plasticZoneMask)
+                            /max(1.e-12, int3d(Th)(plasticZoneMask)));
+    meanPlasticStrainRate = int3d(Th)(plasticStrainRateEq*plasticZoneMask)
+                          / max(1.e-12, int3d(Th)(plasticZoneMask));
+    meanJcRateFactor = jcRateFactor(meanPlasticStrainRate);
+    maxPlasticStrain = plasticStrainEq[].max;
+    maxPlasticStrainRate = plasticStrainRateEq[].max;
+    jcRateFactorField = jcRateFactor(plasticStrainRateEq);
+    jcThermalFactorField = jcThermalFactor(T);
+    jcFlowStressField = jcFlowStress(plasticStrainEq, plasticStrainRateEq, T);
+    flowStressField = jcFlowStressField;
+    meanFlowStress = int3d(Th)(flowStressField*plasticZoneMask)
+                   /max(1.e-12, int3d(Th)(plasticZoneMask));
+    etaField = min(etaMax,
+                   max(etaMin,
+                       flowStressField/(3.0*(plasticStrainRateEq+etaReg))));
+    etaField = max(etaField, etaMushyMin*mushyZoneMask);
+
+
+    Vh cauchyMean = (sigXX+sigYY+sigZZ)/3.0;
+    sigDevxx = sigXX-cauchyMean; sigDevyy = sigYY-cauchyMean;
+    sigDevzz = sigZZ-cauchyMean;
+    sigDevxy = sigXY; sigDevyz = sigYZ; sigDevzx = sigZX;
+    vonMisesStress = sqrt(1.5*(sigDevxx^2+sigDevyy^2+sigDevzz^2)
+                       +3.0*(sigDevxy^2+sigDevyz^2+sigDevzx^2));
+    plasticWorkRampField = 1.0;
+    // Plastic work is generated only in the pressure-active shoulder region.
+    // This prevents a retained annulus mask from supplying heat after contact
+    // opens during a penalty/servo iteration.
+    plasticDissipation = betaTaylor*flowStressField*plasticStrainRateEq
+                       * plasticZoneMask*normalContactMask*plasticWorkRampField;
+    plasticPower = int3d(Th)(plasticDissipation);
+    qpEquationPower = plasticPower;
+    // Rod and plate plastic work share the spindle power left after friction;
+    // do not let the plate plastic source add uncapped power to the model.
+    real platePlasticPowerAvailable = max(0.0,
+        spindlePowerRemaining-rodPlasticPower);
+    real qpCommand = thermalControl
+                   * min(plasticPower, platePlasticPowerAvailable);
+    appliedQp = heatInputRelax*qpCommand + (1.0-heatInputRelax)*appliedQpPrev;
+    qpRelativeError = abs(appliedQp-qpCommand)/max(1.e-12, abs(qpCommand));
+    appliedQpPrev = appliedQp;
+    // Rebuild friction heat from the converged current contact state.  The
+    // earlier value is only a mechanics predictor; using it here could apply
+    // heat after the final penalty-contact solution had opened the interface.
+    localSlipVelocity = sqrt((travelStepVx - omega*(y-toolY) - Ux)^2
+                           + (travelStepVy + omega*(x-toolX) - Uy)^2);
+    shearCritField = flowStressField/sqrt(3.0);
+    frictionShearField = frictionCoefficientField*pressureField;
+    trialShearField = toolCoupling*heatSourceDepth*localSlipVelocity;
+    localStickField = 0.0;
+    effectiveSlipVelocity = (1.0-localStickField)*localSlipVelocity;
+    frictionHeatFlux = processActive*contactMask
+                     * frictionHeatEfficiency
+                     * currentMu*contactPressure*omega*rContact;
+    // Qf is the requested rotating-disk result.  It uses mean solved normal
+    // pressure and loaded radius, not the local relative-velocity field.
+    qfEquationPower = diskFrictionPower(frictionHeatEfficiency, currentMu,
+                                         contactPressure, omega,
+                                         effectiveContactRadius);
+    // Retained as a CSV compatibility field: it is identical to Qf because
+    // the model has no separate sticking/sliding law.
+    qfFullSlidingPower = qfEquationPower;
+    frictionSlipFraction = processActive;
+    spindleLoadTorque = diskFrictionTorque(currentMu, contactPressure,
+                                           effectiveContactRadius);
+    spindleRequiredPower = spindleLoadTorque*omega;
+    frictionPower = qfEquationPower;
+    limitedFrictionPower = min(frictionPower, spindleFrictionPowerBudget);
+    qfPlateCommand = processActive*rampControl
+                   * heatGovernor(max(dwellControlTemp, rodContactHot))
+                   * plateHeatPartition*limitedFrictionPower;
+    appliedQf = heatInputRelax*qfPlateCommand
+              + (1.0-heatInputRelax)*appliedQfPrev;
+    appliedQfPrev = appliedQf;
+    totalFrictionPowerApplied = appliedQf/max(1.e-12, plateHeatPartition);
+    rodFrictionHeat = rodHeatLossFraction*totalFrictionPowerApplied;
+    if (axialLoad <= 1.0)
+    {
+        rodContactPowerToPlate = 0.0;
+        rodContactFlux = 0.0;
+    }
+    // Contact friction is a surface source, as in thermal contact elements.
+    // Do not smear the same Qf through the arbitrary heatSourceDepth volume.
+    real finalFrictionIntegral = max(1.e-12,
+                                     int2d(Th, topLabel)(frictionHeatFlux));
+    frictionFluxScale = appliedQf/finalFrictionIntegral;
+    frictionSurfaceFlux = frictionFluxScale*frictionHeatFlux;
+    frictionSource = 0.0;
+    heatPower = appliedQf+appliedQp+rodContactPowerToPlate;
+    plasticSource = appliedQp/max(1.e-12, int3d(Th)(plasticDissipation))
+                  * plasticDissipation;
+    source = plasticSource+rodContactFlux;
+    sourceIntegratedPower = int3d(Th)(source)
+                          + int2d(Th, topLabel)(frictionSurfaceFlux);
+    sourceRelativeError = abs(sourceIntegratedPower-heatPower)
+                        / max(1.e-12, abs(heatPower));
+    // Plate/rod contact transfer cancels in the combined balance.  Therefore
+    // the total thermal input is the capped interface friction plus the
+    // ramped rod plastic work plus the plate plastic work; it is not merely
+    // the plate-side variable heatPower.
+    totalSystemHeatPower = totalFrictionPowerApplied
+                         + rampControl*rodPlasticPower + appliedQp;
+    totalSourceRelativeError =
+        abs(sourceIntegratedPower+rodSourceIntegratedPower-totalSystemHeatPower)
+        / max(1.e-12, abs(totalSystemHeatPower));
+    // ALE-relative material velocity.  Advection is implicit in T and SUPG
+    // stabilizes the streamline residual, so no old-temperature advection
+    // source is placed on the right-hand side.
+    relVx = Ux-meshVx;
+    relVy = Uy-meshVy;
+    relVz = Uz-meshVz;
+    Vh heatRelSpeed = sqrt(relVx^2+relVy^2+relVz^2);
+    Vh heatSupgTau = min(0.5*dt,
+                          pspgElementLength/(2.0*max(1.e-9, heatRelSpeed)));
+
+    // One conservative thermal solve per time step.  Its source contains
+    // only current-step shoulder friction, plate plastic work, and the equal
+    // and opposite rod/plate contact transfer.
+    solve Heat(T, v, solver=sparsesolver)
+        = int3d(Th)(
+              rhoField*cpField/dt*T*v
+            + kField*(dx(T)*dx(v)+dy(T)*dy(v)+dz(T)*dz(v))
+            + rhoField*cpField
+             *(relVx*dx(T)+relVy*dy(T)+relVz*dz(T))*v
+            + heatSupgTau*rhoField*cpField
+             *(relVx*dx(T)+relVy*dy(T)+relVz*dz(T))
+             *(relVx*dx(v)+relVy*dy(v)+relVz*dz(v))
+          )
+        + int2d(Th, topLabel)(
+              hLoss*T*v
+          )
+        + int2d(Th, bottomLabel)(
+              fixtureConductance*T*v
+          )
+        + int2d(Th, 1, 2, 3, 4)(
+              sideConvection*T*v
+          )
+        - int3d(Th)(
+              rhoField*cpField/dt*Told*v
+          )
+        - int2d(Th, topLabel)(
+              hLoss*Tair*v
+          )
+        - int2d(Th, bottomLabel)(
+              fixtureConductance*Tair*v
+          )
+        - int2d(Th, 1, 2, 3, 4)(
+              sideConvection*Tair*v
+          )
+        - int2d(Th, topLabel)(
+              frictionSurfaceFlux*v
+          )
+        - int3d(Th)(
+              source*v
+          );
+    T = max(Tair, T);
+    Tmax = T[].max;
+    // Use the newly solved temperature for phase and plasticization fields;
+    // retaining the pre-solve masks introduces a one-step state lag.
+    mushyFractionField = mushyFraction(T);
+    mushyZoneMask = (T >= TplasticLow)*(T <= TplasticHigh);
+    plasticizingTemperatureMask = mushyZoneMask;
+    convLossPower = int2d(Th, topLabel)(hConv*max(T-Tair, 0.0));
+    fixtureLossPower = int2d(Th, bottomLabel)(
+                       fixtureConductance*max(T-Tair, 0.0));
+    sideLossPower = int2d(Th, 1, 2, 3, 4)(
+                    sideConvection*max(T-Tair, 0.0));
+    radEmitPower = int2d(Th, topLabel)(emiss*sigmaSB*T^4);
+    radAmbientPower = int2d(Th, topLabel)(emiss*sigmaSB*Tair^4);
+    radLossPower = radEmitPower-radAmbientPower;
+    storedPower = int3d(Th)(rhoField*cpField*(T-Told)/dt);
+    netHeatPower = heatPower-convLossPower-fixtureLossPower
+                 - sideLossPower-radLossPower;
+    heatFluxX = -kField*dx(T);
+    heatFluxY = -kField*dy(T);
+    heatFluxZ = -kField*dz(T);
+    heatFluxMag = sqrt(heatFluxX^2+heatFluxY^2+heatFluxZ^2);
+    maxHeatFlux = heatFluxMag[].max;
+
+    // Material transport remains in the ALE frame.  The same relative
+    // velocity is used by the SUPG-stabilized thermal transport above.
+    speedField = sqrt(Ux^2+Uy^2+Uz^2);
+    meshSpeedField = sqrt(meshVx^2+meshVy^2+meshVz^2);
+    maxVelocity = speedField[].max;
+    maxMeshVelocity = meshSpeedField[].max;
+    maxDeformation = defMag[].max;
+    maxVonMisesStrain = vonMisesStrain[].max;
+    maxVonMisesStress = vonMisesStress[].max;
+
+    
+    // Plate plasticization is governed by its local resolved stress,
+    // plasticizing temperature, and shoulder contact—not an external switch.
+    // Radial return limits q to the flow stress, so testing q>sigma_flow
+    // after the return map incorrectly hides yielded material.  Accumulated
+    // plastic strain is the persistent indicator of plasticization.
+    plasticized = (plasticStrainEq > epsPlastic0)
+                * plasticizingTemperatureMask
+                * contactMask
+                * (x >= xMin)*(x <= xMax)*(y >= yMin)*(y <= yMax)
+                * (z >= plateT-topActivationDepth);
+
+    // AFSD annulus: material must be plastically loaded, deforming at a
+    // meaningful plastic strain rate, and transporting outward radially.
+    radialVelocity = ((x-toolX)*Ux+(y-toolY)*Uy)
+                   / max(1.e-12, rContact);
+    tangentialVelocity = (-(y-toolY)*Ux+(x-toolX)*Uy)
+                      / max(1.e-12, rContact);
+    annulusIndicator = contactMask
+                     * (z >= effectivePlateSurfaceZ-heatSourceDepth)
+                     * (vonMisesStress >= flowStressField)
+                     * (plasticStrainRateEq >= annulusStrainRateCritical)
+                     * (radialVelocity > annulusRadialVelocityCritical);
+    // Replace the former prescribed radial ring with the resolved annulus.
+    shearAnnulusMask = annulusIndicator;
+    plasticZoneMask = annulusIndicator;
+    // Equivalent inner radius from the resolved annular area, assuming the
+    // outer boundary is the current loaded shoulder radius.
+    real resolvedAnnulusArea = int2d(Th, topLabel)(annulusIndicator);
+    if (resolvedAnnulusArea > 1.e-12)
+        activeShearRadius = sqrt(max(0.0, effectiveContactRadius^2
+                                      -resolvedAnnulusArea/pi));
+    else
+        activeShearRadius = 0.0;
+
+    
+    Vh depositionMask, thermalActivation, depositionSwitch;
+    Vh depositionFootprintMask, geometricDepositionFootprint;
+    mushyFractionField = mushyFraction(T);
+    mushyZoneMask = (T >= TplasticLow)*(T <= TplasticHigh);
+    plasticizingTemperatureMask = mushyZoneMask;
+    // Deposition transport is controlled by plasticization of the rotating
+    // rod; the base plate remains mechanically deformable.
+    thermalActivation = rodPlasticFactor;
+    depositionSwitch = min(1.0, max(0.0,
+                       pressureField/criticalContactPressure))
+                     * (axialFeedStepV > 1.e-12);
+    // Normalize by the geometric moving footprint, before the pressure and
+    // plasticization gates are applied.  Normalizing by the gated footprint
+    // would cancel a partial gate and deposit the full commanded volume.
+    geometricDepositionFootprint = depositionActive*contactMask
+                 * (sqrt((x-(toolX-0.35*effectiveContactRadius*travelDirX))^2
+                        +(y-(toolY-0.35*effectiveContactRadius*travelDirY))^2)
+                     <= effectiveContactRadius)
+                 * (x >= xMin)*(x <= xMax)*(y >= yMin)*(y <= yMax);
+    footprintIntegral = max(1.e-12,
+                             int2d(Th, topLabel)(geometricDepositionFootprint));
+    localGrowthRate = depositionActive*volumeFeedRate/footprintIntegral;
+    depositionFootprintMask = geometricDepositionFootprint
+                            * depositionSwitch*thermalActivation;
+    depositionMask = depositionFootprintMask*topProcessLayer;
+    activationCandidate = depositionMask;
+    elemActivation = min(1.0, elemActivation + dt*activationRate*activationCandidate);
+    activeDeposit = (elemActivation > 0.01);
+    rodMassSource = depositionActive*rhoRT
+                  * localGrowthRate/max(1.e-12, topActivationDepth)
+                  * depositionMask;
+    rodMassAdvection = relVx*dx(rodTrackDensityOld)
+                     + relVy*dy(rodTrackDensityOld)
+                     + relVz*dz(rodTrackDensityOld);
+    solve RodTrackMass(rodTrackDensity, v, solver=sparsesolver)
+        = int3d(Th)(
+              rodTrackDensity*v/dt
+            + rodMassDiffusivity*(dx(rodTrackDensity)*dx(v)
+                                  +dy(rodTrackDensity)*dy(v)
+                                  +dz(rodTrackDensity)*dz(v))
+          )
+        - int3d(Th)(
+              rodTrackDensityOld*v/dt
+          )
+        + int3d(Th)(
+              rodMassAdvection*v
+          )
+        - int3d(Th)(
+              rodMassSource*v
+          );
+    rodTrackDensity = min(rhoField, max(0.0, rodTrackDensity));
+    rodMassFluxX = rodTrackDensity*relVx;
+    rodMassFluxY = rodTrackDensity*relVy;
+    rodMassFluxZ = rodTrackDensity*relVz;
+    rodMassFluxMag = sqrt(rodMassFluxX^2+rodMassFluxY^2+rodMassFluxZ^2);
+    realDepositDensity = rodTrackDensity*topProcessLayer;
+    virtualVoid = max(0.0, 1.0-rodTrackDensity/max(1.e-12, rhoField))*topProcessLayer;
+    // Height is a top-surface quantity.  The source below is distributed
+    // through topActivationDepth only to couple its mass to the 3-D solver.
+    depositHeight = depositHeight + dt*localGrowthRate
+                  * depositionFootprintMask*topProcessLayer;
+
+
+    // Base height decreases only from solved, yield-qualified deformation.
+    // The traverse-only factor above therefore prevents dwell compaction.
+    plateCompactionHeight = min(plateCompactionMax,
+                                max(0.0, -defZ));
+    freeSurfaceHeight = max(0.0, depositHeight-plateCompactionHeight);
+
+    // Level-set interface transport in the ALE frame:
+    // d(phi)/dt + interfaceV dot grad(phi) = 0, with phi=0 defining the
+    // evolving material/free-space interface.  The normal deposition speed
+    // is added only in the active deposition footprint.
+    interfaceVx = relVx;
+    interfaceVy = relVy;
+    interfaceVz = relVz + localGrowthRate*depositionFootprintMask*topProcessLayer;
+    levelSetAdvection = interfaceVx*dx(phiOld)
+                      + interfaceVy*dy(phiOld)
+                      + interfaceVz*dz(phiOld);
+    solve LevelSetTransport(phi, v, solver=sparsesolver)
+        = int3d(Th)(phi*v/dt)
+        - int3d(Th)(phiOld*v/dt-levelSetAdvection*v);
+    freeSurfaceIndicator = (abs(phi) <= levelSetBand);
+    effectivePlateSurfaceZ = plateT+oldMeshUz;
+    // Feed material only after the rotating rod has reached the requested
+    // plasticizing state.  Dwell heats and stirs the contact but does not
+    // form a layer; deposition begins with the Y traverse.
+    // Use exactly the same gated footprint fraction for rod shortening as
+    // for deposited height.  This enforces dV_deposit=A_rod*dL_rod.
+    real depositionTransferFraction = int2d(Th, topLabel)(depositionFootprintMask)
+                                   / footprintIntegral;
+    rodLengthRemaining = max(rodStopHeight,
+                              rodLengthRemaining
+                            - depositionTransferFraction*axialFeedV*dt);
+    effectiveRodHeight = max(rodStopHeight, rodLengthRemaining);
+    rodConsumedFraction = min(1.0, max(0.0,
+                          (rodHeight-effectiveRodHeight)
+                          /max(1.e-12, rodConsumableHeight)));
+
+
+    // Deposited volume is the integral of the physical surface-height field,
+    // not the geometric volume of a Boolean activation mask.  Update it
+    // before the radius calculation: the previous code used the prior-step
+    // consumption here and left the rod geometry one time step behind.
+    depositVolume = int2d(Th, topLabel)(depositHeight);
+    rodConsumedVolume = min(oneRodVolume, depositVolume);
+    // Apply the same incompressible radius update after rod transfer so the
+    // next contact/heat step, CSV output, and 3-D viewer share one diameter.
+    rodSolidVolumeRemaining = max(0.0, oneRodVolume-rodConsumedVolume);
+    real radiusBeforeTransfer = effectiveRodRadius;
+    effectiveRodRadius = sqrt(rodSolidVolumeRemaining
+                         /max(1.e-12, pi*effectiveRodHeight));
+    rodRadiusRate = (effectiveRodRadius-radiusBeforeTransfer)/dt;
+    expandedShoulderRadius = effectiveRodRadius;
+    rodMassRemaining = rhoRT*rodSolidVolumeRemaining;
+    // This simplified no-flash model consumes only the volume transferred to
+    // the surface, so its deposition efficiency is unity by construction.
+    depositionEfficiency = depositVolume/max(1.e-12, rodConsumedVolume);
+    flashHeight = 0.0;
+
+
+
+    if (enableALE && ((it % aleMoveEvery) == 0 || it == 1))
+    {
+        meshVolumeBefore = int3d(Th)(1.0);
+        aleTopTarget = min(aleMaxStep,
+                           max(-aleMaxStep,
+                               aleRelax*(freeSurfaceHeight-oldMeshUz)));
+        solve MeshX(meshUx, v, solver=sparsesolver)
+            = int3d(Th)(dx(meshUx)*dx(v)+dy(meshUx)*dy(v)+dz(meshUx)*dz(v))
+            + on(1, 2, 3, 4, 5, 6, meshUx=0.0);
+        solve MeshY(meshUy, v, solver=sparsesolver)
+            = int3d(Th)(dx(meshUy)*dx(v)+dy(meshUy)*dy(v)+dz(meshUy)*dz(v))
+            + on(1, 2, 3, 4, 5, 6, meshUy=0.0);
+        solve MeshZ(meshUz, v, solver=sparsesolver)
+            = int3d(Th)(dx(meshUz)*dx(v)+dy(meshUz)*dy(v)+dz(meshUz)*dz(v))
+            + on(5, meshUz=0.0)
+            + on(6, meshUz=aleTopTarget);
+
+        meshVx = meshUx/dt;
+        meshVy = meshUy/dt;
+        meshVz = meshUz/dt;
+        meshSpeedField = sqrt(meshVx^2+meshVy^2+meshVz^2);
+        maxMeshVelocity = meshSpeedField[].max;
+        Th = movemesh3(Th, transfo=[x+meshUx, y+meshUy, z+meshUz]);
+        meshVolumeAfter = int3d(Th)(1.0);
+        meshVolumeRatio = meshVolumeAfter/max(1.e-12, meshVolumeBefore);
+        oldMeshUz = oldMeshUz+meshUz;
+        effectivePlateSurfaceZ = plateT+oldMeshUz;
+        if (meshVolumeAfter <= minMeshVolume
+            || abs(meshVolumeRatio-1.0) > aleQualityLimit)
+            cout << "[ALE WARNING] mesh-quality limit reached at step " << it
+                 << "; reduce aleRelax or aleMaxStep." << endl;
+    }
+    else
+    {
+        meshVx = 0.0; meshVy = 0.0; meshVz = 0.0;
+        meshSpeedField = 0.0; maxMeshVelocity = 0.0;
+    }
+
+    Tmax = T[].max;
+    Tavg = int3d(Th)(T)/max(1.e-12, int3d(Th)(1.0));
+    plasticVolume = int3d(Th)(plasticized);
+    mushyVolume = int3d(Th)(mushyZoneMask);
+
+    if (writeHeatValidationEveryStep
+        || (it % historyEvery) == 0 || it == 1 || it == nSteps)
+    {
+        heatCheck << it << "," << t << "," << Tmax << "," << Tmax-273.15
+              << "," << mushyFraction(Tmax)
+              << "," << qfEquationPower
+              << "," << qfFullSlidingPower
+              << "," << frictionSlipFraction
+              << "," << appliedQf
+              << "," << qfRelativeError
+              << "," << qpEquationPower << "," << appliedQp
+              << "," << rodPlasticPower
+              << "," << qpRelativeError
+              << "," << heatPower << "," << totalSystemHeatPower
+              << "," << sourceIntegratedPower
+              << "," << rodSourceIntegratedPower
+              << "," << totalSourceRelativeError
+              << "," << convLossPower << "," << fixtureLossPower
+              << "," << sideLossPower
+              << "," << radLossPower << "," << radEmitPower
+              << "," << storedPower << "," << netHeatPower
+              << "," << currentMu << "," << currentSoftening
+              << "," << rampControl
+              << "," << dwellHeatCommand
+              << "," << rpm << "," << rpmCommand
+              << "," << spindleLoadTorque
+              << "," << spindleRequiredPower
+              << "," << axialLoad/1000.0
+              << "," << forceLimitActive
+              << "," << effectiveContactRadius*1000.0
+              << "," << expandedShoulderRadius*1000.0
+              << "," << activeShearRadius*1000.0
+              << "," << effectiveContactRadius*1000.0
+              << "," << (effectiveContactRadius-activeShearRadius)*1000.0
+              << "," << int2d(Th, topLabel)(shearAnnulusMask)*1.e6
+              << "," << contactAreaEvolving*1.e6
+              << "," << pi*effectiveContactRadius^2*1.e6
+              << "," << int2d(Th, topLabel)(contactMask)*1.e6
+              << "," << rodContactPressure/1.e6
+              << "," << meanFlowStress/1.e6
+              << "," << meanStrainRate
+              << "," << meanJcRateFactor
+              << "," << meanPlasticStrain
+              << "," << maxPlasticStrain
+              << "," << maxPlasticStrainRate
+              << "," << plateHeatPartition
+              << "," << (1.0-plateHeatPartition)
+              << "," << frictionShearField[].max/1.e6
+              << "," << shearCritField[].max/1.e6
+              << "," << plasticZoneVolume
+              << "," << mushyVolume
+              << "," << depositHeight[].max*1000.0
+              << "," << flashHeight[].max*1000.0
+              << "," << toolX*1000.0 << "," << toolY*1000.0
+              << "," << processActive
+              << "," << contactIndentation*1.e6
+              << "," << effectiveRodRadius*1000.0
+              << "," << 2.0*effectiveRodRadius*1000.0
+              << "," << effectivePlateSurfaceZ[].min*1000.0
+              << "," << toolZPosition*1000.0
+              << "," << gcodeZCommand*1000.0
+              << "," << cpContactEff
+              << "," << rodConsumedVolume
+              << "," << depositVolume
+              << "," << depositionEfficiency << endl;
+    }
+
+
+
+    if (Tmax > Tliq)
+        limitCheck << it << "," << t << ",Tmax_K," << Tmax << "," << Tliq
+                   << ",maximum," << 100.0*(Tmax-Tliq)/Tliq << ","
+                   << toolX*1000.0 << "," << toolY*1000.0 << ","
+                   << gcodeZCommand*1000.0 << "," << effectiveRodHeight*1000.0 << endl;
+    if (effectiveContactRadius > rodRadius)
+        limitCheck << it << "," << t << ",contact_radius_m," << effectiveContactRadius << "," << rodRadius
+                   << ",maximum," << 100.0*(effectiveContactRadius-rodRadius)/rodRadius << ","
+                   << toolX*1000.0 << "," << toolY*1000.0 << ","
+                   << gcodeZCommand*1000.0 << "," << effectiveRodHeight*1000.0 << endl;
+    if (qfRelativeError > 0.01)
+        limitCheck << it << "," << t << ",Qf_relative_error," << qfRelativeError << "," << 0.01
+                   << ",maximum," << 100.0*(qfRelativeError-0.01)/0.01 << ","
+                   << toolX*1000.0 << "," << toolY*1000.0 << ","
+                   << gcodeZCommand*1000.0 << "," << effectiveRodHeight*1000.0 << endl;
+    if (totalSourceRelativeError > 0.01)
+        limitCheck << it << "," << t << ",total_source_relative_error," << totalSourceRelativeError << "," << 0.01
+                   << ",maximum," << 100.0*(totalSourceRelativeError-0.01)/0.01 << ","
+                   << toolX*1000.0 << "," << toolY*1000.0 << ","
+                   << gcodeZCommand*1000.0 << "," << effectiveRodHeight*1000.0 << endl;
+    if (forceLimitActive)
+        limitCheck << it << "," << t << ",axial_force_limit_active," << axialLoad << "," << axialForceMax
+                   << ",safety_ceiling,0,"
+                   << toolX*1000.0 << "," << toolY*1000.0 << ","
+                   << gcodeZCommand*1000.0 << "," << effectiveRodHeight*1000.0 << endl;
+
+    
+    if (it == 1 || (it % printEvery) == 0 || it == nSteps)
+    {
+        real flpeak = mushyFraction(Tmax);
+        real rodTipZmm = toolZPosition*1000.0;
+        cout << "[PC] Step " << it << "  t=" << t << " s"
+             << "  plate_tool=(" << toolX*1000.0 << ", " << toolY*1000.0
+             << ", " << rodTipZmm << ") mm"
+             << "  G55_machine=(" << gcodeXCommand*1000.0 << ", "
+             << gcodeYCommand*1000.0 << ", " << gcodeZCommand*1000.0
+             << ") mm";
+        if (axialLoad > 1.0 && normalContactMask[].max > 0.5)
+            cout << "  solvedContact=YES";
+        else
+            cout << "  solvedContact=NO";
+        cout << "  T_max=" << Tmax-273.15 << " C"
+             << "  mushy_fraction=" << flpeak;
+        if (Tmax > Tliq)
+            cout << "  [*** MELTING OCCURRING ***]";
+        else if (Tmax >= TplasticLow)
+            cout << "  [plasticization band active]";
+        else
+            cout << "  [fully solid]";
+        cout << "  T_contact_avg=" << workpieceContactTemp-273.15 << " C"
+             << "  T_contact_hot=" << workpieceContactHot-273.15 << " C"
+             << "  p_rod=" << rodContactPressure/1.e6 << " MPa"
+             << "  Fz=" << axialLoad/1000.0 << " kN"
+             << "  Qf_raw=" << qfEquationPower << " W"
+             << "  Qf_disk_formula=" << qfFullSlidingPower << " W"
+             << "  friction_model_active=" << frictionSlipFraction
+             << "  loadedContactRadius=" << effectiveContactRadius*1000.0 << " mm"
+             << "  expandedMaterialShoulderRadius=" << expandedShoulderRadius*1000.0 << " mm"
+             << "  annulusEquivalentInner=" << activeShearRadius*1000.0 << " mm"
+             << "  annulusOuter=" << effectiveContactRadius*1000.0 << " mm"
+             << "  annulusWidth=" << (effectiveContactRadius-activeShearRadius)*1000.0 << " mm"
+             << "  rpm=" << rpm
+             << "  rpm_cmd=" << rpmCommand;
+        cout << endl;
+    }
+
+
+    if ((it % historyEvery) == 0 || it == 1 || it == nSteps)
+    {
+        history << t << "," << toolX << "," << toolY << ","
+                << Tmax << "," << Tavg << "," << plasticVolume << ","
+                << depositHeight[].max << ","
+                << flashHeight[].max << ","
+                << axialFeedStepV*60000.0 << "," << appliedQf << ","
+                << qfEquationPower << "," << qfFullSlidingPower << ","
+                << frictionSlipFraction << ","
+                << appliedQp << "," << rodPlasticPower << ","
+                << heatPower << "," << totalSystemHeatPower << ","
+                << convLossPower << "," << fixtureLossPower << ","
+                << sideLossPower << "," << radLossPower << ","
+                << radEmitPower << "," << storedPower << ","
+                << netHeatPower << "," << currentMu << ","
+                << currentSoftening << ","
+                << rpm << "," << rpmCommand << ","
+                << spindleLoadTorque << "," << spindleRequiredPower << ","
+                << axialLoad/1000.0 << ","
+                << forceLimitActive << ","
+                << rodContactPressure/1.e6 << ","
+                << kContact << "," << rodContactConductance << ","
+                << cpContact << "," << cpContactEff << "," << rhoContact << ","
+                << EContact/1.e9 << "," << yieldContact/1.e6 << ","
+                << int2d(Th, topLabel)(depositHeight)*1.e9 << ","
+                << int2d(Th, topLabel)(flashHeight)*1.e9 << ","
+                << maxVelocity << "," << maxMeshVelocity << ","
+                << elemActivation[].max << "," << etaField[].min << ","
+                << pressureField[].max/1.e6 << ","
+                << Trod << "," << rodPlasticFactor << ","
+                << rodEqStress/1.e6 << "," << rodFlowStress/1.e6 << ","
+                << rodStrainRate << ","
+                << effectiveContactRadius*1000.0 << ","
+                << expandedShoulderRadius*1000.0 << ","
+                << activeShearRadius*1000.0 << ","
+                << effectiveContactRadius*1000.0 << ","
+                << (effectiveContactRadius-activeShearRadius)*1000.0 << ","
+                << int2d(Th, topLabel)(shearAnnulusMask)*1.e6 << ","
+                << contactAreaEvolving*1.e6 << ","
+                << pi*effectiveContactRadius^2*1.e6 << ","
+                << int2d(Th, topLabel)(contactMask)*1.e6 << ","
+                << mushyVolume << ","
+                << meanStrainRate << "," << meanPlasticStrainRate << "," << meanJcRateFactor << "," << meanPlasticStrain << ","
+                << meanFlowStress/1.e6 << ","
+                << realDepositDensity[].max << ","
+                << plateHeatPartition << "," << (1.0-plateHeatPartition) << ","
+                << frictionShearField[].max/1.e6 << "," << shearCritField[].max/1.e6 << ","
+                << maxDeformation << "," << maxVonMisesStrain << ","
+                << maxVonMisesStress/1.e6 << ","
+                << maxPlasticStrain << "," << maxPlasticStrainRate << ","
+                << maxHeatFlux << ","
+                << effectiveRodRadius*1000.0 << ","
+                << 2.0*effectiveRodRadius*1000.0 << ","
+                << effectiveRodHeight*1000.0 << ","
+                << contactIndentation*1.e6 << "," << stickFraction << ","
+                << rodElasticAxialDeflection*1.e6 << ","
+                << rodElasticBendingDeflection*1.e6 << ","
+                << rodElasticTwist << ","
+                << eulerianMeshFixed << endl;
+        cout << "t=" << t << " s, pass=" << pass+1 << "/" << nPasses
+             << ", rpm=" << rpm
+             << ", Tmax=" << Tmax << " K, plasticized volume="
+             << plasticVolume*1.e9 << " mm^3, hmax="
+             << depositHeight[].max*1000.0 << " mm, flash="
+             << flashHeight[].max*1000.0 << " mm, p_rod="
+             << contactPressure/1.e6 << " MPa, Fz="
+             << axialLoad/1000.0 << " kN, pRod="
+             << rodContactPressure/1.e6 << " MPa, Qf(applied)="
+             << appliedQf << " W, Qp(applied)=" << appliedQp
+             << " W, Qplate_net=" << heatPower
+             << " W, Qtotal_system=" << totalSystemHeatPower << " W" << endl;
+        cout << "    heat input [W]: Qf_raw=" << qfEquationPower
+             << ", Qf_disk_formula=" << qfFullSlidingPower
+             << ", friction_model_active=" << frictionSlipFraction
+             << ", Qf_interface_applied=" << totalFrictionPowerApplied
+             << ", Qf_to_plate=" << appliedQf
+             << ", Qf_to_rod=" << rodFrictionHeat
+             << ", Qrod_plastic=" << rodPlasticPower
+             << ", Qplate_plastic=" << appliedQp
+             << ", Qrod_to_plate=" << rodContactPowerToPlate
+             << ", Qplate_net=" << heatPower
+             << ", Qtotal_system=" << totalSystemHeatPower << endl;
+        cout << "    losses: convection=" << convLossPower
+             << " W, fixture=" << fixtureLossPower
+             << " W, side_convection=" << sideLossPower
+             << " W, radiation_loss=" << radLossPower
+             << " W, radiation_emission=" << radEmitPower
+             << " W, stored~=" << storedPower
+             << " W, net_in=" << netHeatPower << " W" << endl;
+        cout << "    heat parameters: mu_const=" << currentMu
+             << ", heatGovernor=" << heatGovernorFactor
+             << ", Hplate=" << plateHeatPartition
+             << ", Hrod_effusivity=" << (1.0-plateHeatPartition)
+             << ", tauMax=" << frictionShearField[].max/1.e6
+             << " MPa, tauCritMax=" << shearCritField[].max/1.e6 << endl;
+        cout << "    spindle: rpm_actual=" << rpm
+             << ", rpm_command=" << rpmCommand
+             << ", contact_torque=" << spindleLoadTorque
+             << " N*m, required_power=" << spindleRequiredPower
+             << " W" << endl;
+        cout << "    rod mechanics: plasticized=" << rodPlasticFactor
+             << ", eqStress=" << rodEqStress/1.e6
+             << " MPa, flowStress=" << rodFlowStress/1.e6
+             << " MPa, QrodPlastic=" << rodPlasticPower << " W" << endl;
+        cout << "    basePlateDeformation=" << maxDeformation*1000.0
+             << " mm, basePlateVMstrain=" << maxVonMisesStrain
+             << ", epsDotTotalMean=" << meanStrainRate
+             << " 1/s"
+             << ", epsPmax=" << maxPlasticStrain
+             << ", epsPdotMean=" << meanPlasticStrainRate
+             << " 1/s, epsPdotMax=" << maxPlasticStrainRate
+             << ", heatFluxMax=" << maxHeatFlux
+             << " W/m2, loadedContactRadius=" << effectiveContactRadius*1000.0
+             << " mm, expandedMaterialShoulderRadius=" << expandedShoulderRadius*1000.0
+             << " mm, annulusEquivalentInner=" << activeShearRadius*1000.0
+             << " mm, annulusOuter=" << effectiveContactRadius*1000.0
+             << " mm, annulusWidth=" << (effectiveContactRadius-activeShearRadius)*1000.0
+             << " mm" << endl;
+    }
+
+    if (writeSpatialSnapshots
+        && ((it % outputEvery) == 0 || it == nSteps))
+    {
+        heightMM = depositHeight*1000.0;
+        flashMM = flashHeight*1000.0;
+        int frameNumber = it/outputEvery;
+        real localPlateReduction = plateCompactionHeight[].max;
+        real displayedPlateThickness = max(0.0, plateT-localPlateReduction);
+        spatialFrames << frameNumber << "," << t << ",base_plate,"
+                      << 0.5*plateLx << "," << 0.5*plateLy << ",0,"
+                      << plateLx << "," << plateLy << ","
+                      << displayedPlateThickness << ",0,"
+                      << localPlateReduction << ","
+                      << 0.5*plateLx << "," << 0.5*plateLy << ",0,"
+                      << gcodeXCommand << "," << gcodeYCommand << ","
+                      << gcodeZCommand << endl;
+        spatialFrames << frameNumber << "," << t << ",consumable_rod,"
+                      << toolX << "," << toolY << "," << toolZPosition << ","
+                      << 2.0*effectiveRodRadius << ","
+                      << 2.0*effectiveRodRadius << ","
+                      << effectiveRodHeight << "," << effectiveRodRadius << ",0,"
+                      << toolX << "," << toolY << "," << toolZPosition << ","
+                      << gcodeXCommand << "," << gcodeYCommand << ","
+                      << gcodeZCommand << endl;
+        for (int j = 0; j < T[].n; ++j)
+            snapshots << frameNumber << "," << t << ","
+                      << Th(j).x << "," << Th(j).y << "," << Th(j).z << ","
+                      << T[][j] << "," << heightMM[][j] << ","
+                      << flashMM[][j] << "," << plateCompactionHeight[][j] << ","
+                      << effectivePlateSurfaceZ[][j] << ","
+                      << plasticized[][j] << "," << mushyFractionField[][j] << ","
+                      << elemActivation[][j] << ","
+                      << Ux[][j] << "," << Uy[][j] << "," << Uz[][j] << ","
+                      << meshVz[][j] << "," << pressureField[][j] << ","
+                      << etaField[][j] << ","
+                      << rodTrackDensity[][j] << "," << rodMassFluxX[][j] << ","
+                      << rodMassFluxY[][j] << "," << rodMassFluxZ[][j] << ","
+                      << rodMassFluxMag[][j] << ","
+                      << strainRateEff[][j] << "," << jcRateFactorField[][j] << ","
+                      << jcThermalFactorField[][j] << "," << jcFlowStressField[][j] << ","
+                      << plasticStrainEq[][j] << ","
+                      << plasticStrainRateEq[][j] << "," << plasticDissipation[][j] << ","
+                      << flowStressField[][j] << ","
+                      << realDepositDensity[][j] << ","
+                      << defMag[][j] << "," << vonMisesStrain[][j] << ","
+                      << vonMisesStress[][j] << ","
+                      << heatFluxX[][j] << "," << heatFluxY[][j] << ","
+                      << heatFluxZ[][j] << "," << heatFluxMag[][j] << endl;
+
+        if (showPlots)
+        {
+            plot(T, fill=true, value=true, wait=false,
+                 cmm="Temperature [K], t="+t+" s");
+             plot(heightMM, fill=true, value=true, wait=false,
+                  cmm="Deposited thickness [mm], t="+t+" s");
+             plot(phi, fill=true, value=true, wait=false,
+                  cmm="Level-set phi=0 free surface [m], t="+t+" s");
+        }
+    }
+
+
+
+    TrodOld = TrodField;
+    rodTrackDensityOld = rodTrackDensity;
+    [RUoldx, RUoldy, RUoldz, RPold] = [RUx, RUy, RUz, RP];
+    Told = T;
+    phiOld = phi;
+    [Uoldx, Uoldy, Uoldz, Pold] = [Ux, Uy, Uz, P];
+}
+
+T = max(Tair, T);
+TrodField = max(Tair, TrodField);
+rhoField = rhoOfT(T);
+cpField = cpEff(T);
+kField = kEff(T);
+alphaField = alphaOfT(T);
+EField = EOfT(T);
+yieldField = yieldOfT(T);
+nuField = nuOfT(T);
+heatFluxX = -kField*dx(T);
+heatFluxY = -kField*dy(T);
+heatFluxZ = -kField*dz(T);
+heatFluxMag = sqrt(heatFluxX^2+heatFluxY^2+heatFluxZ^2);
+strainTrace = dx(defX)+dy(defY)+dz(defZ);
+vonMisesStrain =
+    sqrt((2.0/3.0)*(
+          (dx(defX)-strainTrace/3.0)^2
+        + (dy(defY)-strainTrace/3.0)^2
+        + (dz(defZ)-strainTrace/3.0)^2
+        + 2.0*(0.5*(dy(defX)+dx(defY)))^2
+        + 2.0*(0.5*(dz(defX)+dx(defZ)))^2
+        + 2.0*(0.5*(dz(defY)+dy(defZ)))^2));
+Dxx = dx(Ux);
+Dyy = dy(Uy);
+Dzz = dz(Uz);
+Dxy = 0.5*(dy(Ux)+dx(Uy));
+Dyz = 0.5*(dz(Uy)+dy(Uz));
+Dzx = 0.5*(dx(Uz)+dz(Ux));
+Vh trD = Dxx+Dyy+Dzz;
+jcRateFactorField = jcRateFactor(plasticStrainRateEq);
+jcThermalFactorField = jcThermalFactor(T);
+jcFlowStressField = jcFlowStress(plasticStrainEq, plasticStrainRateEq, T);
+flowStressField = jcFlowStressField;
+shearCritField = flowStressField/sqrt(3.0);
+frictionShearField = frictionCoefficientField*pressureField;
+plasticWorkRampField = 1.0;
+etaField = min(etaMax,
+               max(etaMin,
+                   flowStressField/(3.0*(plasticStrainRateEq+etaReg))));
+etaField = max(etaField, etaMushyMin*mushyZoneMask);
+Vh finalCauchyMean = (sigXX+sigYY+sigZZ)/3.0;
+sigDevxx = sigXX-finalCauchyMean; sigDevyy = sigYY-finalCauchyMean;
+sigDevzz = sigZZ-finalCauchyMean;
+sigDevxy = sigXY; sigDevyz = sigYZ; sigDevzx = sigZX;
+vonMisesStress = sqrt(1.5*(sigDevxx^2+sigDevyy^2+sigDevzz^2)
+                   +3.0*(sigDevxy^2+sigDevyz^2+sigDevzx^2));
+
+
+ofstream finalField("consumable_rod_final_field.csv");
+finalField << "x_m,y_m,z_m,T_K,base_plate_plasticized,height_m,flash_m,base_plate_compaction_m,material_free_surface_z_m,pressure_Pa"
+           << ",rho_kg_m3,k_W_mK,cp_J_kgK,alpha_1_K,E_Pa,yield_Pa,nu"
+           << ",activation,ux_m_s,uy_m_s,uz_m_s,mesh_vx_m_s,mesh_vy_m_s,mesh_vz_m_s,eta_Pa_s"
+           << ",rod_track_density_kg_m3,rod_mass_flux_x_kg_m2_s,rod_mass_flux_y_kg_m2_s,rod_mass_flux_z_kg_m2_s,rod_mass_flux_mag_kg_m2_s"
+           << ",strain_rate_1_s,jc_rate_factor,jc_thermal_factor,jc_flow_stress_Pa"
+           << ",plastic_strain_eq,plastic_strain_rate_1_s"
+           << ",plastic_dissipation_W_m3,flow_stress_Pa,real_deposit_density,virtual_void"
+           << ",deformation_x_m,deformation_y_m,deformation_z_m,deformation_mag_m"
+           << ",accumulated_traverse_plastic_vm_strain,vonmises_stress_Pa"
+           << ",friction_shear_Pa,shear_critical_Pa,plastic_work_ramp,radial_velocity_m_s,tangential_velocity_m_s,annulus_indicator"
+           << ",level_set_phi_m,free_surface_indicator"
+           << ",heat_flux_x_W_m2,heat_flux_y_W_m2,heat_flux_z_W_m2,heat_flux_mag_W_m2"
+           << ",cauchy_sxx_Pa,cauchy_syy_Pa,cauchy_szz_Pa,cauchy_sxy_Pa,cauchy_syz_Pa,cauchy_szx_Pa"
+           << endl;
+for (int i = 0; i < T[].n; ++i)
+    finalField << Th(i).x << "," << Th(i).y << "," << Th(i).z << ","
+               << T[][i] << ","
+               << plasticized[][i] << "," << depositHeight[][i] << ","
+               << flashHeight[][i] << "," << plateCompactionHeight[][i] << ","
+               << effectivePlateSurfaceZ[][i] << "," << pressureField[][i] << ","
+               << rhoField[][i] << "," << kField[][i] << ","
+               << cpField[][i] << "," << alphaField[][i] << ","
+               << EField[][i] << "," << yieldField[][i] << ","
+               << nuField[][i] << ","
+               << elemActivation[][i] << ","
+               << Ux[][i] << "," << Uy[][i] << "," << Uz[][i] << ","
+               << meshVx[][i] << "," << meshVy[][i] << "," << meshVz[][i] << ","
+               << etaField[][i] << ","
+               << rodTrackDensity[][i] << "," << rodMassFluxX[][i] << ","
+               << rodMassFluxY[][i] << "," << rodMassFluxZ[][i] << ","
+               << rodMassFluxMag[][i] << ","
+               << strainRateEff[][i] << "," << jcRateFactorField[][i] << ","
+               << jcThermalFactorField[][i] << "," << jcFlowStressField[][i] << ","
+               << plasticStrainEq[][i] << ","
+               << plasticStrainRateEq[][i] << "," << plasticDissipation[][i] << ","
+               << flowStressField[][i] << ","
+               << realDepositDensity[][i] << "," << virtualVoid[][i] << ","
+               << defX[][i] << "," << defY[][i] << "," << defZ[][i] << ","
+               << defMag[][i] << "," << vonMisesStrain[][i] << ","
+               << vonMisesStress[][i] << ","
+                << frictionShearField[][i] << "," << shearCritField[][i] << ","
+                << plasticWorkRampField[][i] << ","
+               << radialVelocity[][i] << "," << tangentialVelocity[][i] << ","
+               << annulusIndicator[][i] << ","
+               << phi[][i] << "," << freeSurfaceIndicator[][i] << ","
+               << heatFluxX[][i] << "," << heatFluxY[][i] << ","
+               << heatFluxZ[][i] << "," << heatFluxMag[][i] << ","
+               << sigXX[][i] << "," << sigYY[][i] << "," << sigZZ[][i] << ","
+               << sigXY[][i] << "," << sigYZ[][i] << "," << sigZX[][i] << endl;
+
+ofstream rodFinalField("consumable_rod_tool_final_field.csv");
+rodFinalField << "x_m,y_m,z_m,T_K,rod_mask,contact_mask,ux_m_s,uy_m_s,uz_m_s"
+              << ",pressure_Pa,eta_Pa_s,strain_rate_1_s,plastic_dissipation_W_m3"
+              << ",flow_stress_Pa,eq_stress_Pa"
+              << ",effective_rod_radius_m,effective_rod_height_m"
+              << ",z_above_plate_m,z_relative_rod_base_m,spatial_tolerance_m"
+              << ",elastic_axial_deflection_m,elastic_bending_deflection_m,elastic_twist_rad"
+              << endl;
+for (int i = 0; i < TrodField[].n; ++i)
+    rodFinalField << Rod(i).x << "," << Rod(i).y << "," << Rod(i).z << ","
+                  << TrodField[][i] << "," << rodMask[][i] << ","
+                  << rodContactMask[][i] << "," << RUx[][i] << ","
+                  << RUy[][i] << "," << RUz[][i] << "," << RP[][i] << ","
+                  << rodEtaField[][i] << "," << rodStrainRateField[][i] << ","
+                  << rodPlasticDissipationField[][i] << "," 
+                  << rodFlowStress << "," << rodEqStress << ","
+                  << effectiveRodRadius << "," << effectiveRodHeight << ","
+                  << Rod(i).z-plateT << "," << Rod(i).z-plateT << ","
+                  << spatialCoordinateTolerance << ","
+                  << rodElasticAxialDeflection << ","
+                  << rodElasticBendingDeflection << ","
+                  << rodElasticTwist << endl;
+
+cout << "Simulation finished." << endl;
+cout << "Final maximum temperature = " << T[].max << " K" << endl;
+cout << "Final maximum layer height = "
+     << depositHeight[].max*1000.0 << " mm" << endl;
+cout << "Final maximum flash height = "
+     << flashHeight[].max*1000.0 << " mm" << endl;
+cout << "Final maximum activation = " << elemActivation[].max << endl;
+cout << "Final maximum process velocity = " << maxVelocity << " m/s" << endl;
+cout << "Final rod temperature = " << Trod << " K" << endl;
+cout << "Final rod plasticized flag = " << rodPlasticFactor << endl;
+cout << "Final rod equivalent stress = " << rodEqStress/1.e6 << " MPa" << endl;
+cout << "Final rod flow stress = " << rodFlowStress/1.e6 << " MPa" << endl;
+cout << "Final effective rod radius = " << effectiveRodRadius*1000.0 << " mm" << endl;
+cout << "Final effective rod diameter = " << 2.0*effectiveRodRadius*1000.0 << " mm" << endl;
+cout << "Final effective rod height = " << effectiveRodHeight*1000.0 << " mm" << endl;
+cout << "Final rod elastic axial/bending/twist = "
+     << rodElasticAxialDeflection*1.e6 << " um, "
+     << rodElasticBendingDeflection*1.e6 << " um, "
+     << rodElasticTwist << " rad" << endl;
+cout << "ALE mesh enabled = " << enableALE
+     << ", final volume ratio = " << meshVolumeRatio << endl;
+cout << "Wrote consumable_rod_history.csv and consumable_rod_final_field.csv"
+     << endl;
+cout << "Wrote consumable_rod_tool_final_field.csv for the active rod mesh"
+     << endl;
+if (writeSpatialSnapshots)
+    cout << "Wrote consumable_rod_snapshots.csv every 4 s and "
+         << "consumable_rod_spatial_frames.csv for 3-D object locations" << endl;
+else
+    cout << "Skipped transient spatial snapshots; final nodal fields were written" << endl;
+cout << "Wrote heat_validation_summary.csv with per-step process diagnostics"
+     << endl;
+
+if (showPlots)
+{
+    heightMM = depositHeight*1000.0;
+    plot(T, fill=true, value=true, wait=true,
+         cmm="Final temperature [K]");
+    plot(heightMM, fill=true, value=true, wait=true,
+         cmm="Final deposited thickness [mm]");
+}
