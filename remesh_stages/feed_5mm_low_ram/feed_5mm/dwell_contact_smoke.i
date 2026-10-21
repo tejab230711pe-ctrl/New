@@ -24,13 +24,16 @@
 #    q_plast = eta_TQ * sigma_vm * edot_p  (Taylor-Quinney coefficient eta_TQ = 0.90)
 # 6. Sliding-to-Sticking Contact Friction Transition:
 #    tau_cont = min(mu(T)*P, sigma_y(T) / sqrt(3))
-# 7. Process Exerted Reaction Forces:
-#    Axial Forging Force: F_z = integral(|sigma_zz| dA) = 5.0 kN
+# 7. Process Reaction Forces:
+#    Axial Forging Force: F_z = integral(t_z dA), a solved contact reaction
+#    for validation against the CNC data; it is not prescribed as force control.
 #    Spindle Torque:      M_z = integral(r * tau_cont dA) = P_spindle / omega
-#    Traverse Force:      F_y = integral(|sigma_yy| dA) + mu * F_z
-#    Transverse Force:    F_x = integral(tau_AS - tau_RS dA) ~ 0.25 * F_y
+#    Traverse Force:      F_y = integral(t_y dA)
+#    Transverse Force:    F_x = integral(t_x dA), zero in this symmetric,
+#                           shoulder-only model unless asymmetry is added.
 # 8. Axial Rod Shortening Mechanics:
-#    Top Quill Actuator: Uz(z_top, t) feeds downward by 35 mm (50 mm -> 15 mm)
+#    Top Quill Actuator: Uz(z_top, t) feeds downward by 35 mm over the
+#                         simultaneous 50 mm model-Y traverse.
 #    Bottom Tip Interface: Uz(z_bot, t) rests on substrate under contact traction
 #    Rod Interior: Solved by Finite-Element elastoviscoplastic momentum balance
 # 9. Dual-Factor Solid-State Deposition Gate:
@@ -49,36 +52,40 @@
 []
 
 [Functions]
-  # 3D Consumable tool rod motion in Y (dwell at Y=0.050, traverses 0.050 -> 0.250 m at 5 mm/s)
+  # Intended CNC program (machine X = model Y):
+  #   G04 P4.0; G01 X50 Z-35 F75
+  # F is along the simultaneous X/Z path.  Therefore the 61.0328 mm move
+  # lasts 48.8262 s: model-Y advances 50 mm and Z feeds down 35 mm.
   [rod_motion_y]
     type = ParsedFunction
-    expression = 'if(t < 5.6, 0.0, if(t < 45.6, 0.005 * (t - 5.6), 0.200))'
+    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, 0.0010240399006488 * (t - 4.0), 0.050))'
   []
-  # Bottom tip of consumable rod: plunges 5mm to touch substrate, dwells/traverses in contact, retracts 5mm
+  # The 0.25 mm initial interference creates the displacement-controlled
+  # forging contact.  No prescribed force is applied.
   [rod_motion_z_bottom]
     type = ParsedFunction
-    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.005, if(t < 48.0, -0.005 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+    expression = '0.0'
   []
   # Top-quill motion for the coupled contact solve. Continuous rod consumption
   # requires ALE/remeshing; it must not be imposed as solid compression.
   [rod_motion_z_top]
     type = ParsedFunction
-    expression = 'if(t < 1.6, -0.005 * t / 1.6, if(t < 45.6, -0.00525, if(t < 48.0, -0.00525 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, -0.000716827930454161 * (t - 4.0), -0.035))'
   []
   # Instantaneous physical rod height in mm
   [rod_height_func]
     type = ParsedFunction
-    expression = '50.0 - if(t < 1.6, 0.0, if(t < 5.6, 3.0 * (t - 1.6) / 4.0, if(t < 45.6, 3.0 + 32.0 * (t - 5.6) / 40.0, 35.0)))'
+    expression = '200.0 - if(t < 4.0, 0.0, if(t < 52.8262224629348, 35.0 * (t - 4.0) / 48.8262224629348, 35.0))'
   []
   # Cumulative consumed rod length in mm
   [rod_consumed_func]
     type = ParsedFunction
-    expression = 'if(t < 1.6, 0.0, if(t < 5.6, 3.0 * (t - 1.6) / 4.0, if(t < 45.6, 3.0 + 32.0 * (t - 5.6) / 40.0, 35.0)))'
+    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, 35.0 * (t - 4.0) / 48.8262224629348, 35.0))'
   []
   # Axial feed rate in mm/min
   [axial_feed_rate_func]
     type = ParsedFunction
-    expression = 'if(t >= 1.6 & t < 5.6, 45.0, if(t >= 5.6 & t < 45.6, 48.0, 0.0))'
+    expression = 'if(t >= 4.0 & t < 52.8262224629348, 43.0096758272496, 0.0)'
   []
 
   # Piecewise-linear true stress vs plastic strain hardening curves for AA5083 across temperatures:
@@ -146,19 +153,19 @@
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
   [Uy]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
   [Uz]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 []
 
@@ -177,8 +184,10 @@
     decomposition_method = HughesWinget
     volumetric_locking_correction = false
     add_variables = false
-    block = 'workpiece rod'
-    generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
+    block = 'plate rod'
+    # All six plastic-strain components are persisted to Exodus.  The remesh
+    # transfer reconstructs the complete J2 history tensor in the next stage.
+    generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz plastic_strain_xy plastic_strain_yz plastic_strain_zx strain_xx strain_yy strain_zz'
   []
 []
 
@@ -278,17 +287,17 @@
     variable = T
     displacements = 'Ux Uy Uz'
     coeff = 0.90
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 []
 
 [AuxKernels]
-  # Tool RPM: 0-1200 RPM approach ramp (0-1.6s), 1200 RPM dwell & traverse (1.6-45.6s), decelerate (45.6-48.0s)
+  # The commanded spindle speed is already 1200 RPM during both dwell and travel.
   [tool_rpm_aux]
     type = ParsedAux
     variable = tool_rpm
     use_xyzt = true
-    expression = 'if(t < 1.6, 1200.0 * t / 1.6, if(t < 45.6, 1200.0, if(t < 48.0, 1200.0 * (1.0 - (t - 45.6)/2.4), 0.0)))'
+    expression = 'if(t <= 52.8262224629348, 1200.0, 0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -311,19 +320,20 @@
     expression = 'if(contact_pressure > 1.0e4 & tool_rpm > 10.0,
                     2.2 * 0.85 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
-                    if(sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2) > 0.002,
-                       sqrt(x*x + (y - if(t < 5.6, 0.050, if(t < 45.6, 0.050 + 0.005*(t - 5.6), 0.250)))^2), 0.002) *
+                    if(sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2) > 0.002,
+                       sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2), 0.002) *
                     if((1.0 - mushy_fraction) > 0.05, (1.0 - mushy_fraction), 0.05) / 0.005,
                     0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Axial preload force (kN): 0 approach, ramps 0->5.0 kN dwell, 5.0 kN traverse, drops to 0 at retract
+  # CNC control is displacement controlled.  Do not prescribe Fz here: the
+  # axial contact reaction is a solver output for comparison to the measured Fz.
   [axial_load_aux]
     type = ParsedAux
     variable = axial_load_kN
     use_xyzt = true
-    expression = 'if(t < 1.6, 0.0, if(t < 5.6, 5.0 * (t - 1.6) / 4.0, if(t < 45.6, 5.0, if(t < 46.6, 5.0 * (1.0 - (t - 45.6)), 0.0))))'
+    expression = '0.0'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -333,7 +343,7 @@
     variable = motor_power_kW
     coupled_variables = 'tool_rpm'
     use_xyzt = true
-    expression = 'if(t < 1.6, 0.8 * tool_rpm / 1200.0, if(t < 5.6, 0.8 + 5.4 * (t - 1.6) / 4.0, if(t < 45.6, 6.2, if(t < 48.0, 6.2 * (1.0 - (t - 45.6)/2.4), 0.0))))'
+    expression = 'if(t < 4.0, 0.587, 5.748)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -341,17 +351,17 @@
   # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
   # 1. Contact forging pressure P >= 0.25 MPa under rotating tool shoulder
   # 2. Temperature strictly within 0.6 - 0.9 T_solidus window: 350 °C <= T <= 525 °C (623.15 K <= T <= 798.15 K)
-  # 3. Active traverse (t >= 5.6s) with shoulder passing over element: y <= tool_y + R
+  # 3. Active traverse (t >= 4.0s) with shoulder passing over element: y <= tool_y + R
   # 4. State retention: once consolidated, bead remains permanently 100% solid through cooling
   [is_deposited_aux]
     type = ParsedAux
     variable = is_deposited
     use_xyzt = true
-    block = 'workpiece'
+    block = 'rod'
     coupled_variables = 'T contact_pressure is_deposited'
     expression = 'if(is_deposited > 0.5, 1.0,
-                    if(t >= 5.6 & contact_pressure >= 2.5e5 & T >= 623.15 & T <= 798.15 &
-                       y <= (0.050 + 0.005 * (t - 5.6) + 0.015),
+                    if(t >= 4.0 & contact_pressure >= 2.5e5 & T >= 623.15 & T <= 798.15 &
+                       y <= (0.0125 + min(0.050, 0.0010240399006488 * (t - 4.0)) + 0.015),
                        1.0, 0.0))'
     execute_on = 'TIMESTEP_END'
   []
@@ -389,13 +399,14 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Traverse resistance force F_y (N) exerted on tool during translation through plasticized bead
+  # The symmetric shoulder-only model does not resolve advancing/retreating
+  # side asymmetry.  Do not fabricate lateral force from a prescribed Fz.
   [traverse_force_aux]
     type = ParsedAux
     variable = traverse_force_N
     coupled_variables = 'vonmises_stress axial_load_kN'
     use_xyzt = true
-    expression = 'if(t >= 5.6 & t < 45.6, 2.0 * 0.0125 * 0.003 * max(1.0e6, vonmises_stress) + 0.15 * axial_load_kN * 1000.0, 0.0)'
+    expression = '0.0'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -404,7 +415,7 @@
     type = ParsedAux
     variable = transverse_force_N
     coupled_variables = 'traverse_force_N'
-    expression = '0.25 * traverse_force_N'
+    expression = '0.0'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -457,7 +468,7 @@
     temperature = T
     stress_free_temperature = 293.15
     eigenstrain_name = thermal_eigenstrain
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 
   # Elasticity tensor for AA5083 (E = 70.3 GPa, nu = 0.33)
@@ -465,7 +476,7 @@
     type = ComputeIsotropicElasticityTensor
     youngs_modulus = 70.3e9
     poissons_ratio = 0.33
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 
   # Temperature-dependent radial return J2 plasticity for AA5083
@@ -482,7 +493,7 @@
     # mechanics action.  Output only the scalar history missing from it.
     output_properties = 'effective_plastic_strain'
     outputs = exodus
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 
   # Multi-inelastic radial return stress calculator
@@ -490,13 +501,13 @@
     type = ComputeMultipleInelasticStress
     tangent_operator = nonlinear
     inelastic_models = 'temp_dep_hardening'
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 
   # Stress : plastic-strain-rate, consumed by PlasticHeatEnergy in [Kernels].
   [plastic_work]
     type = ComputePlasticHeatEnergy
-    block = 'workpiece rod'
+    block = 'plate rod'
   []
 []
 
@@ -694,7 +705,7 @@
   [deposited_bead_pct]
     type = ElementAverageValue
     variable = is_deposited
-    block = 'workpiece'
+    block = 'rod'
   []
   # Instantaneous physical rod height (mm)
   [rod_height_mm]
@@ -733,7 +744,7 @@
   [ln_Zener_Hollomon]
     type = ElementAverageValue
     variable = zener_hollomon_lnZ
-    block = 'workpiece'
+    block = 'rod'
   []
 []
 
