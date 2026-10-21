@@ -177,7 +177,9 @@
     volumetric_locking_correction = false
     add_variables = false
     block = 'workpiece rod'
-    generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz strain_xx strain_yy strain_zz'
+    # All six plastic-strain components are persisted to Exodus.  The remesh
+    # transfer reconstructs the complete J2 history tensor in the next stage.
+    generate_output = 'stress_xx stress_yy stress_zz stress_xy stress_yz stress_zx vonmises_stress plastic_strain_xx plastic_strain_yy plastic_strain_zz plastic_strain_xy plastic_strain_yz plastic_strain_zx strain_xx strain_yy strain_zz'
   []
 []
 
