@@ -49,7 +49,7 @@ def replace_top_level_block(text: str, name: str, replacement: str) -> str:
     return text[:start] + replacement + text[end:]
 
 
-def transfer_fragment(previous: Path) -> str:
+def transfer_fragment(previous: Path, history_blocks: str) -> str:
     functions = []
     for variable in ("effective_plastic_strain", *PLASTIC_COMPONENTS.split()):
         functions.extend(
@@ -58,7 +58,7 @@ def transfer_fragment(previous: Path) -> str:
     ics = []
     for variable in ("T", "is_deposited"):
         ics.extend(
-            [f"  [restart_{variable}]", "    type = SolutionIC", "    solution_uo = remesh_source", f"    variable = {variable}", f"    from_variable = {variable}", "  []"]
+            [f"  [restart_{variable}]", "    type = SolutionIC", "    solution_uo = remesh_source", f"    variable = {variable}", f"    from_variable = {variable}", f"    block = '{history_blocks}'", "  []"]
         )
     return "\n".join(
         [
@@ -101,8 +101,14 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "  displacements = 'Ux Uy Uz'\n"
         "[]\n",
     )
-    text = text.replace("'plate rod'", "'workpiece rod'")
-    text = text.replace("block = 'bead'", "block = 'workpiece'")
+    # Each mesh has only the blocks which physically exist at that rezone.
+    # Stage 0 has plate+rod; later stages add fresh material and, after the
+    # first feed increment, previously deposited material.
+    history_blocks = "plate" + (" deposit" if stage["previous_bead_length_mm"] > 1.0e-9 else "")
+    virgin_blocks = "rod" + (" fresh_deposit" if stage["bead_length_mm"] > stage["previous_bead_length_mm"] + 1.0e-9 else "")
+    all_blocks = f"{history_blocks} {virgin_blocks}"
+    text = text.replace("'plate rod'", f"'{all_blocks}'")
+    text = text.replace("block = 'bead'", f"block = '{'fresh_deposit' if 'fresh_deposit' in virgin_blocks else 'rod'}'")
     # The diagnostic core point must remain inside the workpiece as the tool
     # advances and the bead grows.  Sample 1 mm below the local shoulder.
     text = text.replace(
@@ -162,13 +168,35 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         "type = RemeshTemperatureDependentHardeningStressUpdate",
     )
     if previous:
+        # State is transferred only into geometry that was present in the
+        # preceding stage.  Fresh bead material and the newly supplied rod
+        # deliberately start virgin; sampling Exodus there caused the prior
+        # out-of-domain failure at the stage boundary.
         params = (
             "    initial_effective_plastic_strain = restart_effective_plastic_strain\n"
             "    initial_plastic_strain_functions = 'restart_plastic_strain_xx restart_plastic_strain_yy restart_plastic_strain_zz restart_plastic_strain_xy restart_plastic_strain_yz restart_plastic_strain_zx'\n"
         )
-        needle = "    block = 'workpiece rod'\n  []\n\n  # Multi-inelastic radial return"
-        text = text.replace(needle, params + needle, 1)
-        text += "\n" + transfer_fragment(Path(previous))
+        material_start = text.index("  [temp_dep_hardening]\n", text.index("[Materials]"))
+        material_end = text.index("  []\n\n  # Multi-inelastic radial return", material_start) + len("  []")
+        material = text[material_start:material_end]
+        history_material = material.replace("[temp_dep_hardening]", "[temp_dep_hardening_history]", 1)
+        history_material = history_material.replace(f"block = '{all_blocks}'", f"block = '{history_blocks}'", 1)
+        history_material = history_material.replace(f"    block = '{history_blocks}'", params + f"    block = '{history_blocks}'", 1)
+        virgin_material = material.replace("[temp_dep_hardening]", "[temp_dep_hardening_virgin]", 1)
+        virgin_material = virgin_material.replace(f"block = '{all_blocks}'", f"block = '{virgin_blocks}'", 1)
+        text = text[:material_start] + history_material + "\n\n" + virgin_material + text[material_end:]
+
+        radial_start = text.index("  [radial_return_stress]\n", text.index("[Materials]"))
+        radial_end = text.index("  []\n\n  # Stress : plastic-strain-rate", radial_start) + len("  []")
+        radial = text[radial_start:radial_end]
+        history_radial = radial.replace("[radial_return_stress]", "[radial_return_stress_history]", 1)
+        history_radial = history_radial.replace("inelastic_models = 'temp_dep_hardening'", "inelastic_models = 'temp_dep_hardening_history'", 1)
+        history_radial = history_radial.replace(f"block = '{all_blocks}'", f"block = '{history_blocks}'", 1)
+        virgin_radial = radial.replace("[radial_return_stress]", "[radial_return_stress_virgin]", 1)
+        virgin_radial = virgin_radial.replace("inelastic_models = 'temp_dep_hardening'", "inelastic_models = 'temp_dep_hardening_virgin'", 1)
+        virgin_radial = virgin_radial.replace(f"block = '{all_blocks}'", f"block = '{virgin_blocks}'", 1)
+        text = text[:radial_start] + history_radial + "\n\n" + virgin_radial + text[radial_end:]
+        text += "\n" + transfer_fragment(Path(previous), history_blocks)
     text = text.replace("file_base = afsd_deposition_out", f"file_base = {stage['output_exodus'][:-2]}")
     text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
     text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
