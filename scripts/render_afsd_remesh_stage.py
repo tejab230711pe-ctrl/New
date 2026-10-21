@@ -170,13 +170,10 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
     text = text.replace("function = rod_motion_y", "function = rod_stage_translation_y")
     text = text.replace("function = rod_motion_z_top", "function = rod_stage_translation_z")
     text = text.replace("tool_center_y = rod_motion_y", "tool_center_y = rod_stage_center_y")
-    z_function = (
-        "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
-        if not low_ram
-        else "  [rod_stage_translation_z]\n    type = ParsedFunction\n"
-             f"    expression = 'if(t < {stage['time_start_s'] + 0.1}, -2.5e-4 * (t - {stage['time_start_s']}), -2.5e-5)'\n"
-             "  []\n"
-    )
+    # G04 P4.0 is a true position hold.  Do not introduce an artificial
+    # low-RAM plunge: it would turn the dwell into a hidden force ramp and
+    # invalidate comparison with the measured axial-force trace.
+    z_function = "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
     function_insertion = (
         "\n  # Local frame for this re-zoned stage; geometry already contains travel/feed.\n"
         "  [rod_stage_translation_y]\n    type = ConstantFunction\n    value = 0.0\n  []\n"

@@ -2,7 +2,7 @@
   "mesh_units": "m (SI; compatible with the MOOSE AA5083 model)",
   "process_units": "mm and s",
   "flash_fraction": 0.05,
-  "initial_interference_mm": 0.0039,
+  "initial_interference_mm": 0.00515,
   "initial_clearance_mm": 0.0,
   "mesh_min_mm": 2.0,
   "mesh_max_mm": 4.0,

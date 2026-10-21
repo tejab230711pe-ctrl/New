@@ -132,8 +132,8 @@
     value = 0.0
   []
   [rod_stage_translation_z]
-    type = ParsedFunction
-    expression = 'if(t < 0.1, -2.5e-4 * (t - 0.0), -2.5e-5)'
+    type = ConstantFunction
+    value = 0.0
   []
   [rod_stage_center_y]
     type = ConstantFunction
@@ -777,7 +777,7 @@
   nl_max_its = 40
 
   start_time = 0.0
-  end_time = 0.005
+  end_time = 0.05
   dtmin = 1.0e-4
   dtmax = 0.005
 
