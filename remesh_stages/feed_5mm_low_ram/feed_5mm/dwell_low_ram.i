@@ -686,6 +686,13 @@
     variable = contact_pressure
     value_type = max
   []
+  # Contact reaction is the integrated normal pressure, not the old prescribed
+  # axial-load diagnostic.  The renderer maps this surface to workpiece_top.
+  [axial_contact_force_N]
+    type = SideIntegralVariablePostprocessor
+    variable = contact_pressure
+    boundary = workpiece_top
+  []
   # Tool RPM
   [current_rpm]
     type = AverageNodalVariableValue
@@ -698,8 +705,9 @@
   []
   # Axial load in kN
   [force_kN]
-    type = AverageNodalVariableValue
-    variable = axial_load_kN
+    type = ParsedPostprocessor
+    pp_names = 'axial_contact_force_N'
+    expression = 'abs(axial_contact_force_N) / 1000.0'
   []
   # Fraction of bead elements actively deposited
   [deposited_bead_pct]
