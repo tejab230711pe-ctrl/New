@@ -11,7 +11,7 @@ python3 scripts/create_afsd_remesh_stages.py \
   --output-dir remesh_stages/feed_5mm_low_ram \
   --mesh-min-mm 2 \
   --mesh-max-mm 4 \
-  --initial-interference-mm 0.0023 \
+  --initial-interference-mm 0.0039 \
   --initial-clearance-mm 0 \
   --run-gmsh
 trial_root=remesh_stages/feed_5mm_low_ram/feed_5mm
