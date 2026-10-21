@@ -17,13 +17,30 @@ if [[ $# -gt 1 ]]; then
   exit 2
 fi
 
-solver=(./rotating_disk_deposition-opt --n-threads=1 -i "$input_file")
+# Two MPI ranks are the safe parallel ceiling for this 8 GB laptop.  The
+# executable links MPICH from the MOOSE environment, so do not use Ubuntu's
+# default OpenMPI launcher (it fails before model setup with a PMI mismatch).
+mpi_ranks="${AFSD_MPI_RANKS:-2}"
+if [[ ! "$mpi_ranks" =~ ^[12]$ ]]; then
+  echo "AFSD_MPI_RANKS must be 1 or 2 on this 8 GB laptop." >&2
+  exit 2
+fi
+mpich_launcher="${AFSD_MPICH_LAUNCHER:-/home/teja/miniforge3/envs/moose/bin/mpiexec.hydra}"
+if [[ "$mpi_ranks" == 1 ]]; then
+  solver=(./rotating_disk_deposition-opt --n-threads=1 -i "$input_file")
+else
+  if [[ ! -x "$mpich_launcher" ]]; then
+    echo "Matching MPICH launcher not found: $mpich_launcher" >&2
+    exit 2
+  fi
+  solver=("$mpich_launcher" -n "$mpi_ranks" ./rotating_disk_deposition-opt --n-threads=1 -i "$input_file")
+fi
 
 # Keep a solver overrun from exhausting the desktop.  A systemd user scope
 # limits resident memory, unlike ulimit -v, and returns a normal nonzero exit
 # rather than allowing global OOM pressure and a frozen laptop.
 if command -v systemd-run >/dev/null && systemctl --user is-system-running >/dev/null 2>&1; then
-  echo "AFSD memory guard: MemoryMax=4G, MemorySwapMax=1G, one solver thread."
+  echo "AFSD memory guard: MemoryMax=4G, MemorySwapMax=1G, ${mpi_ranks} MPI rank(s), one thread/rank."
   exec systemd-run --user --scope --quiet --collect \
     -p MemoryMax=4G \
     -p MemorySwapMax=1G \
