@@ -28,9 +28,13 @@ MM = 1.0e-3
 ROD_RADIUS_MM = 12.5
 ROD_LENGTH_MM = 200.0
 TOTAL_FEED_MM = 35.0
-TRAVERSE_MM = 75.0
+# CNC command: G01 X50 Z-35 F75.  The machine X axis maps to the AFSD
+# simulation Y axis.  G-code feed is the speed along the simultaneous X/Z
+# toolpath, not the X-component speed.
+TRAVERSE_MM = 50.0
+PATH_FEED_MM_PER_MIN = 75.0
 DWELL_S = 4.0
-DEPOSITION_S = 35.0
+DEPOSITION_S = math.hypot(TRAVERSE_MM, TOTAL_FEED_MM) / PATH_FEED_MM_PER_MIN * 60.0
 FLASH_FRACTION = 0.05
 PLATE_LX_MM = 50.0
 PLATE_LY_MM = 100.0
@@ -53,6 +57,7 @@ class Stage:
     time_start_s: float
     time_end_s: float
     tool_center_y_mm: float
+    previous_bead_length_mm: float
     bead_length_mm: float
     bead_height_mm: float
     rod_height_mm: float
@@ -83,6 +88,7 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
                 time_start_s=DWELL_S + DEPOSITION_S * (consumed / TOTAL_FEED_MM),
                 time_end_s=DWELL_S + DEPOSITION_S * fraction,
                 tool_center_y_mm=ROD_RADIUS_MM + bead_length,
+                previous_bead_length_mm=TRAVERSE_MM * (consumed / TOTAL_FEED_MM),
                 bead_length_mm=bead_length,
                 bead_height_mm=bead_height,
                 rod_height_mm=ROD_LENGTH_MM - next_consumed,
@@ -104,6 +110,7 @@ def dwell_stage() -> Stage:
         time_start_s=0.0,
         time_end_s=DWELL_S,
         tool_center_y_mm=ROD_RADIUS_MM,
+        previous_bead_length_mm=0.0,
         bead_length_mm=0.0,
         bead_height_mm=0.0,
         rod_height_mm=ROD_LENGTH_MM,
@@ -127,31 +134,39 @@ def geo_text(stage: Stage,
         '// AA5083 AFSD remesh stage; coordinates are SI metres.',
         f'Box(1) = {{{-PLATE_LX_MM*MM/2}, 0, 0, {PLATE_LX_MM*MM}, {PLATE_LY_MM*MM}, {PLATE_LZ_MM*MM}}};',
     ]
-    rod_tag = 2
-    workpiece = '1'
+    rod_tag = 10
+    volumes = ['1']
+    prior_bead_length = stage.previous_bead_length_mm * MM
     if bead_y_end > 1e-9:
-        lines.append(
-            f'Box(3) = {{{-BEAD_WIDTH_MM*MM/2}, 0, {PLATE_LZ_MM*MM}, '
-            f'{BEAD_WIDTH_MM*MM}, {bead_y_end}, {stage.bead_height_mm*MM}}};'
-        )
-        # The deposited material is bonded to the substrate.  BooleanFragments
-        # makes this interface conformal and eliminates the duplicate nodes
-        # that a separate plate/bead mesh would otherwise create.
-        lines.append('workpiece[] = BooleanFragments{ Volume{1, 3}; Delete; }{};')
+        if prior_bead_length > 1e-9:
+            lines.append(
+                f'Box(3) = {{{-BEAD_WIDTH_MM*MM/2}, 0, {PLATE_LZ_MM*MM}, '
+                f'{BEAD_WIDTH_MM*MM}, {prior_bead_length}, {stage.bead_height_mm*MM}}};'
+            )
+            volumes.append('3')
+        fresh_start = prior_bead_length
+        fresh_length = bead_y_end - fresh_start
+        if fresh_length > 1e-9:
+            lines.append(
+                f'Box(4) = {{{-BEAD_WIDTH_MM*MM/2}, {fresh_start}, {PLATE_LZ_MM*MM}, '
+                f'{BEAD_WIDTH_MM*MM}, {fresh_length}, {stage.bead_height_mm*MM}}};'
+            )
+            volumes.append('4')
+        # Fragmenting makes the bonded plate/deposit interface conformal while
+        # retaining the physical tags for plate, prior deposit, and the newly
+        # supplied (virgin) deposit.
+        lines.append(f'all_solid[] = BooleanFragments{{ Volume{{{", ".join(volumes)}}}; Delete; }}{{}};')
         lines.append('Coherence;')
-        workpiece = 'workpiece[]'
-        # The Boolean operation may reuse low entity tags.  Create the rod
-        # afterwards with a high, explicit tag to keep physical IDs stable.
-        rod_tag = 10
     lines.append(
         f'Cylinder({rod_tag}) = {{0, {y_tool}, {rod_base_z}, 0, 0, '
         f'{rod_top_z-rod_base_z}, {ROD_RADIUS_MM*MM}}};'
     )
-    volumes = f'{workpiece}, {rod_tag}'
     lines.extend([
         f'Mesh.CharacteristicLengthMin = {mesh_min_mm * MM};',
         f'Mesh.CharacteristicLengthMax = {mesh_max_mm * MM};',
-        f'Physical Volume("workpiece") = {{{workpiece}}};',
+        'Physical Volume("plate") = {1};',
+        'Physical Volume("deposit") = {3};' if prior_bead_length > 1e-9 else '',
+        'Physical Volume("fresh_deposit") = {4};' if bead_y_end > prior_bead_length + 1e-9 else '',
         f'Physical Volume("rod") = {{{rod_tag}}};',
     ])
     lines.extend([
@@ -160,7 +175,7 @@ def geo_text(stage: Stage,
         f'Physical Surface("rod_top") = {{ Surface In BoundingBox{{{-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {y_tool-ROD_RADIUS_MM*MM-SURFACE_TOL_M}, {rod_top_z-SURFACE_TOL_M}, {ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {y_tool+ROD_RADIUS_MM*MM+SURFACE_TOL_M}, {rod_top_z+SURFACE_TOL_M}}} }};',
         f'Physical Surface("workpiece_top") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {PLATE_LZ_MM*MM-SURFACE_TOL_M}, {PLATE_LX_MM*MM/2+SURFACE_TOL_M}, {PLATE_LY_MM*MM+SURFACE_TOL_M}, {PLATE_LZ_MM*MM+SURFACE_TOL_M}}} }};',
         f'Physical Surface("workpiece_base") = {{ Surface In BoundingBox{{{-PLATE_LX_MM*MM/2-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {-SURFACE_TOL_M}, {PLATE_LX_MM*MM/2+SURFACE_TOL_M}, {PLATE_LY_MM*MM+SURFACE_TOL_M}, {SURFACE_TOL_M}}} }};',
-        f'// Active volumes: {volumes}',
+        f'// Active volumes: {", ".join(volumes + [str(rod_tag)])}',
         '',
     ])
     return '\n'.join(lines)
@@ -194,6 +209,8 @@ def main() -> None:
         'mesh_max_mm': args.mesh_max_mm,
         'dwell_s': DWELL_S,
         'deposition_s': DEPOSITION_S,
+        'gcode': 'G04 P4.0; G01 X50 Z-35 F75',
+        'machine_x_maps_to_simulation_y': True,
         'field_transfer': ['T', 'plastic_strain', 'effective_plastic_strain', 'is_deposited'],
         'stages': [],
     }
