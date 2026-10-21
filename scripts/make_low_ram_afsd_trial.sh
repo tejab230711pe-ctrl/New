@@ -3,12 +3,15 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+# Calibrated from the 5 ms contact smoke test: 1.0 um produced 0.256 kN,
+# while the measured dwell mean is 0.586 kN.  This remains a small elastic
+# displacement, not a prescribed force.
 python3 scripts/create_afsd_remesh_stages.py \
   --feed-increment-mm 5 \
   --output-dir remesh_stages/feed_5mm_low_ram \
   --mesh-min-mm 2 \
   --mesh-max-mm 4 \
-  --initial-interference-mm 0.001 \
+  --initial-interference-mm 0.0023 \
   --initial-clearance-mm 0 \
   --run-gmsh
 trial_root=remesh_stages/feed_5mm_low_ram/feed_5mm
