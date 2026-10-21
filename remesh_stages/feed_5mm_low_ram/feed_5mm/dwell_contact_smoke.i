@@ -777,7 +777,7 @@
   nl_max_its = 40
 
   start_time = 0.0
-  end_time = 0.05
+  end_time = 0.005
   dtmin = 1.0e-4
   dtmax = 0.005
 
