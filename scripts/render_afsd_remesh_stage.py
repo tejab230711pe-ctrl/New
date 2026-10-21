@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -49,9 +50,33 @@ def replace_top_level_block(text: str, name: str, replacement: str) -> str:
     return text[:start] + replacement + text[end:]
 
 
-def transfer_fragment(previous: Path, history_blocks: str) -> str:
+def source_state_variables(previous: Path) -> tuple[str, bool]:
+    """Return fields safely present in an existing Exodus result.
+
+    The first completed dwell on this laptop predates full tensor output and
+    has only the scalar J2 history.  Preserve that costly valid dwell by
+    transferring scalar hardening alone for its next stage.  Later stages,
+    which emit all six components, automatically use the full tensor state.
+    """
+    try:
+        symbols = subprocess.run(
+            ["strings", str(previous)], check=True, capture_output=True, text=True
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError(f"cannot inspect Exodus state file {previous}: {exc}") from exc
+    has_tensor = all(name in symbols for name in PLASTIC_COMPONENTS.split())
+    names = ["T", "is_deposited", "effective_plastic_strain"]
+    if has_tensor:
+        names.extend(PLASTIC_COMPONENTS.split())
+    return " ".join(names), has_tensor
+
+
+def transfer_fragment(previous: Path, history_blocks: str, state_variables: str, has_tensor: bool) -> str:
     functions = []
-    for variable in ("effective_plastic_strain", *PLASTIC_COMPONENTS.split()):
+    function_variables = ["effective_plastic_strain"]
+    if has_tensor:
+        function_variables.extend(PLASTIC_COMPONENTS.split())
+    for variable in function_variables:
         functions.extend(
             [f"  [restart_{variable}]", "    type = SolutionFunction", "    solution = remesh_source", f"    from_variable = {variable}", "  []"]
         )
@@ -67,7 +92,7 @@ def transfer_fragment(previous: Path, history_blocks: str) -> str:
             "  [remesh_source]",
             "    type = SolutionUserObject",
             f"    mesh = {previous.resolve()}",
-            f"    system_variables = '{STATE_VARIABLES}'",
+            f"    system_variables = '{state_variables}'",
             "    timestep = LATEST",
             "    execute_on = INITIAL",
             "  []",
@@ -172,10 +197,17 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         # preceding stage.  Fresh bead material and the newly supplied rod
         # deliberately start virgin; sampling Exodus there caused the prior
         # out-of-domain failure at the stage boundary.
-        params = (
-            "    initial_effective_plastic_strain = restart_effective_plastic_strain\n"
-            "    initial_plastic_strain_functions = 'restart_plastic_strain_xx restart_plastic_strain_yy restart_plastic_strain_zz restart_plastic_strain_xy restart_plastic_strain_yz restart_plastic_strain_zx'\n"
-        )
+        state_variables, has_tensor_state = source_state_variables(Path(previous))
+        params = "    initial_effective_plastic_strain = restart_effective_plastic_strain\n"
+        if has_tensor_state:
+            params += (
+                "    initial_plastic_strain_functions = 'restart_plastic_strain_xx restart_plastic_strain_yy restart_plastic_strain_zz restart_plastic_strain_xy restart_plastic_strain_yz restart_plastic_strain_zx'\n"
+            )
+        else:
+            params += (
+                "    # Legacy dwell source has scalar J2 history only; tensor state starts\n"
+                "    # at zero for this one rezone, while hardening is preserved exactly.\n"
+            )
         material_start = text.index("  [temp_dep_hardening]\n", text.index("[Materials]"))
         material_end = text.index("  []\n\n  # Multi-inelastic radial return", material_start) + len("  []")
         material = text[material_start:material_end]
@@ -196,7 +228,7 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         virgin_radial = virgin_radial.replace("inelastic_models = 'temp_dep_hardening'", "inelastic_models = 'temp_dep_hardening_virgin'", 1)
         virgin_radial = virgin_radial.replace(f"block = '{all_blocks}'", f"block = '{virgin_blocks}'", 1)
         text = text[:radial_start] + history_radial + "\n\n" + virgin_radial + text[radial_end:]
-        text += "\n" + transfer_fragment(Path(previous), history_blocks)
+        text += "\n" + transfer_fragment(Path(previous), history_blocks, state_variables, has_tensor_state)
     text = text.replace("file_base = afsd_deposition_out", f"file_base = {stage['output_exodus'][:-2]}")
     text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
     text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
