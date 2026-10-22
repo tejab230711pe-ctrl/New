@@ -71,7 +71,13 @@ def source_state_variables(previous: Path) -> tuple[str, bool]:
     return " ".join(names), has_tensor
 
 
-def transfer_fragment(previous: Path, history_blocks: str, state_variables: str, has_tensor: bool) -> str:
+def transfer_fragment(
+    previous: Path,
+    history_blocks: str,
+    source_history_blocks: str,
+    state_variables: str,
+    has_tensor: bool,
+) -> str:
     functions = []
     function_variables = ["effective_plastic_strain"]
     if has_tensor:
@@ -81,9 +87,22 @@ def transfer_fragment(previous: Path, history_blocks: str, state_variables: str,
             [f"  [restart_{variable}]", "    type = SolutionFunction", "    solution = remesh_source", f"    from_variable = {variable}", "  []"]
         )
     ics = []
+    outside_values = {"T": "293.15", "is_deposited": "0.0"}
     for variable in ("T", "is_deposited"):
         ics.extend(
-            [f"  [restart_{variable}]", "    type = SolutionIC", "    solution_uo = remesh_source", f"    variable = {variable}", f"    from_variable = {variable}", f"    block = '{history_blocks}'", "  []"]
+            [
+                f"  [restart_{variable}]",
+                "    type = RemeshSolutionIC",
+                "    solution_uo = remesh_source",
+                f"    variable = {variable}",
+                f"    from_variable = {variable}",
+                f"    block = '{history_blocks}'",
+                f"    transfer_blocks = '{history_blocks}'",
+                f"    from_subdomains = '{source_history_blocks}'",
+                "    weighting_type = average",
+                f"    outside_value = {outside_values[variable]}",
+                "  []",
+            ]
         )
     return "\n".join(
         [
@@ -225,7 +244,18 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         virgin_radial = virgin_radial.replace("inelastic_models = 'temp_dep_hardening'", "inelastic_models = 'temp_dep_hardening_virgin'", 1)
         virgin_radial = virgin_radial.replace(f"block = '{all_blocks}'", f"block = '{virgin_blocks}'", 1)
         text = text[:radial_start] + history_radial + "\n\n" + virgin_radial + text[radial_end:]
-        text += "\n" + transfer_fragment(Path(previous), history_blocks, state_variables, has_tensor_state)
+        # The predecessor's just-created bead is named fresh_deposit.  At the
+        # next rezone it becomes deposit, so source and target block names are
+        # intentionally different from stage two onward.
+        if stage["index"] == 1:
+            source_history_blocks = "plate"
+        elif stage["index"] == 2:
+            source_history_blocks = "plate fresh_deposit"
+        else:
+            source_history_blocks = "plate deposit fresh_deposit"
+        text += "\n" + transfer_fragment(
+            Path(previous), history_blocks, source_history_blocks, state_variables, has_tensor_state
+        )
     text = text.replace("file_base = afsd_deposition_out", f"file_base = {stage['output_exodus'][:-2]}")
     text = re.sub(r"(start_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_start_s']}", text)
     text = re.sub(r"(end_time\s*=\s*)[^\s]+", rf"\g<1>{stage['time_end_s']}", text)
