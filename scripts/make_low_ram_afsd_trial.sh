@@ -17,8 +17,6 @@ python3 scripts/create_afsd_remesh_stages.py \
 trial_root=remesh_stages/feed_5mm_low_ram/feed_5mm
 python3 scripts/render_afsd_remesh_stage.py \
   "$trial_root/manifest.json" 0 --low-ram
-python3 scripts/render_afsd_remesh_stage.py \
-  "$trial_root/manifest.json" 1 --low-ram
 
 # The stabilization deck covers one 5 ms increment.  It proves contact convergence
 # before the 4 s dwell is attempted and uses a distinct output base.

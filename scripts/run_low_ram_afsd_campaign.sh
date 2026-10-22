@@ -7,9 +7,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-trial_root="remesh_stages/feed_5mm_low_ram/feed_5mm"
+trial_root="${AFSD_TRIAL_ROOT:-remesh_stages/feed_5mm_low_ram/feed_5mm}"
 manifest="$trial_root/manifest.json"
 start_stage="${1:-0}"
+afsd_dt="${AFSD_DT:-0.005}"
 
 if [[ ! -f "$manifest" ]]; then
   echo "Missing $manifest. Run ./scripts/make_low_ram_afsd_trial.sh first." >&2
@@ -19,12 +20,16 @@ if [[ ! "$start_stage" =~ ^[0-7]$ ]]; then
   echo "usage: $0 [starting-stage: 0..7]" >&2
   exit 2
 fi
+if ! [[ "$afsd_dt" =~ ^([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$ ]] || ! awk "BEGIN { exit !($afsd_dt > 0) }"; then
+  echo "AFSD_DT must be a positive number of seconds (for example: AFSD_DT=0.1)." >&2
+  exit 2
+fi
 
 run_stage() {
   local index="$1"
   local deck
 
-  python3 scripts/render_afsd_remesh_stage.py "$manifest" "$index" --low-ram
+  python3 scripts/render_afsd_remesh_stage.py "$manifest" "$index" --low-ram --low-ram-dt "$afsd_dt"
   if [[ "$index" == 0 ]]; then
     deck="$trial_root/dwell_low_ram.i"
     echo "Starting dwell: physical time 0 to 4 s"

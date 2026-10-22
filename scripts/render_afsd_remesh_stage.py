@@ -128,7 +128,9 @@ def transfer_fragment(
     ) + "\n"
 
 
-def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> None:
+def render(
+    source: Path, stage: dict, target: Path, low_ram: bool = False, low_ram_dt: float = 0.005
+) -> None:
     text = source.read_text(encoding="utf-8")
     mesh = Path(stage["mesh"]).resolve()
     text = replace_top_level_block(
@@ -279,8 +281,8 @@ def render(source: Path, stage: dict, target: Path, low_ram: bool = False) -> No
         # Active contact needs a converged linear correction; one iteration
         # only works while the bodies are not touching.
         text = text.replace("l_max_its = 200", "l_max_its = 25")
-        text = text.replace("dtmax = 0.05", "dtmax = 0.005")
-        text = text.replace("    dt = 0.25", "    dt = 0.005")
+        text = text.replace("dtmax = 0.05", f"dtmax = {low_ram_dt:.12g}")
+        text = text.replace("    dt = 0.25", f"    dt = {low_ram_dt:.12g}")
         # Each remesh stage needs only its final Exodus state: it is the input
         # to the next re-zoned mesh.  Writing every 5 ms retains a large
         # in-memory Exodus history and eventually triggers the OOM killer on
@@ -305,6 +307,12 @@ def main() -> None:
     parser.add_argument("stage", type=int, help="0 for dwell, then one-based feed stage index")
     parser.add_argument("--source", type=Path, default=Path("input/deposition.i"))
     parser.add_argument("--low-ram", action="store_true")
+    parser.add_argument(
+        "--low-ram-dt",
+        type=float,
+        default=0.005,
+        help="Initial and maximum time step for a low-RAM deck (s; default: 0.005).",
+    )
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     if args.stage == 0:
@@ -317,7 +325,9 @@ def main() -> None:
             raise SystemExit(f"stage must be in 0..{len(manifest['stages'])}") from exc
         suffix = "_low_ram" if args.low_ram else ""
         target = args.manifest.parent / f"stage_{args.stage:02d}{suffix}.i"
-    render(args.source.resolve(), stage, target, args.low_ram)
+    if args.low_ram_dt <= 0.0:
+        raise SystemExit("--low-ram-dt must be positive")
+    render(args.source.resolve(), stage, target, args.low_ram, args.low_ram_dt)
     print(target)
 
 
