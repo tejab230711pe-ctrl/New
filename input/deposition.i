@@ -696,6 +696,19 @@
 []
 
 [Postprocessors]
+  # Commanded CNC position trace.  Machine X is simulation Y; these are
+  # deliberately separate from displacement so each accepted step exposes the
+  # intended G-code motion in the terminal and CSV histories.
+  [command_machine_X_mm]
+    type = FunctionValuePostprocessor
+    function = rod_motion_y
+    scale_factor = 1000.0
+  []
+  [command_quill_Z_mm]
+    type = FunctionValuePostprocessor
+    function = rod_motion_z_top
+    scale_factor = 1000.0
+  []
   # Peak temperature in the substrate (K)
   [T_max]
     type = NodalExtremeValue
@@ -853,6 +866,16 @@
 []
 
 [Outputs]
+  # Compact accepted-step process trace for debugging the CNC motion and
+  # coupled response.  `tee` keeps the same table in the campaign log.
+  [motion_console]
+    type = Console
+    execute_on = TIMESTEP_END
+    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN power_kW T_max T_core max_contact_pressure'
+    max_rows = 0
+    scientific_time = true
+    time_precision = 6
+  []
   [exodus]
     type = Exodus
     # temp_dep_hardening explicitly targets this output and limits material
