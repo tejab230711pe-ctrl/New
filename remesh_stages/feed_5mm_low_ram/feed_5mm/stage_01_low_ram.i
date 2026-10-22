@@ -880,17 +880,25 @@
 
 [ICs]
   [restart_T]
-    type = SolutionIC
+    type = RemeshSolutionIC
     solution_uo = remesh_source
     variable = T
     from_variable = T
     block = 'plate'
+    transfer_blocks = 'plate'
+    from_subdomains = 'plate'
+    weighting_type = average
+    outside_value = 293.15
   []
   [restart_is_deposited]
-    type = SolutionIC
+    type = RemeshSolutionIC
     solution_uo = remesh_source
     variable = is_deposited
     from_variable = is_deposited
     block = 'plate'
+    transfer_blocks = 'plate'
+    from_subdomains = 'plate'
+    weighting_type = average
+    outside_value = 0.0
   []
 []
