@@ -24,13 +24,16 @@
 #    q_plast = eta_TQ * sigma_vm * edot_p  (Taylor-Quinney coefficient eta_TQ = 0.90)
 # 6. Sliding-to-Sticking Contact Friction Transition:
 #    tau_cont = min(mu(T)*P, sigma_y(T) / sqrt(3))
-# 7. Process Exerted Reaction Forces:
-#    Axial Forging Force: F_z = integral(|sigma_zz| dA) = 5.0 kN
+# 7. Process Reaction Forces:
+#    Axial Forging Force: F_z = integral(t_z dA), a solved contact reaction
+#    for validation against the CNC data; it is not prescribed as force control.
 #    Spindle Torque:      M_z = integral(r * tau_cont dA) = P_spindle / omega
-#    Traverse Force:      F_y = integral(|sigma_yy| dA) + mu * F_z
-#    Transverse Force:    F_x = integral(tau_AS - tau_RS dA) ~ 0.25 * F_y
+#    Traverse Force:      F_y = integral(t_y dA)
+#    Transverse Force:    F_x = integral(t_x dA), zero in this symmetric,
+#                           shoulder-only model unless asymmetry is added.
 # 8. Axial Rod Shortening Mechanics:
-#    Top Quill Actuator: Uz(z_top, t) feeds downward by 35 mm (50 mm -> 15 mm)
+#    Top Quill Actuator: Uz(z_top, t) feeds downward by 35 mm over the
+#                         simultaneous 50 mm model-Y traverse.
 #    Bottom Tip Interface: Uz(z_bot, t) rests on substrate under contact traction
 #    Rod Interior: Solved by Finite-Element elastoviscoplastic momentum balance
 # 9. Dual-Factor Solid-State Deposition Gate:
@@ -129,8 +132,8 @@
     value = 0.0
   []
   [rod_stage_translation_z]
-    type = ParsedFunction
-    expression = 'if(t < 11.075174637562116, -2.5e-4 * (t - 10.975174637562116), -2.5e-5)'
+    type = ConstantFunction
+    value = 0.0
   []
   [rod_stage_center_y]
     type = ConstantFunction
@@ -706,6 +709,13 @@
     variable = contact_pressure
     value_type = max
   []
+  # Contact reaction is the integrated normal pressure, not the old prescribed
+  # axial-load diagnostic.  The renderer maps this surface to workpiece_top.
+  [axial_contact_force_N]
+    type = SideIntegralVariablePostprocessor
+    variable = contact_pressure
+    boundary = workpiece_top
+  []
   # Tool RPM
   [current_rpm]
     type = AverageNodalVariableValue
@@ -718,8 +728,9 @@
   []
   # Axial load in kN
   [force_kN]
-    type = AverageNodalVariableValue
-    variable = axial_load_kN
+    type = ParsedPostprocessor
+    pp_names = 'axial_contact_force_N'
+    expression = 'abs(axial_contact_force_N) / 1000.0'
   []
   # Fraction of bead elements actively deposited
   [deposited_bead_pct]
@@ -869,17 +880,25 @@
 
 [ICs]
   [restart_T]
-    type = SolutionIC
+    type = RemeshSolutionIC
     solution_uo = remesh_source
     variable = T
     from_variable = T
     block = 'plate deposit'
+    transfer_blocks = 'plate deposit'
+    from_subdomains = 'plate fresh_deposit'
+    weighting_type = average
+    outside_value = 293.15
   []
   [restart_is_deposited]
-    type = SolutionIC
+    type = RemeshSolutionIC
     solution_uo = remesh_source
     variable = is_deposited
     from_variable = is_deposited
     block = 'plate deposit'
+    transfer_blocks = 'plate deposit'
+    from_subdomains = 'plate fresh_deposit'
+    weighting_type = average
+    outside_value = 0.0
   []
 []
