@@ -53,12 +53,12 @@
 
 [Functions]
   # Intended CNC program (machine X = model Y):
-  #   G04 P4.0; G01 X50 Z-35 F75
-  # F is along the simultaneous X/Z path.  Therefore the 61.0328 mm move
-  # lasts 48.8262 s: model-Y advances 50 mm and Z feeds down 35 mm.
+  #   G04 P4.0; G01 X50 Z-35, with user-prescribed Z feed = 75 mm/min.
+  # The 35 mm Z consumption lasts 28 s; model-Y advances 50 mm in the same
+  # interval (107.142857 mm/min). Machine X maps to simulation Y.
   [rod_motion_y]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, 0.0010240399006488 * (t - 4.0), 0.050))'
+    expression = 'if(t < 4.0, 0.0, if(t < 32.0, 0.00178571428571429 * (t - 4.0), 0.050))'
   []
   # The 0.25 mm initial interference creates the displacement-controlled
   # forging contact.  No prescribed force is applied.
@@ -70,22 +70,22 @@
   # requires ALE/remeshing; it must not be imposed as solid compression.
   [rod_motion_z_top]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, -0.000716827930454161 * (t - 4.0), -0.035))'
+    expression = 'if(t < 4.0, 0.0, if(t < 32.0, -0.00125 * (t - 4.0), -0.035))'
   []
   # Instantaneous physical rod height in mm
   [rod_height_func]
     type = ParsedFunction
-    expression = '200.0 - if(t < 4.0, 0.0, if(t < 52.8262224629348, 35.0 * (t - 4.0) / 48.8262224629348, 35.0))'
+    expression = '200.0 - if(t < 4.0, 0.0, if(t < 32.0, 35.0 * (t - 4.0) / 28.0, 35.0))'
   []
   # Cumulative consumed rod length in mm
   [rod_consumed_func]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 52.8262224629348, 35.0 * (t - 4.0) / 48.8262224629348, 35.0))'
+    expression = 'if(t < 4.0, 0.0, if(t < 32.0, 35.0 * (t - 4.0) / 28.0, 35.0))'
   []
   # Axial feed rate in mm/min
   [axial_feed_rate_func]
     type = ParsedFunction
-    expression = 'if(t >= 4.0 & t < 52.8262224629348, 43.0096758272496, 0.0)'
+    expression = 'if(t >= 4.0 & t < 32.0, 75.0, 0.0)'
   []
 
   # Piecewise-linear true stress vs plastic strain hardening curves for AA5083 across temperatures:
@@ -298,7 +298,7 @@
     type = ParsedAux
     variable = tool_rpm
     use_xyzt = true
-    expression = 'if(t <= 52.8262224629348, 1200.0, 0.0)'
+    expression = 'if(t <= 32.0, 1200.0, 0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -321,7 +321,7 @@
     expression = 'if(contact_pressure > 0.0 & tool_rpm > 10.0,
                     0.90 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
-                    sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2),
+                    sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.00178571428571429*(t - 4.0)))))^2),
                     0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
@@ -361,7 +361,7 @@
     coupled_variables = 'T contact_pressure is_deposited'
     expression = 'if(is_deposited > 0.5, 1.0,
                     if(t >= 4.0 & contact_pressure >= 2.5e5 & T >= 623.15 & T <= 798.15 &
-                       y <= (0.0125 + min(0.050, 0.0010240399006488 * (t - 4.0)) + 0.015),
+                       y <= (0.0125 + min(0.050, 0.00178571428571429 * (t - 4.0)) + 0.015),
                        1.0, 0.0))'
     execute_on = 'TIMESTEP_END'
   []
