@@ -487,12 +487,11 @@
     temperature = T
     relative_tolerance = 1.0e-8
     absolute_tolerance = 1.0e-4
-    # AFSD imposes large local shear increments.  Integrate them locally
-    # rather than forcing the global coupled time step down to MOOSE's
-    # default 1e-4 equivalent-plastic-strain increment.
-    use_substepping = INCREMENT_BASED
+    # This temperature-dependent return-mapping model does not implement
+    # MOOSE local substepping.  Relax the material time-step limiter from the
+    # default 1e-4 equivalent-plastic-strain increment without requesting the
+    # unsupported substepping feature.
     max_inelastic_increment = 1.0e-2
-    maximum_number_substeps = 100
     # Exodus fields required to reconstruct J2 hardening in a later remesh
     # stage. The Remesh* material consumes them through SolutionFunctions.
     # Tensor plastic_strain components are already emitted by the solid-
