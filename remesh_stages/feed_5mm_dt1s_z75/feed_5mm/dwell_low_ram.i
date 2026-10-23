@@ -487,6 +487,12 @@
     temperature = T
     relative_tolerance = 1.0e-8
     absolute_tolerance = 1.0e-4
+    # AFSD imposes large local shear increments.  Integrate them locally
+    # rather than forcing the global coupled time step down to MOOSE's
+    # default 1e-4 equivalent-plastic-strain increment.
+    use_substepping = INCREMENT_BASED
+    max_inelastic_increment = 1.0e-2
+    maximum_number_substeps = 100
     # Exodus fields required to reconstruct J2 hardening in a later remesh
     # stage. The Remesh* material consumes them through SolutionFunctions.
     # Tensor plastic_strain components are already emitted by the solid-
@@ -684,12 +690,22 @@
     variable = stress_zz
     block = 'rod'
   []
-  # Maximum accumulated plastic strain in the rod
+  # Most-compressive accumulated axial plastic strain in the rod.  The
+  # postprocessor deliberately uses min because compression is negative.
   [rod_max_plastic_strain_zz]
     type = ElementExtremeValue
     variable = plastic_strain_zz
     value_type = min
     block = 'rod'
+  []
+  # Scalar J2 history used by the temperature-dependent hardening law.  This
+  # is the correct quantity to compare across remesh stages, not one tensor
+  # component such as plastic_strain_zz.
+  [max_effective_plastic_strain]
+    type = ElementExtremeValue
+    variable = effective_plastic_strain
+    value_type = max
+    block = 'plate rod'
   []
   # Average plastic strain in the rod
   [rod_avg_plastic_strain_zz]
@@ -829,7 +845,7 @@
   [motion_console]
     type = Console
     execute_on = TIMESTEP_END
-    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN friction_power_kW T_max T_core max_contact_pressure'
+    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN friction_power_kW T_max T_core max_effective_plastic_strain max_contact_pressure'
     max_rows = 0
     scientific_time = true
     time_precision = 6

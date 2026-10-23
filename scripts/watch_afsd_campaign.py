@@ -25,6 +25,7 @@ DISPLAY_FIELDS = (
     ("friction_power_kW", "friction power [kW]", "{:8.3f}"),
     ("T_max", "maximum T [K]", "{:8.2f}"),
     ("T_core", "core T [K]", "{:8.2f}"),
+    ("max_effective_plastic_strain", "max equivalent plastic strain [-]", "{:8.4f}"),
     ("max_contact_pressure", "contact pressure [MPa]", "{:8.3f}"),
 )
 
@@ -59,7 +60,7 @@ def stage_name(path: Path) -> str:
 def print_header() -> None:
     print("\nAFSD live monitor (one-second refresh; Ctrl-C stops monitor only)")
     print("stage       time[s]  sim-Y[mm]  quill-Z[mm]  consumed[mm]  rod-H[mm]"
-          "  Fz[kN]  Pfric[kW]  Tmax[K]  Tcore[K]  pmax[MPa]")
+          "  Fz[kN]  Pfric[kW]  Tmax[K]  Tcore[K]  ep_eq[-]  pmax[MPa]")
 
 
 def print_row(path: Path, row: dict[str, str]) -> None:
