@@ -4,10 +4,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-trial_root="remesh_stages/feed_5mm_dt1s/feed_5mm"
+trial_root="remesh_stages/feed_5mm_dt1s_z75/feed_5mm"
 python3 scripts/create_afsd_remesh_stages.py \
   --feed-increment-mm 5 \
-  --output-dir remesh_stages/feed_5mm_dt1s \
+  --output-dir remesh_stages/feed_5mm_dt1s_z75 \
   --mesh-min-mm 2 \
   --mesh-max-mm 4 \
   --initial-interference-mm 0.00515 \

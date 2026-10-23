@@ -28,13 +28,13 @@ MM = 1.0e-3
 ROD_RADIUS_MM = 12.5
 ROD_LENGTH_MM = 200.0
 TOTAL_FEED_MM = 35.0
-# CNC command: G01 X50 Z-35 F75.  The machine X axis maps to the AFSD
-# simulation Y axis.  G-code feed is the speed along the simultaneous X/Z
-# toolpath, not the X-component speed.
+# User-specified machine control: 75 mm/min is the Z-axis rod-consumption
+# rate.  The machine X axis maps to AFSD simulation Y and completes 50 mm
+# during the same 35 mm Z consumption.
 TRAVERSE_MM = 50.0
-PATH_FEED_MM_PER_MIN = 75.0
+AXIAL_FEED_MM_PER_MIN = 75.0
 DWELL_S = 4.0
-DEPOSITION_S = math.hypot(TRAVERSE_MM, TOTAL_FEED_MM) / PATH_FEED_MM_PER_MIN * 60.0
+DEPOSITION_S = TOTAL_FEED_MM / AXIAL_FEED_MM_PER_MIN * 60.0
 FLASH_FRACTION = 0.05
 PLATE_LX_MM = 50.0
 PLATE_LY_MM = 100.0
@@ -209,7 +209,8 @@ def main() -> None:
         'mesh_max_mm': args.mesh_max_mm,
         'dwell_s': DWELL_S,
         'deposition_s': DEPOSITION_S,
-        'gcode': 'G04 P4.0; G01 X50 Z-35 F75',
+        'gcode': 'G04 P4.0; G01 X50 Z-35 (Z-axis feed prescribed at 75 mm/min)',
+        'axial_feed_mm_per_min': AXIAL_FEED_MM_PER_MIN,
         'machine_x_maps_to_simulation_y': True,
         'field_transfer': ['T', 'plastic_strain', 'effective_plastic_strain', 'is_deposited'],
         'stages': [],
