@@ -96,7 +96,6 @@ def transfer_fragment(
                 "    solution_uo = remesh_source",
                 f"    variable = {variable}",
                 f"    from_variable = {variable}",
-                f"    block = '{history_blocks}'",
                 f"    transfer_blocks = '{history_blocks}'",
                 f"    from_subdomains = '{source_history_blocks}'",
                 "    weighting_type = average",
@@ -185,22 +184,65 @@ def render(
             section = text[start:end]
             section = "\n".join(line for line in section.splitlines() if "initial_condition" not in line)
             text = text[:start] + section + "\n" + text[end:]
-    # The physical tool position is already embedded in each stage mesh.  The
-    # actuator fields are therefore local zero increments, while friction uses
-    # a constant physical tool-centre coordinate for the current stage.
+    # The stage mesh is generated at its end position.  Move its rod reference
+    # configuration backward at the beginning of the stage, then translate it
+    # continuously to that end position.  This preserves the fixed rezone mesh
+    # while making the actual contact and friction source follow the CNC Y path.
     text = text.replace("function = rod_motion_y", "function = rod_stage_translation_y")
     text = text.replace("function = rod_motion_z_top", "function = rod_stage_translation_z")
     text = text.replace("tool_center_y = rod_motion_y", "tool_center_y = rod_stage_center_y")
+    # The broad BC substitutions above must not alter diagnostic functions:
+    # these report the absolute CNC program, not the local remesh-frame motion.
+    text = text.replace(
+        "  [command_machine_X_mm]\n"
+        "    type = FunctionValuePostprocessor\n"
+        "    function = rod_stage_translation_y",
+        "  [command_machine_X_mm]\n"
+        "    type = FunctionValuePostprocessor\n"
+        "    function = rod_motion_y",
+    )
+    text = text.replace(
+        "  [command_quill_Z_mm]\n"
+        "    type = FunctionValuePostprocessor\n"
+        "    function = rod_stage_translation_z",
+        "  [command_quill_Z_mm]\n"
+        "    type = FunctionValuePostprocessor\n"
+        "    function = rod_motion_z_top",
+    )
+    stage_end_y_m = stage["tool_center_y_mm"] * 1.0e-3
+    stage_start_y_m = (12.5 + stage["previous_bead_length_mm"]) * 1.0e-3
+    stage_traverse_m = stage_end_y_m - stage_start_y_m
+    stage_duration_s = stage["time_end_s"] - stage["time_start_s"]
+    stage_speed_mps = stage_traverse_m / stage_duration_s if stage_duration_s else 0.0
+    stage_start_s = stage["time_start_s"]
+    stage_end_s = stage["time_end_s"]
+    if stage["index"] == 0:
+        y_translation = "  [rod_stage_translation_y]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
+        center_y = (
+            "  [rod_stage_center_y]\n    type = ConstantFunction\n"
+            f"    value = {stage_end_y_m:.12g}\n  []\n"
+        )
+    else:
+        y_translation = (
+            "  [rod_stage_translation_y]\n    type = ParsedFunction\n"
+            "    # Reference mesh is at stage end; start at prior CNC Y and traverse forward.\n"
+            f"    expression = 'if(t <= {stage_start_s:.12g}, {-stage_traverse_m:.12g}, if(t < {stage_end_s:.12g}, {-stage_traverse_m:.12g} + {stage_speed_mps:.12g} * (t - {stage_start_s:.12g}), 0.0))'\n"
+            "  []\n"
+        )
+        center_y = (
+            "  [rod_stage_center_y]\n    type = ParsedFunction\n"
+            f"    expression = 'if(t <= {stage_start_s:.12g}, {stage_start_y_m:.12g}, if(t < {stage_end_s:.12g}, {stage_start_y_m:.12g} + {stage_speed_mps:.12g} * (t - {stage_start_s:.12g}), {stage_end_y_m:.12g}))'\n"
+            "  []\n"
+        )
     # G04 P4.0 is a true position hold.  Do not introduce an artificial
     # low-RAM plunge: it would turn the dwell into a hidden force ramp and
     # invalidate comparison with the measured axial-force trace.
     z_function = "  [rod_stage_translation_z]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
     function_insertion = (
-        "\n  # Local frame for this re-zoned stage; geometry already contains travel/feed.\n"
-        "  [rod_stage_translation_y]\n    type = ConstantFunction\n    value = 0.0\n  []\n"
+        "\n  # Local frame for this re-zoned stage; mesh is the stage-end reference state.\n"
+        + y_translation
         + z_function
-        + "  [rod_stage_center_y]\n    type = ConstantFunction\n"
-        + f"    value = {stage['tool_center_y_mm'] * 1.0e-3:.12g}\n  []\n"
+        + center_y
     )
     functions_start = text.index("[Functions]")
     functions_end = block_end(text, functions_start)

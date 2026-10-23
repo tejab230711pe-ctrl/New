@@ -128,16 +128,17 @@
 
   # Local frame for this re-zoned stage; geometry already contains travel/feed.
   [rod_stage_translation_y]
-    type = ConstantFunction
-    value = 0.0
+    type = ParsedFunction
+    # Reference mesh is at stage end; start at prior CNC Y and traverse forward.
+    expression = 'if(t <= 45.8510478254, -0.00714285714286, if(t < 52.8262224629, -0.00714285714286 + 0.00102403990065 * (t - 45.8510478254), 0.0))'
   []
   [rod_stage_translation_z]
     type = ConstantFunction
     value = 0.0
   []
   [rod_stage_center_y]
-    type = ConstantFunction
-    value = 0.0625
+    type = ParsedFunction
+    expression = 'if(t <= 45.8510478254, 0.0553571428571, if(t < 52.8262224629, 0.0553571428571 + 0.00102403990065 * (t - 45.8510478254), 0.0625))'
   []
 []
 
@@ -664,12 +665,12 @@
   # intended G-code motion in the terminal and CSV histories.
   [command_machine_X_mm]
     type = FunctionValuePostprocessor
-    function = rod_stage_translation_y
+    function = rod_motion_y
     scale_factor = 1000.0
   []
   [command_quill_Z_mm]
     type = FunctionValuePostprocessor
-    function = rod_stage_translation_z
+    function = rod_motion_z_top
     scale_factor = 1000.0
   []
   # Peak temperature in the substrate (K)
@@ -907,7 +908,6 @@
     solution_uo = remesh_source
     variable = T
     from_variable = T
-    block = 'plate deposit'
     transfer_blocks = 'plate deposit'
     from_subdomains = 'plate deposit fresh_deposit'
     weighting_type = average
@@ -918,7 +918,6 @@
     solution_uo = remesh_source
     variable = is_deposited
     from_variable = is_deposited
-    block = 'plate deposit'
     transfer_blocks = 'plate deposit'
     from_subdomains = 'plate deposit fresh_deposit'
     weighting_type = average
