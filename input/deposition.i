@@ -341,9 +341,10 @@
     variable = T
     thermal_conductivity = thermal_conductivity
   []
-  # Plastic work is a mechanical-to-thermal source with Ux/Uy/Uz off-diagonal Jacobians.
+  # Plastic work is a mechanical-to-thermal source.  Clamp transient remesh
+  # projection artefacts so irreversible dissipation can never cool the body.
   [plastic_heat]
-    type = PlasticHeatEnergy
+    type = NonnegativePlasticHeatEnergy
     variable = T
     displacements = 'Ux Uy Uz'
     coeff = 0.90
@@ -370,19 +371,17 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Diagnostic only.  The thermal solve no longer consumes this prescribed field:
-  # ContactFrictionHeatFlux obtains pressure from the solved [Contact] constraint.
+  # Uncapped friction-work flux diagnostic (W/m^2).  It uses the solved
+  # pressure; it is neither a prescribed heat input nor a spindle-power cap.
   [friction_heat_aux]
     type = ParsedAux
     variable = friction_heat
     coupled_variables = 'T contact_pressure tool_rpm mushy_fraction'
     use_xyzt = true
-    expression = 'if(contact_pressure > 1.0e4 & tool_rpm > 10.0,
-                    2.2 * 0.85 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
+    expression = 'if(contact_pressure > 0.0 & tool_rpm > 10.0,
+                    0.90 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
-                    if(sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2) > 0.002,
-                       sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2), 0.002) *
-                    if((1.0 - mushy_fraction) > 0.05, (1.0 - mushy_fraction), 0.05) / 0.005,
+                    sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.0010240399006488*(t - 4.0)))))^2),
                     0.0)'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
@@ -397,13 +396,14 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Motor mechanical power in kW (idle tare + friction dissipation)
+  # Retained auxiliary field for backward-compatible Exodus output. The real
+  # uncapped friction power is now an integrated postprocessor below.
   [motor_power_aux]
     type = ParsedAux
     variable = motor_power_kW
     coupled_variables = 'tool_rpm'
     use_xyzt = true
-    expression = 'if(t < 4.0, 0.587, 5.748)'
+    expression = '0.0'
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
@@ -680,8 +680,12 @@
   []
 
   # q = eta * mu(T) * solved_contact_pressure * omega * radius.
-  # This is injected at the secondary contact surface (the plate); the same
-  # interface also carries bidirectional thermal contact conductance.
+  # The entire uncapped interface source is applied at the contact interface;
+  # GapHeatTransfer then partitions it by the thermal response of both bodies.
+  # For AA5083 rod + AA5083 plate, sqrt(k*rho*cp) is identical on both sides,
+  # so the governing effusivity partition is H_plate = H_rod = 0.5.  Do not
+  # additionally multiply this source by 0.5: that would discard half of the
+  # generated energy instead of depositing it into the rod.
   [rod_friction_heat]
     type = ContactFrictionHeatFlux
     variable = T
@@ -771,10 +775,24 @@
     type = AverageNodalVariableValue
     variable = tool_rpm
   []
-  # Motor power in kW
+  # Total uncapped friction work generated at the active interface.  This is
+  # the direct model quantity to compare with Excel spindle power; it does not
+  # prescribe or cap the heat source.
+  [friction_power_W]
+    type = SideIntegralVariablePostprocessor
+    variable = friction_heat
+    boundary = front_to_plate
+  []
+  [friction_power_kW]
+    type = ParsedPostprocessor
+    pp_names = 'friction_power_W'
+    expression = 'friction_power_W / 1000.0'
+  []
+  # Backward-compatible output name now points to calculated, not prescribed, power.
   [power_kW]
-    type = AverageNodalVariableValue
-    variable = motor_power_kW
+    type = ParsedPostprocessor
+    pp_names = 'friction_power_kW'
+    expression = 'friction_power_kW'
   []
   # Axial load in kN
   [force_kN]
@@ -871,7 +889,7 @@
   [motion_console]
     type = Console
     execute_on = TIMESTEP_END
-    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN power_kW T_max T_core max_contact_pressure'
+    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN friction_power_kW T_max T_core max_contact_pressure'
     max_rows = 0
     scientific_time = true
     time_precision = 6
