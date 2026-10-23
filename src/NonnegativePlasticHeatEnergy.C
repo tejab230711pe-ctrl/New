@@ -12,7 +12,11 @@ NonnegativePlasticHeatEnergy::validParams()
 {
   InputParameters params = Kernel::validParams();
   params.addRequiredCoupledVar("displacements", "Mechanical displacement variables.");
-  params.addParam<std::string>("base_name", "", "Material property base name.");
+  // Match PlasticHeatEnergy: no default means isParamValid("base_name") is
+  // false when the input does not explicitly provide a prefix.  An empty
+  // default is still considered valid by MOOSE and would request the invalid
+  // properties "_plastic_heat" and "_dplastic_heat_dstrain".
+  params.addParam<std::string>("base_name", "Material property base name.");
   params.addParam<Real>("coeff", 1.0, "Taylor-Quinney conversion coefficient.");
   params.addClassDescription("Plastic heat source clamped to non-negative mechanical dissipation.");
   return params;
