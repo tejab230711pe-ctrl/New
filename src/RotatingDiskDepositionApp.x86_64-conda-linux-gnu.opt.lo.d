@@ -585,8 +585,12 @@
  /home/teja/projects/moose/framework/build/header_symlinks/MooseSyntax.h \
  /home/teja/projects/moose/modules/module_loader/build/header_symlinks/ModulesApp.h \
  /home/teja/projects/moose/modules/contact/build/header_symlinks/ContactApp.h \
+ /home/teja/projects/moose/modules/fluid_properties/build/header_symlinks/FluidPropertiesApp.h \
  /home/teja/projects/moose/modules/heat_transfer/build/header_symlinks/HeatTransferApp.h \
+ /home/teja/projects/moose/modules/misc/build/header_symlinks/MiscApp.h \
+ /home/teja/projects/moose/modules/navier_stokes/build/header_symlinks/NavierStokesApp.h \
  /home/teja/projects/moose/modules/ray_tracing/build/header_symlinks/RayTracingApp.h \
+ /home/teja/projects/moose/modules/rdg/build/header_symlinks/RdgApp.h \
  /home/teja/projects/moose/modules/solid_mechanics/build/header_symlinks/SolidMechanicsApp.h
 /home/teja/projects/moose/framework/include/base/MooseConfig.h:
 /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/src/RotatingDiskDepositionApp.h:
@@ -1173,6 +1177,10 @@
 /home/teja/projects/moose/framework/build/header_symlinks/MooseSyntax.h:
 /home/teja/projects/moose/modules/module_loader/build/header_symlinks/ModulesApp.h:
 /home/teja/projects/moose/modules/contact/build/header_symlinks/ContactApp.h:
+/home/teja/projects/moose/modules/fluid_properties/build/header_symlinks/FluidPropertiesApp.h:
 /home/teja/projects/moose/modules/heat_transfer/build/header_symlinks/HeatTransferApp.h:
+/home/teja/projects/moose/modules/misc/build/header_symlinks/MiscApp.h:
+/home/teja/projects/moose/modules/navier_stokes/build/header_symlinks/NavierStokesApp.h:
 /home/teja/projects/moose/modules/ray_tracing/build/header_symlinks/RayTracingApp.h:
+/home/teja/projects/moose/modules/rdg/build/header_symlinks/RdgApp.h:
 /home/teja/projects/moose/modules/solid_mechanics/build/header_symlinks/SolidMechanicsApp.h:

@@ -2,6 +2,7 @@
 #include "AppFactory.h"
 #include "MooseSyntax.h"
 #include "ModulesApp.h"
+#include "NavierStokesApp.h"
 
 InputParameters
 RotatingDiskDepositionApp::validParams()
@@ -23,6 +24,7 @@ void
 RotatingDiskDepositionApp::registerApps()
 {
   registerApp(RotatingDiskDepositionApp);
+  NavierStokesApp::registerApps();
 }
 
 void
@@ -31,4 +33,5 @@ RotatingDiskDepositionApp::registerAll(Factory & factory, ActionFactory & action
   Registry::registerObjectsTo(factory, {"RotatingDiskDepositionApp"});
   Registry::registerActionsTo(action_factory, {"RotatingDiskDepositionApp"});
   ModulesApp::registerAllObjects<RotatingDiskDepositionApp>(factory, action_factory, syntax);
+  NavierStokesApp::registerAll(factory, action_factory, syntax);
 }
