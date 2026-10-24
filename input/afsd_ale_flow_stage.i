@@ -192,7 +192,7 @@
   [plate_no_slip]
     type = ADVectorFunctionDirichletBC
     variable = velocity
-    boundary = bottom
+    boundary = back
     function_x = 0
     function_y = 0
     function_z = 0
@@ -200,7 +200,7 @@
   [shoulder_inlet]
     type = ADVectorFunctionDirichletBC
     variable = velocity
-    boundary = top
+    boundary = front
     function_x = shoulder_vx
     function_y = shoulder_vy
     function_z = shoulder_vz
@@ -210,19 +210,19 @@
   [fix_mesh_x_bottom]
     type = DirichletBC
     variable = mesh_x
-    boundary = bottom
+    boundary = back
     value = 0
   []
   [fix_mesh_y_bottom]
     type = DirichletBC
     variable = mesh_y
-    boundary = bottom
+    boundary = back
     value = 0
   []
   [fix_mesh_z_bottom]
     type = DirichletBC
     variable = mesh_z
-    boundary = bottom
+    boundary = back
     value = 0
   []
   # Sharp material free surfaces. The ALE update is implicit Euler:
@@ -231,7 +231,7 @@
   # becomes bead/flash geometry rather than a prescribed bead width.
   [move_free_x]
     type = INSADDisplaceBoundaryBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_x
     velocity = velocity
     component = 0
@@ -239,7 +239,7 @@
   []
   [move_free_y]
     type = INSADDisplaceBoundaryBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_y
     velocity = velocity
     component = 1
@@ -247,7 +247,7 @@
   []
   [move_free_z]
     type = INSADDisplaceBoundaryBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_z
     velocity = velocity
     component = 2
@@ -257,21 +257,21 @@
   # monolithic ALE Newton solve.
   [move_free_x_dummy]
     type = INSADDummyDisplaceBoundaryIntegratedBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_x
     velocity = velocity
     component = 0
   []
   [move_free_y_dummy]
     type = INSADDummyDisplaceBoundaryIntegratedBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_y
     velocity = velocity
     component = 1
   []
   [move_free_z_dummy]
     type = INSADDummyDisplaceBoundaryIntegratedBC
-    boundary = 'left right front back'
+    boundary = 'left right bottom top'
     variable = mesh_z
     velocity = velocity
     component = 2
