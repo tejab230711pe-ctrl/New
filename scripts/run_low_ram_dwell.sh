@@ -17,12 +17,13 @@ if [[ $# -gt 1 ]]; then
   exit 2
 fi
 
-# Two MPI ranks are the safe parallel ceiling for this 8 GB laptop.  The
-# executable links MPICH from the MOOSE environment, so do not use Ubuntu's
-# default OpenMPI launcher (it fails before model setup with a PMI mismatch).
+# The generated AFSD decks use a distributed mesh, so up to four MPI ranks can
+# share the model.  The executable links MPICH from the MOOSE environment, so
+# do not use Ubuntu's default OpenMPI launcher (it fails before model setup
+# with a PMI mismatch).
 mpi_ranks="${AFSD_MPI_RANKS:-2}"
-if [[ ! "$mpi_ranks" =~ ^[12]$ ]]; then
-  echo "AFSD_MPI_RANKS must be 1 or 2 on this 8 GB laptop." >&2
+if [[ ! "$mpi_ranks" =~ ^[1-4]$ ]]; then
+  echo "AFSD_MPI_RANKS must be an integer from 1 to 4." >&2
   exit 2
 fi
 mpich_launcher="${AFSD_MPICH_LAUNCHER:-/home/teja/miniforge3/envs/moose/bin/mpiexec.hydra}"
