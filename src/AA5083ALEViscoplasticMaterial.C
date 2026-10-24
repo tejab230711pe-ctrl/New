@@ -75,7 +75,7 @@ AA5083ALEViscoplasticMaterial::computeQpProperties()
     _plastic_fraction[_qp] = theta * theta * (3.0 - 2.0 * theta);
 
   const ADRealTensorValue D = 0.5 * (_grad_velocity[_qp] + _grad_velocity[_qp].transpose());
-  const ADReal rate = sqrt(2.0 * D.doubleContraction(D) +
+  const ADReal rate = sqrt(2.0 * D.contract(D) +
                            _strain_rate_regularization * _strain_rate_regularization);
   _effective_strain_rate[_qp] = rate;
 

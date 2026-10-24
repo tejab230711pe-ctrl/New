@@ -17,7 +17,7 @@ old_library=''
 inherited_linker_flags=' -fopenmp'
 
 # Libraries that this one depends upon.
-dependency_libs=' -L/lib /home/teja/projects/moose/modules/module_loader/lib/libmodule_loader_with_ray_ht_sbm_sm_con-opt.la /home/teja/projects/moose/modules/heat_transfer/lib/libheat_transfer-opt.la /home/teja/projects/moose/modules/ray_tracing/lib/libray_tracing-opt.la /home/teja/projects/moose/modules/shifted_boundary_method/lib/libshifted_boundary_method-opt.la /home/teja/projects/moose/modules/contact/lib/libcontact-opt.la /home/teja/projects/moose/modules/solid_mechanics/lib/libsolid_mechanics-opt.la -lstdc++fs -lwaspcore -lwaspddi -lwaspexpr -lwasphalite -lwasphit -lwasphive -lwaspjson -lwasplsp -lwaspplot -lwaspsiren -lwaspson'
+dependency_libs=' -L/lib /home/teja/projects/moose/modules/module_loader/lib/libmodule_loader_with_misc_ray_rdg_fp_ht_sbm_sm_ns_con-opt.la /home/teja/projects/moose/modules/shifted_boundary_method/lib/libshifted_boundary_method-opt.la /home/teja/projects/moose/modules/navier_stokes/lib/libnavier_stokes-opt.la /home/teja/projects/moose/modules/fluid_properties/lib/libfluid_properties-opt.la /home/teja/projects/moose/modules/misc/lib/libmisc-opt.la /home/teja/projects/moose/modules/rdg/lib/librdg-opt.la /home/teja/projects/moose/modules/heat_transfer/lib/libheat_transfer-opt.la /home/teja/projects/moose/modules/ray_tracing/lib/libray_tracing-opt.la /home/teja/projects/moose/modules/contact/lib/libcontact-opt.la /home/teja/projects/moose/modules/solid_mechanics/lib/libsolid_mechanics-opt.la -lstdc++fs -lwaspcore -lwaspddi -lwaspexpr -lwasphalite -lwasphit -lwasphive -lwaspjson -lwasplsp -lwaspplot -lwaspsiren -lwaspson'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''

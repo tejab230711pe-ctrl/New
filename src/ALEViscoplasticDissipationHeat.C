@@ -24,6 +24,6 @@ ADReal
 ALEViscoplasticDissipationHeat::computeQpResidual()
 {
   const ADRealTensorValue D = 0.5 * (_grad_velocity[_qp] + _grad_velocity[_qp].transpose());
-  const ADReal dissipation = 2.0 * _taylor_quinney * _mu[_qp] * D.doubleContraction(D);
+  const ADReal dissipation = 2.0 * _taylor_quinney * _mu[_qp] * D.contract(D);
   return -_test[_i][_qp] * dissipation;
 }
