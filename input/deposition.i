@@ -161,6 +161,16 @@
     type = ParsedFunction
     expression = 'if(t >= 4.0 & t < 32.0, 75.0, 0.0)'
   []
+  # Literal 1200 RPM rigid-body spindle rotation. The stage renderer replaces
+  # these with stage-local versions after every rezone.
+  [rod_spin_ux]
+    type = ParsedFunction
+    expression = 'x * (cos(125.663706143592 * t) - 1.0) - (y - 0.0125) * sin(125.663706143592 * t)'
+  []
+  [rod_spin_uy]
+    type = ParsedFunction
+    expression = 'x * sin(125.663706143592 * t) + (y - 0.0125) * (cos(125.663706143592 * t) - 1.0)'
+  []
 
   # Piecewise-linear true stress vs plastic strain hardening curves for AA5083 across temperatures:
   # 1. Room Temperature (293.15 K / 20 °C)
@@ -376,10 +386,10 @@
   [friction_heat_aux]
     type = ParsedAux
     variable = friction_heat
-    coupled_variables = 'T contact_pressure tool_rpm mushy_fraction'
+    coupled_variables = 'contact_pressure tool_rpm'
     use_xyzt = true
     expression = 'if(contact_pressure > 0.0 & tool_rpm > 10.0,
-                    0.90 * if((0.70 - 0.45 * (T - 293.15)/571.0) > 0.25, (0.70 - 0.45 * (T - 293.15)/571.0), 0.25) *
+                    0.90 * 0.35 *
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
                     sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.00178571428571429*(t - 4.0)))))^2),
                     0.0)'
@@ -579,22 +589,18 @@
   []
 []
 
-# Solved rod/plate contact replaces the analytical contact-pressure field.
+# Literal rotating Coulomb contact. Tangential traction and slip are solved.
 [Contact]
   [rod_plate]
     # Node-face contact is imposed at the fine plate nodes against the coarser
     # shoulder face; this is the robust primary/secondary ordering in MOOSE.
     primary = back_to_rod
     secondary = front_to_plate
-    # Tool spin is represented by ContactFrictionHeatFlux rather than a
-    # mesh-rotating tangential displacement field, so enforce the normal
-    # reaction here and use it to close the thermal/mechanical feedback loop.
-    model = frictionless
-    # Node-face normal contact is supported by the installed low-derivative
-    # MOOSE runtime; its pressure drives the frictional heat-flux coupling.
-    formulation = penalty
+    model = coulomb
+    formulation = tangential_penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
+    normalize_penalty = true
     penalty = 1.0e10
   []
 []
@@ -635,16 +641,16 @@
 
   # Actuator boundary conditions on the TOP of the tool rod (Machine Spindle Quill at z = 0.075)
   [rod_top_x]
-    type = DirichletBC
+    type = FunctionDirichletBC
     variable = Ux
     boundary = 'front_to_rod'
-    value = 0.0
+    function = rod_spin_ux
   []
   [rod_top_y]
     type = FunctionDirichletBC
     variable = Uy
     boundary = 'front_to_rod'
-    function = rod_motion_y
+    function = rod_spin_uy
   []
   # Continuous downward axial feed driving rod height shortening (50 mm -> 15 mm)
   [rod_top_z]
@@ -657,16 +663,16 @@
   # Tip Uz is free: the contact constraint solves it. Prescribing it here as
   # well over-constrained contact and inverted the plate mesh.
   [rod_bottom_x]
-    type = DirichletBC
+    type = FunctionDirichletBC
     variable = Ux
     boundary = 'back_to_rod'
-    value = 0.0
+    function = rod_spin_ux
   []
   [rod_bottom_y]
     type = FunctionDirichletBC
     variable = Uy
     boundary = 'back_to_rod'
-    function = rod_motion_y
+    function = rod_spin_uy
   []
 
   # Backing plate conductive/convective heat dissipation into steel anvil table at z = 0
@@ -687,7 +693,8 @@
     coefficient = 25.0
   []
 
-  # q = eta * mu(T) * solved_contact_pressure * omega * radius.
+  # q = eta * mu(T) * solved_contact_pressure * omega * radius: thermal
+  # dissipation of the literal solved Coulomb sliding contact above.
   # The entire uncapped interface source is applied at the contact interface;
   # GapHeatTransfer then partitions it by the thermal response of both bodies.
   # For AA5083 rod + AA5083 plate, sqrt(k*rho*cp) is identical on both sides,
@@ -698,10 +705,9 @@
     type = ContactFrictionHeatFlux
     variable = T
     boundary = front_to_plate
-    temperature = T
     contact_pressure = contact_pressure
-    material_props = aa5083_properties
     rpm = 1200
+    friction_coefficient = 0.35
     tool_center_y = rod_motion_y
     heat_partition = 1.0
   []

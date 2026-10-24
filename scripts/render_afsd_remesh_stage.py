@@ -253,6 +253,26 @@ def render(
     functions_end = block_end(text, functions_start)
     functions_close = text.rfind("[]", functions_start, functions_end)
     text = text[:functions_close] + function_insertion + text[functions_close:]
+    # Literal 1200 RPM spindle rotation.  Because the stage mesh is created at
+    # its end centre, y - stage_end_y_m is its local shoulder coordinate.  At
+    # each rezone the circular shoulder can restart its angular reference
+    # without changing contact geometry; its physical tangential velocity and
+    # Coulomb slip are continuous in magnitude.
+    theta = f"125.663706143592 * (t - {stage_start_s:.12g})"
+    spin_ux = (
+        "  [rod_spin_ux]\n    type = ParsedFunction\n"
+        f"    expression = 'x * (cos({theta}) - 1.0) - (y - {stage_end_y_m:.12g}) * sin({theta})'\n"
+        "  []"
+    )
+    spin_uy = (
+        "  [rod_spin_uy]\n    type = ParsedFunction\n"
+        f"    expression = 'x * sin({theta}) + (y - {stage_end_y_m:.12g}) * (cos({theta}) - 1.0) + ({stage_start_y_m:.12g} + {stage_speed_mps:.12g} * (t - {stage_start_s:.12g}) - {stage_end_y_m:.12g})'\n"
+        "  []"
+    )
+    for name, replacement in (("rod_spin_ux", spin_ux), ("rod_spin_uy", spin_uy)):
+        begin = text.index(f"  [{name}]\n", text.index("[Functions]"))
+        finish = text.index("  []", begin) + len("  []")
+        text = text[:begin] + replacement + text[finish:]
     text = text.replace(
         "type = TemperatureDependentHardeningStressUpdate",
         "type = RemeshTemperatureDependentHardeningStressUpdate",
