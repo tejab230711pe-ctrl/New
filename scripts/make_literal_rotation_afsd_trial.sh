@@ -15,6 +15,6 @@ python3 scripts/create_afsd_remesh_stages.py \
   --run-gmsh
 
 python3 scripts/render_afsd_remesh_stage.py \
-  "$trial_root/manifest.json" 0 --low-ram --low-ram-dt 0.00025
+  "$trial_root/manifest.json" 0 --low-ram --low-ram-dt 0.000025
 
-echo "Created literal-rotation campaign in $trial_root (dt = 0.00025 s)."
+echo "Created literal-rotation campaign in $trial_root (dt = 0.000025 s)."

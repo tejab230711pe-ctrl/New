@@ -600,8 +600,23 @@
     formulation = tangential_penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
-    normalize_penalty = true
+    # Keep the calibrated dimensional penalty used by the stable normal-contact
+    # model.  Normalizing 1e7 here magnifies the first interference correction
+    # and inverted the rod mesh before the friction state could converge.
     penalty = 1.0e10
+  []
+[]
+
+# Stabilize the nonlinear stick/slip state during literal shoulder rotation.
+# This damps only a reversal within one Newton solve; it does not reduce the
+# prescribed spindle RPM or the physical accumulated slip.
+[Dampers]
+  [rod_plate_slip]
+    type = ContactSlipDamper
+    primary = 'back_to_rod'
+    secondary = 'front_to_plate'
+    max_iterative_slip = 5.0e-4
+    min_damping_factor = 0.05
   []
 []
 
@@ -893,7 +908,9 @@
 
   start_time = 0.0
   end_time = 32.0
-  dtmin = 1.0e-4
+  # Literal rotation needs a small recovery step when a contact Newton solve
+  # cuts back, rather than aborting at the old 0.1 ms floor.
+  dtmin = 1.0e-6
   dtmax = 0.05
 
   [TimeStepper]

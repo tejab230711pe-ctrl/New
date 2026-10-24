@@ -46,7 +46,7 @@
     file = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm_literal_rotation/feed_5mm/dwell.msh
   []
   parallel_type = distributed
-  patch_update_strategy = auto
+  patch_update_strategy = iteration
   displacements = 'Ux Uy Uz'
 []
 
@@ -539,8 +539,23 @@
     formulation = tangential_penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
-    normalize_penalty = true
+    # Keep the calibrated dimensional penalty used by the stable normal-contact
+    # model.  Normalizing 1e7 here magnifies the first interference correction
+    # and inverted the rod mesh before the friction state could converge.
     penalty = 1.0e7
+  []
+[]
+
+# Stabilize the nonlinear stick/slip state during literal shoulder rotation.
+# This damps only a reversal within one Newton solve; it does not reduce the
+# prescribed spindle RPM or the physical accumulated slip.
+[Dampers]
+  [rod_plate_slip]
+    type = ContactSlipDamper
+    primary = 'rod_bottom'
+    secondary = 'workpiece_top'
+    max_iterative_slip = 5.0e-4
+    min_damping_factor = 0.05
   []
 []
 
@@ -832,12 +847,14 @@
 
   start_time = 0.0
   end_time = 4.0
-  dtmin = 1.0e-4
-  dtmax = 0.00025
+  # Literal rotation needs a small recovery step when a contact Newton solve
+  # cuts back, rather than aborting at the old 0.1 ms floor.
+  dtmin = 1.0e-6
+  dtmax = 2.5e-05
 
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 0.00025
+    dt = 2.5e-05
     optimal_iterations = 8
     iteration_window = 4
     growth_factor = 1.25
