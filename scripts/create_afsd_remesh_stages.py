@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
-"""Generate conservative AFSD remesh stages for the AA5083 trial campaign.
+"""Generate AFSD remesh stages from a solved/measured free-surface profile.
 
 This is intentionally a *geometry and run-manifest generator*.  A remeshed
 MOOSE solve must transfer fields from the preceding Exodus result before the
 next stage begins; the manifest records every source/target pair explicitly.
 
 Usage:
-  python3 scripts/create_afsd_remesh_stages.py --feed-increment-mm 5
-  python3 scripts/create_afsd_remesh_stages.py --feed-increment-mm 2.5
-  python3 scripts/create_afsd_remesh_stages.py --feed-increment-mm 1
-  python3 scripts/create_afsd_remesh_stages.py --feed-increment-mm 5 --run-gmsh
+  python3 scripts/create_afsd_remesh_stages.py --feed-increment-mm 5 \
+      --bead-profile-csv results/free_surface_profile.csv --run-gmsh
+
+The old implementation invented a 25 mm bead width and a 5 percent flash
+fraction.  Neither quantity follows from rod feed alone.  This generator now
+accepts them only as *results* of a free-surface material-flow calculation (or
+of a measured deposited cross-section), validates volume conservation, and
+uses those results to make the rezone meshes.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 import subprocess
@@ -35,11 +40,9 @@ TRAVERSE_MM = 50.0
 AXIAL_FEED_MM_PER_MIN = 75.0
 DWELL_S = 4.0
 DEPOSITION_S = TOTAL_FEED_MM / AXIAL_FEED_MM_PER_MIN * 60.0
-FLASH_FRACTION = 0.05
 PLATE_LX_MM = 50.0
 PLATE_LY_MM = 100.0
 PLATE_LZ_MM = 10.0
-BEAD_WIDTH_MM = 25.0
 # A small imposed overlap provides the initial contact pressure on the
 # displacement-controlled CNC shoulder without prescribing a second tip BC.
 INITIAL_INTERFERENCE_MM = 0.25
@@ -59,14 +62,44 @@ class Stage:
     tool_center_y_mm: float
     previous_bead_length_mm: float
     bead_length_mm: float
+    bead_width_mm: float
     bead_height_mm: float
     rod_height_mm: float
     feed_volume_mm3: float
     bead_volume_mm3: float
+    flash_volume_mm3: float
 
 
-def stage_schedule(feed_increment_mm: float) -> list[Stage]:
-    """Return stages satisfying V_bead = (1 - flash) V_rod exactly."""
+def read_profile(path: Path) -> dict[float, tuple[float, float, float]]:
+    """Read free-surface results indexed by cumulative consumed length.
+
+    Required CSV columns are ``feed_end_mm,width_mm,height_mm,flash_volume_mm3``.
+    Width and height describe the deposited cross-section at the rezone.  The
+    cumulative flash volume is the material that has crossed the two open
+    lateral free boundaries.  It is not a user-selected loss percentage.
+    """
+    try:
+        with path.open(newline="", encoding="utf-8") as stream:
+            reader = csv.DictReader(stream)
+            required = {"feed_end_mm", "width_mm", "height_mm", "flash_volume_mm3"}
+            if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+                raise ValueError(f"{path} must contain columns: {', '.join(sorted(required))}")
+            values: dict[float, tuple[float, float, float]] = {}
+            for row in reader:
+                feed = float(row["feed_end_mm"])
+                width = float(row["width_mm"])
+                height = float(row["height_mm"])
+                flash = float(row["flash_volume_mm3"])
+                if feed <= 0.0 or width <= 0.0 or height <= 0.0 or flash < 0.0:
+                    raise ValueError(f"{path}: all dimensions must be positive and flash non-negative")
+                values[round(feed, 9)] = (width, height, flash)
+    except OSError as exc:
+        raise ValueError(f"cannot read bead profile {path}: {exc}") from exc
+    return values
+
+
+def stage_schedule(feed_increment_mm: float, profile: dict[float, tuple[float, float, float]]) -> list[Stage]:
+    """Return stages whose geometry comes from the solved free surface."""
     if feed_increment_mm <= 0:
         raise ValueError("feed increment must be positive")
     rod_area = math.pi * ROD_RADIUS_MM**2
@@ -78,8 +111,23 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
         fraction = next_consumed / TOTAL_FEED_MM
         bead_length = TRAVERSE_MM * fraction
         feed_volume = rod_area * next_consumed
-        bead_volume = (1.0 - FLASH_FRACTION) * feed_volume
-        bead_height = bead_volume / (BEAD_WIDTH_MM * bead_length) if bead_length else 0.0
+        try:
+            bead_width, bead_height, flash_volume = profile[round(next_consumed, 9)]
+        except KeyError as exc:
+            raise ValueError(
+                f"bead profile has no row for feed_end_mm={next_consumed:g}; "
+                "it must contain every remesh endpoint"
+            ) from exc
+        bead_volume = bead_width * bead_height * bead_length
+        # Volume conservation is the acceptance check for the free-surface
+        # solve.  The rectangular rezone approximation may differ by 2% from
+        # the integrated free-surface volume, but not more.
+        residual = feed_volume - bead_volume - flash_volume
+        if abs(residual) > max(1.0, 0.02 * feed_volume):
+            raise ValueError(
+                f"free-surface volume is not conservative at {next_consumed:g} mm: "
+                f"rod={feed_volume:.3f}, bead={bead_volume:.3f}, flash={flash_volume:.3f} mm^3"
+            )
         stages.append(
             Stage(
                 index=index,
@@ -90,10 +138,12 @@ def stage_schedule(feed_increment_mm: float) -> list[Stage]:
                 tool_center_y_mm=ROD_RADIUS_MM + bead_length,
                 previous_bead_length_mm=TRAVERSE_MM * (consumed / TOTAL_FEED_MM),
                 bead_length_mm=bead_length,
+                bead_width_mm=bead_width,
                 bead_height_mm=bead_height,
                 rod_height_mm=ROD_LENGTH_MM - next_consumed,
                 feed_volume_mm3=feed_volume,
                 bead_volume_mm3=bead_volume,
+                flash_volume_mm3=flash_volume,
             )
         )
         consumed = next_consumed
@@ -112,10 +162,12 @@ def dwell_stage() -> Stage:
         tool_center_y_mm=ROD_RADIUS_MM,
         previous_bead_length_mm=0.0,
         bead_length_mm=0.0,
+        bead_width_mm=0.0,
         bead_height_mm=0.0,
         rod_height_mm=ROD_LENGTH_MM,
         feed_volume_mm3=0.0,
         bead_volume_mm3=0.0,
+        flash_volume_mm3=0.0,
     )
 
 
@@ -140,16 +192,16 @@ def geo_text(stage: Stage,
     if bead_y_end > 1e-9:
         if prior_bead_length > 1e-9:
             lines.append(
-                f'Box(3) = {{{-BEAD_WIDTH_MM*MM/2}, 0, {PLATE_LZ_MM*MM}, '
-                f'{BEAD_WIDTH_MM*MM}, {prior_bead_length}, {stage.bead_height_mm*MM}}};'
+                f'Box(3) = {{{-stage.bead_width_mm*MM/2}, 0, {PLATE_LZ_MM*MM}, '
+                f'{stage.bead_width_mm*MM}, {prior_bead_length}, {stage.bead_height_mm*MM}}};'
             )
             volumes.append('3')
         fresh_start = prior_bead_length
         fresh_length = bead_y_end - fresh_start
         if fresh_length > 1e-9:
             lines.append(
-                f'Box(4) = {{{-BEAD_WIDTH_MM*MM/2}, {fresh_start}, {PLATE_LZ_MM*MM}, '
-                f'{BEAD_WIDTH_MM*MM}, {fresh_length}, {stage.bead_height_mm*MM}}};'
+                f'Box(4) = {{{-stage.bead_width_mm*MM/2}, {fresh_start}, {PLATE_LZ_MM*MM}, '
+                f'{stage.bead_width_mm*MM}, {fresh_length}, {stage.bead_height_mm*MM}}};'
             )
             volumes.append('4')
         # Fragmenting makes the bonded plate/deposit interface conformal while
@@ -184,6 +236,8 @@ def geo_text(stage: Stage,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--feed-increment-mm', type=float, required=True, choices=(1.0, 2.5, 5.0))
+    parser.add_argument('--bead-profile-csv', type=Path, required=True,
+                        help='CSV from free-surface solve or measured cross-sections; never guessed dimensions')
     parser.add_argument('--output-dir', type=Path, default=Path('remesh_stages'))
     parser.add_argument('--run-gmsh', action='store_true')
     parser.add_argument('--mesh-min-mm', type=float, default=1.0)
@@ -198,11 +252,13 @@ def main() -> None:
     label = f"feed_{args.feed_increment_mm:g}mm"
     root = args.output_dir / label
     root.mkdir(parents=True, exist_ok=True)
-    stages = stage_schedule(args.feed_increment_mm)
+    profile = read_profile(args.bead_profile_csv)
+    stages = stage_schedule(args.feed_increment_mm, profile)
     manifest = {
         'mesh_units': 'm (SI; compatible with the MOOSE AA5083 model)',
         'process_units': 'mm and s',
-        'flash_fraction': FLASH_FRACTION,
+        'bead_geometry_source': str(args.bead_profile_csv),
+        'flash_definition': 'cumulative volume crossing open lateral free boundaries',
         'initial_interference_mm': args.initial_interference_mm,
         'initial_clearance_mm': args.initial_clearance_mm,
         'mesh_min_mm': args.mesh_min_mm,

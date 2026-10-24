@@ -5,7 +5,7 @@
 # Subdomains: Block 0 = Plate, Block 1 = Consumable Tool Rod, Block 2 = Deposited Bead Layer
 #
 # GOVERNING EQUATIONS OF MATERIAL PLASTICIZATION & CONTACT MECHANICS:
-# 1. Conservation of Mass (Isochoric plastic flow & Feed-Deposit balance):
+# 1. Conservation of Mass (isochoric plastic flow & feed/deposit/flash balance):
 #    div(v) = 0,  V_dot_feed = V_dot_layer + V_dot_flash
 #    A_rod * v_feed = W_bead * h_layer * v_traverse * (1 + beta_flash)
 # 2. Conservation of Linear Momentum (Quasi-static equilibrium):
@@ -18,9 +18,9 @@
 #    sigma_vm = sqrt(3/2 * s : s),  s = sigma - (1/3)*tr(sigma)*I
 #    Delta_eps_p = Delta_gamma * (3/2) * (s / sigma_vm)
 #    sigma_y(T, eps_p) thermally softens from 255.21 MPa (293K) down to 28 MPa (798K)
-# 5. Conservation of Energy (Coupled Thermo-Mechanical Conduction-Advection):
-#    rho*cp*(dT/dt + v_adv.grad(T)) = div(k*grad(T)) + q_fric + q_plast
-#    q_fric  = delta * tau_cont * (omega * r) / h_interface
+# 5. Conservation of Energy (coupled thermo-mechanical conduction):
+#    rho*cp*dT/dt = div(k*grad(T)) + q_fric + q_plast
+#    q_fric  = eta * tau_cont * omega * r
 #    q_plast = eta_TQ * sigma_vm * edot_p  (Taylor-Quinney coefficient eta_TQ = 0.90)
 # 6. Sliding-to-Sticking Contact Friction Transition:
 #    tau_cont = min(mu(T)*P, sigma_y(T) / sqrt(3))
@@ -36,8 +36,9 @@
 #                         simultaneous 50 mm model-Y traverse.
 #    Bottom Tip Interface: Uz(z_bot, t) rests on substrate under contact traction
 #    Rod Interior: Solved by Finite-Element elastoviscoplastic momentum balance
-# 9. Dual-Factor Solid-State Deposition Gate:
-#    Deposition iff: t >= t_dwell & P >= 0.25 MPa & 350 °C <= T <= 525 °C & y <= y_tool + R
+# 9. Free-surface material flow is required to determine bead width, layer
+#    height, and lateral flash.  This contact deck supplies the coupled
+#    thermal/mechanical fields; it does not create material across the contact.
 # ==============================================================================
 
 [Mesh]
@@ -301,7 +302,8 @@
     family = LAGRANGE
     initial_condition = 0.0
   []
-  # State variable: 1.0 when element is deposited under hot plasticizing stir conditions, 0.0 if not yet deposited
+  # Diagnostic: 1.0 in a pre-existing bead element which has met the chosen
+  # thermal/contact qualification. It is not a material-creation law.
   [is_deposited]
     order = FIRST
     family = LAGRANGE
@@ -418,8 +420,10 @@
     execute_on = 'TIMESTEP_END'
   []
 
-  # Solid-State Layer Deposition Gate:
-  # Material CANNOT deposit immediately; requires simultaneous satisfaction of:
+  # Solid-State Layer Qualification diagnostic.  A true deposited shape is
+  # supplied by the free-surface solver to the remesh generator; this field
+  # cannot and does not create material or determine bead dimensions.
+  # Qualification requires simultaneous satisfaction of:
   # 1. Contact forging pressure P >= 0.25 MPa under rotating tool shoulder
   # 2. Temperature strictly within 0.6 - 0.9 T_solidus window: 350 °C <= T <= 525 °C (623.15 K <= T <= 798.15 K)
   # 3. Active traverse (t >= 4.0s) with shoulder passing over element: y <= tool_y + R
