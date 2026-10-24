@@ -140,9 +140,14 @@ def render(
         "    type = FileMeshGenerator\n"
         f"    file = {mesh}\n"
         "  []\n"
-        "  parallel_type = replicated\n"
-        "  # Update node-face contact search as the tool moves.\n"
-        "  patch_update_strategy = iteration\n"
+        # A distributed mesh is essential when MPI is used: replicated meshes
+        # make every rank retain the complete model, so two ranks cost almost
+        # twice the RAM without reducing the per-rank contact work.
+        "  parallel_type = distributed\n"
+        # Let MOOSE rebuild the contact-search patch only when the relative
+        # motion requires it.  This preserves the contact formulation while
+        # avoiding a full locator rebuild on every nonlinear iteration.
+        "  patch_update_strategy = auto\n"
         "  displacements = 'Ux Uy Uz'\n"
         "[]\n",
     )

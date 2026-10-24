@@ -45,9 +45,8 @@
     type = FileMeshGenerator
     file = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/remesh_stages/feed_5mm_dt1s_z75/feed_5mm/dwell.msh
   []
-  parallel_type = replicated
-  # Update node-face contact search as the tool moves.
-  patch_update_strategy = iteration
+  parallel_type = distributed
+  patch_update_strategy = auto
   displacements = 'Ux Uy Uz'
 []
 
@@ -323,7 +322,10 @@
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
                     sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.00178571428571429*(t - 4.0)))))^2),
                     0.0)'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+    # Keep the diagnostic synchronized with ContactPressureAux, which is
+    # refreshed during nonlinear contact iterations.  This does not prescribe
+    # heat; it makes the reported interface power match the coupled BC.
+    execute_on = 'NONLINEAR TIMESTEP_BEGIN TIMESTEP_END'
   []
 
   # CNC control is displacement controlled.  Do not prescribe Fz here: the
