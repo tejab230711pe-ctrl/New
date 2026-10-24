@@ -246,6 +246,12 @@
   []
 []
 
+[Problem]
+  # Retain the mechanical residual at constrained spindle nodes so that force,
+  # torque, and mechanical power are measured reactions rather than placeholders.
+  extra_tag_vectors = 'reaction'
+[]
+
 [Physics/SolidMechanics/QuasiStatic]
   displacements = 'Ux Uy Uz'
   [all]
@@ -254,6 +260,7 @@
     decomposition_method = HughesWinget
     volumetric_locking_correction = false
     add_variables = false
+    extra_vector_tags = 'reaction'
     block = 'plate rod'
     # All six plastic-strain components are persisted to Exodus.  The remesh
     # transfer reconstructs the complete J2 history tensor in the next stage.
@@ -277,12 +284,19 @@
     family = LAGRANGE
     initial_condition = 0.0
   []
-  [axial_load_kN]
+  # Constraint reactions at the driven spindle face.  These are populated
+  # from the tagged mechanical residual, not prescribed loads.
+  [spindle_reaction_x]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
   []
-  [motor_power_kW]
+  [spindle_reaction_y]
+    order = FIRST
+    family = LAGRANGE
+    initial_condition = 0.0
+  []
+  [spindle_reaction_z]
     order = FIRST
     family = LAGRANGE
     initial_condition = 0.0
@@ -293,11 +307,11 @@
     family = LAGRANGE
     initial_condition = 0.0
   []
-  # Instantaneous physical rod height in mm (50mm -> 15mm)
+  # Instantaneous physical rod height in mm.
   [rod_height_mm]
     order = FIRST
     family = LAGRANGE
-    initial_condition = 50.0
+    initial_condition = 200.0
   []
   # Cumulative consumed rod length in mm (0mm -> 35mm)
   [consumed_length_mm]
@@ -309,24 +323,6 @@
   [axial_feed_rate_mmpm]
     order = FIRST
     family = LAGRANGE
-    initial_condition = 0.0
-  []
-  # Spindle torque in N*m: M_z = P_spindle / omega
-  [spindle_torque_Nm]
-    order = FIRST
-    family = LAGRANGE
-    initial_condition = 0.0
-  []
-  # Traverse resistance force in N: F_y = 2*R*h_layer*vonmises_stress + mu*F_z
-  [traverse_force_N]
-    order = CONSTANT
-    family = MONOMIAL
-    initial_condition = 0.0
-  []
-  # Transverse / side force in N: F_x due to Advancing/Retreating Side asymmetry
-  [transverse_force_N]
-    order = CONSTANT
-    family = MONOMIAL
     initial_condition = 0.0
   []
   # Zener-Hollomon parameter ln(Z) = ln(edot) + Q/(R*T)
@@ -399,25 +395,27 @@
     execute_on = 'NONLINEAR TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # CNC control is displacement controlled.  Do not prescribe Fz here: the
-  # axial contact reaction is a solver output for comparison to the measured Fz.
-  [axial_load_aux]
-    type = ParsedAux
-    variable = axial_load_kN
-    use_xyzt = true
-    expression = '0.0'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  # Extract actual resultant reactions at the prescribed spindle face.
+  [spindle_reaction_x_aux]
+    type = ReactionForceAux
+    variable = spindle_reaction_x
+    v = Ux
+    vector_tag = reaction
+    execute_on = 'TIMESTEP_END'
   []
-
-  # Retained auxiliary field for backward-compatible Exodus output. The real
-  # uncapped friction power is now an integrated postprocessor below.
-  [motor_power_aux]
-    type = ParsedAux
-    variable = motor_power_kW
-    coupled_variables = 'tool_rpm'
-    use_xyzt = true
-    expression = '0.0'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
+  [spindle_reaction_y_aux]
+    type = ReactionForceAux
+    variable = spindle_reaction_y
+    v = Uy
+    vector_tag = reaction
+    execute_on = 'TIMESTEP_END'
+  []
+  [spindle_reaction_z_aux]
+    type = ReactionForceAux
+    variable = spindle_reaction_z
+    v = Uz
+    vector_tag = reaction
+    execute_on = 'TIMESTEP_END'
   []
 
   # Solid-State Layer Deposition Gate:
@@ -463,34 +461,6 @@
     execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
   []
 
-  # Spindle torsional torque M_z (N*m) from spindle mechanical power and angular velocity
-  [spindle_torque_aux]
-    type = ParsedAux
-    variable = spindle_torque_Nm
-    coupled_variables = 'motor_power_kW tool_rpm'
-    expression = 'if(tool_rpm > 10.0, (motor_power_kW * 1000.0) / (tool_rpm * 2.0 * 3.14159265 / 60.0), 0.0)'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
-  []
-
-  # The symmetric shoulder-only model does not resolve advancing/retreating
-  # side asymmetry.  Do not fabricate lateral force from a prescribed Fz.
-  [traverse_force_aux]
-    type = ParsedAux
-    variable = traverse_force_N
-    coupled_variables = 'vonmises_stress axial_load_kN'
-    use_xyzt = true
-    expression = '0.0'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
-  []
-
-  # Transverse / lateral asymmetry force F_x (N) from advancing vs retreating side shear imbalance
-  [transverse_force_aux]
-    type = ParsedAux
-    variable = transverse_force_N
-    coupled_variables = 'traverse_force_N'
-    expression = '0.0'
-    execute_on = 'TIMESTEP_BEGIN TIMESTEP_END'
-  []
 
   # Zener-Hollomon parameter ln(Z) for hot viscoplastic deformation (AA5083: Q=145 kJ/mol, R=8.314 J/mol-K, edot~1500 s^-1)
   [zener_hollomon_aux]
@@ -523,15 +493,15 @@
                   if((T - 273.15) <= 580.0, 2611.5 + (2549.2 - 2611.5)*((T - 273.15) - 280.0)/300.0, 2549.2)))'
   []
 
-  # AA5083 specific heat capacity + latent heat of fusion (J/kg·K)
+  # AA5083 solid-state specific heat capacity (J/kg·K).  No apparent/latent
+  # heat is included: AFSD is modelled below solidus, not as a melt process.
   [aa5083_cp]
     type = ParsedMaterial
     property_name = specific_heat
     coupled_variables = 'T'
     expression = 'if((T - 273.15) <= 80.0, 924.1 + (984.2 - 924.1)*((T - 273.15) + 20.0)/100.0,
                   if((T - 273.15) <= 280.0, 984.2 + (1081.2 - 984.2)*((T - 273.15) - 80.0)/200.0,
-                  if((T - 273.15) <= 580.0, 1081.2 + (1261.4 - 1081.2)*((T - 273.15) - 280.0)/300.0, 1261.4)))
-                  + if(T > 673.15 & T < 864.15, 387000.0 / 191.0, 0.0)'
+                  if((T - 273.15) <= 580.0, 1081.2 + (1261.4 - 1081.2)*((T - 273.15) - 280.0)/300.0, 1261.4)))'
   []
 
   # Thermal strain couples the solved temperature field back into stress.
