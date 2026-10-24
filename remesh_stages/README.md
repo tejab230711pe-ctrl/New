@@ -14,12 +14,19 @@ The volume balance is checked at every stage:
 
 `pi * (12.5 mm)^2 * feed = V_bead + V_flash`.
 
-The profile CSV must contain `feed_end_mm,width_mm,height_mm,flash_volume_mm3`
+The profile CSV must contain
+`feed_end_mm,width_mm,height_mm,bead_volume_mm3,flash_volume_mm3`
 for every rezone endpoint. The generator rejects a profile whose integrated
 bead plus flash volume differs from the consumed-rod volume by more than 2%.
 Plate and profile-derived bead are Boolean-fragmented into one conformal
 `workpiece` block. The rod remains a separate `rod` block with a `rod_bottom`
 surface for contact and frictional heat flux.
+
+At present the rezone mesh uses an equal-volume rectangular envelope. Its
+height is `bead_volume / (width * deposited length)`, while the physical crest
+height from the profile remains in the manifest for reporting. A polygonal
+free-surface mesh is still required before this is a true ALE/free-surface
+simulation.
 
 The meshes are written in metres, consistent with the SI AA5083 material data
 in the MOOSE input.  The JSON manifest preserves the physical process values

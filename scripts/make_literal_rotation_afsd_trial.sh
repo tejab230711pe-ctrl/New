@@ -11,7 +11,7 @@ if [[ -z "$bead_profile" || ! -f "$bead_profile" ]]; then
 Refusing to create a predictive deposited-bead mesh from guessed dimensions.
 Set AFSD_BEAD_PROFILE to the CSV emitted by the free-surface material-flow
 solve (or an experimentally measured profile). Required columns:
-feed_end_mm,width_mm,height_mm,flash_volume_mm3
+feed_end_mm,width_mm,height_mm,bead_volume_mm3,flash_volume_mm3
 EOF
   exit 2
 fi

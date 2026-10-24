@@ -73,32 +73,37 @@ class Stage:
 def read_profile(path: Path) -> dict[float, tuple[float, float, float]]:
     """Read free-surface results indexed by cumulative consumed length.
 
-    Required CSV columns are ``feed_end_mm,width_mm,height_mm,flash_volume_mm3``.
-    Width and height describe the deposited cross-section at the rezone.  The
-    cumulative flash volume is the material that has crossed the two open
-    lateral free boundaries.  It is not a user-selected loss percentage.
+    Required CSV columns are
+    ``feed_end_mm,width_mm,height_mm,bead_volume_mm3,flash_volume_mm3``.
+    Width and height describe the deposited cross-section at the rezone;
+    ``bead_volume_mm3`` is the integral of its actual free-surface shape, not
+    width times height times length. The cumulative flash volume is the
+    material that has crossed the two open lateral free boundaries. It is not
+    a user-selected loss percentage.
     """
     try:
         with path.open(newline="", encoding="utf-8") as stream:
             reader = csv.DictReader(stream)
-            required = {"feed_end_mm", "width_mm", "height_mm", "flash_volume_mm3"}
+            required = {"feed_end_mm", "width_mm", "height_mm", "bead_volume_mm3", "flash_volume_mm3"}
             if reader.fieldnames is None or not required.issubset(reader.fieldnames):
                 raise ValueError(f"{path} must contain columns: {', '.join(sorted(required))}")
-            values: dict[float, tuple[float, float, float]] = {}
+            values: dict[float, tuple[float, float, float, float]] = {}
             for row in reader:
                 feed = float(row["feed_end_mm"])
                 width = float(row["width_mm"])
                 height = float(row["height_mm"])
+                bead_volume = float(row["bead_volume_mm3"])
                 flash = float(row["flash_volume_mm3"])
-                if feed <= 0.0 or width <= 0.0 or height <= 0.0 or flash < 0.0:
+                if feed <= 0.0 or width <= 0.0 or height <= 0.0 or bead_volume <= 0.0 or flash < 0.0:
                     raise ValueError(f"{path}: all dimensions must be positive and flash non-negative")
-                values[round(feed, 9)] = (width, height, flash)
+                values[round(feed, 9)] = (width, height, bead_volume, flash)
     except OSError as exc:
         raise ValueError(f"cannot read bead profile {path}: {exc}") from exc
     return values
 
 
-def stage_schedule(feed_increment_mm: float, profile: dict[float, tuple[float, float, float]]) -> list[Stage]:
+def stage_schedule(feed_increment_mm: float,
+                   profile: dict[float, tuple[float, float, float, float]]) -> list[Stage]:
     """Return stages whose geometry comes from the solved free surface."""
     if feed_increment_mm <= 0:
         raise ValueError("feed increment must be positive")
@@ -112,16 +117,15 @@ def stage_schedule(feed_increment_mm: float, profile: dict[float, tuple[float, f
         bead_length = TRAVERSE_MM * fraction
         feed_volume = rod_area * next_consumed
         try:
-            bead_width, bead_height, flash_volume = profile[round(next_consumed, 9)]
+            bead_width, bead_height, bead_volume, flash_volume = profile[round(next_consumed, 9)]
         except KeyError as exc:
             raise ValueError(
                 f"bead profile has no row for feed_end_mm={next_consumed:g}; "
                 "it must contain every remesh endpoint"
             ) from exc
-        bead_volume = bead_width * bead_height * bead_length
         # Volume conservation is the acceptance check for the free-surface
-        # solve.  The rectangular rezone approximation may differ by 2% from
-        # the integrated free-surface volume, but not more.
+        # solve. The actual cross-section integral, rather than a rectangular
+        # width*height approximation, is used for this check.
         residual = feed_volume - bead_volume - flash_volume
         if abs(residual) > max(1.0, 0.02 * feed_volume):
             raise ValueError(
@@ -181,6 +185,13 @@ def geo_text(stage: Stage,
     rod_base_z = (PLATE_LZ_MM + initial_clearance_mm - initial_interference_mm) * MM
     rod_top_z = rod_base_z + stage.rod_height_mm * MM
     bead_y_end = max(0.0, y_tool - ROD_RADIUS_MM * MM)
+    # Until the rezone writer consumes the full free-surface polygon, its box
+    # is an equal-volume envelope.  Never use the reported crest height here:
+    # width*crest-height is generally not the true cross-sectional area.
+    rezone_height_mm = (
+        stage.bead_volume_mm3 / (stage.bead_width_mm * stage.bead_length_mm)
+        if stage.bead_length_mm > 0.0 else 0.0
+    )
     lines = [
         'SetFactory("OpenCASCADE");',
         '// AA5083 AFSD remesh stage; coordinates are SI metres.',
@@ -193,7 +204,7 @@ def geo_text(stage: Stage,
         if prior_bead_length > 1e-9:
             lines.append(
                 f'Box(3) = {{{-stage.bead_width_mm*MM/2}, 0, {PLATE_LZ_MM*MM}, '
-                f'{stage.bead_width_mm*MM}, {prior_bead_length}, {stage.bead_height_mm*MM}}};'
+                f'{stage.bead_width_mm*MM}, {prior_bead_length}, {rezone_height_mm*MM}}};'
             )
             volumes.append('3')
         fresh_start = prior_bead_length
@@ -201,7 +212,7 @@ def geo_text(stage: Stage,
         if fresh_length > 1e-9:
             lines.append(
                 f'Box(4) = {{{-stage.bead_width_mm*MM/2}, {fresh_start}, {PLATE_LZ_MM*MM}, '
-                f'{stage.bead_width_mm*MM}, {fresh_length}, {stage.bead_height_mm*MM}}};'
+                f'{stage.bead_width_mm*MM}, {fresh_length}, {rezone_height_mm*MM}}};'
             )
             volumes.append('4')
         # Fragmenting makes the bonded plate/deposit interface conformal while
