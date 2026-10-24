@@ -134,17 +134,6 @@
     type = ParsedFunction
     expression = 'if(t < 4.0, 0.0, if(t < 32.0, 0.00178571428571429 * (t - 4.0), 0.050))'
   []
-  # True 1200 RPM spindle rotation (omega = 125.663706 rad/s), prescribed
-  # at the quill. The shoulder is left tangentially free so Coulomb contact
-  # transfers the physical circumferential slip traction to the plate.
-  [rod_spin_ux]
-    type = ParsedFunction
-    expression = 'x * (cos(125.663706143592 * t) - 1.0) - (y - 0.0125) * sin(125.663706143592 * t)'
-  []
-  [rod_spin_uy]
-    type = ParsedFunction
-    expression = 'x * sin(125.663706143592 * t) + (y - 0.0125) * (cos(125.663706143592 * t) - 1.0) + if(t < 4.0, 0.0, if(t < 32.0, 0.00178571428571429 * (t - 4.0), 0.050))'
-  []
   # The 0.25 mm initial interference creates the displacement-controlled
   # forging contact.  No prescribed force is applied.
   [rod_motion_z_bottom]
@@ -594,14 +583,16 @@
     # shoulder face; this is the robust primary/secondary ordering in MOOSE.
     primary = back_to_rod
     secondary = front_to_plate
-    # Solve normal forging and tangential Coulomb-slip contact. The matching
-    # ContactFrictionHeatFlux block supplies the generated frictional heat.
-    model = coulomb
-    formulation = tangential_penalty
+    # Tool spin is represented by ContactFrictionHeatFlux rather than a
+    # mesh-rotating tangential displacement field, so enforce the normal
+    # reaction here and use it to close the thermal/mechanical feedback loop.
+    model = frictionless
+    # Node-face normal contact is supported by the installed low-derivative
+    # MOOSE runtime; its pressure drives the frictional heat-flux coupling.
+    formulation = penalty
     displacements = 'Ux Uy Uz'
-    friction_coefficient = 0.45
+    friction_coefficient = 0.35
     penalty = 1.0e10
-    penalty_friction = 1.0e8
   []
 []
 
@@ -641,16 +632,16 @@
 
   # Actuator boundary conditions on the TOP of the tool rod (Machine Spindle Quill at z = 0.075)
   [rod_top_x]
-    type = FunctionDirichletBC
+    type = DirichletBC
     variable = Ux
     boundary = 'front_to_rod'
-    function = rod_spin_ux
+    value = 0.0
   []
   [rod_top_y]
     type = FunctionDirichletBC
     variable = Uy
     boundary = 'front_to_rod'
-    function = rod_spin_uy
+    function = rod_motion_y
   []
   # Continuous downward axial feed driving rod height shortening (50 mm -> 15 mm)
   [rod_top_z]
@@ -660,8 +651,20 @@
     function = rod_motion_z_top
   []
 
-  # The shoulder tip is free in all directions. Normal contact supplies the
-  # forging reaction; Coulomb contact supplies the rotational slip traction.
+  # Tip Uz is free: the contact constraint solves it. Prescribing it here as
+  # well over-constrained contact and inverted the plate mesh.
+  [rod_bottom_x]
+    type = DirichletBC
+    variable = Ux
+    boundary = 'back_to_rod'
+    value = 0.0
+  []
+  [rod_bottom_y]
+    type = FunctionDirichletBC
+    variable = Uy
+    boundary = 'back_to_rod'
+    function = rod_motion_y
+  []
 
   # Backing plate conductive/convective heat dissipation into steel anvil table at z = 0
   [plate_base_cooling]
