@@ -273,6 +273,12 @@ def render(
         begin = text.index(f"  [{name}]\n", text.index("[Functions]"))
         finish = text.index("  []", begin) + len("  []")
         text = text[:begin] + replacement + text[finish:]
+    # Measure spindle torque about the stage-local shoulder axis, not the
+    # source deck's nominal centre.
+    text = text.replace(
+        "axis_origin = '0.0 0.050 0.0'",
+        f"axis_origin = '0.0 {stage_end_y_m:.12g} 0.0'",
+    )
     text = text.replace(
         "type = TemperatureDependentHardeningStressUpdate",
         "type = RemeshTemperatureDependentHardeningStressUpdate",

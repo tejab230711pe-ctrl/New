@@ -772,12 +772,29 @@
     variable = contact_pressure
     value_type = max
   []
-  # Contact reaction is the integrated normal pressure, not the old prescribed
-  # axial-load diagnostic.  The renderer maps this surface to workpiece_top.
-  [axial_contact_force_N]
-    type = SideIntegralVariablePostprocessor
-    variable = contact_pressure
-    boundary = front_to_plate
+  # Resultant spindle reactions.  Their signs are the reactions exerted on
+  # the prescribed rod-top boundary, so process loads use the opposite sign.
+  [spindle_reaction_x_N]
+    type = NodalSum
+    variable = spindle_reaction_x
+    boundary = front_to_rod
+  []
+  [spindle_reaction_y_N]
+    type = NodalSum
+    variable = spindle_reaction_y
+    boundary = front_to_rod
+  []
+  [spindle_reaction_z_N]
+    type = NodalSum
+    variable = spindle_reaction_z
+    boundary = front_to_rod
+  []
+  [spindle_torque_Nm]
+    type = TorqueReaction
+    boundary = front_to_rod
+    reaction_force_variables = 'spindle_reaction_x spindle_reaction_y spindle_reaction_z'
+    axis_origin = '0.0 0.050 0.0'
+    direction_vector = '0.0 0.0 1.0'
   []
   # Tool RPM
   [current_rpm]
@@ -797,17 +814,18 @@
     pp_names = 'friction_power_W'
     expression = 'friction_power_W / 1000.0'
   []
-  # Backward-compatible output name now points to calculated, not prescribed, power.
+  # Mechanical spindle power from solved torque; compare this with the Excel
+  # spindle power.  friction_power_kW is the heat dissipated at efficiency 0.9.
   [power_kW]
     type = ParsedPostprocessor
-    pp_names = 'friction_power_kW'
-    expression = 'friction_power_kW'
+    pp_names = 'spindle_torque_Nm'
+    expression = 'spindle_torque_Nm * 1200.0 * 2.0 * 3.14159265 / (60.0 * 1000.0)'
   []
   # Axial load in kN
   [force_kN]
     type = ParsedPostprocessor
-    pp_names = 'axial_contact_force_N'
-    expression = 'abs(axial_contact_force_N) / 1000.0'
+    pp_names = 'spindle_reaction_z_N'
+    expression = 'abs(spindle_reaction_z_N) / 1000.0'
   []
   # Fraction of bead elements actively deposited
   [deposited_bead_pct]
@@ -833,20 +851,17 @@
     variable = axial_feed_rate_mmpm
     block = 'rod'
   []
-  # Spindle torsional torque in N*m
-  [spindle_torque_Nm]
-    type = AverageNodalVariableValue
-    variable = spindle_torque_Nm
-  []
-  # Traverse resistance force in N
+  # Process force along simulation Y (machine X): reaction sign reversed.
   [traverse_force_N]
-    type = ElementAverageValue
-    variable = traverse_force_N
+    type = ParsedPostprocessor
+    pp_names = 'spindle_reaction_y_N'
+    expression = '-spindle_reaction_y_N'
   []
-  # Transverse / lateral asymmetry force in N
+  # Transverse process force along simulation X: reaction sign reversed.
   [transverse_force_N]
-    type = ElementAverageValue
-    variable = transverse_force_N
+    type = ParsedPostprocessor
+    pp_names = 'spindle_reaction_x_N'
+    expression = '-spindle_reaction_x_N'
   []
   # Zener-Hollomon parameter ln(Z) in active stir zone
   [ln_Zener_Hollomon]
@@ -900,7 +915,7 @@
   [motion_console]
     type = Console
     execute_on = TIMESTEP_END
-    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN friction_power_kW T_max T_core max_effective_plastic_strain max_contact_pressure'
+    show = 'command_machine_X_mm command_quill_Z_mm consumed_length_mm rod_height_mm feed_rate_mmpm current_rpm force_kN spindle_torque_Nm power_kW friction_power_kW traverse_force_N transverse_force_N T_max T_core max_effective_plastic_strain max_contact_pressure'
     max_rows = 0
     scientific_time = true
     time_precision = 6
