@@ -258,6 +258,7 @@
   [all]
     displacements = 'Ux Uy Uz'
     strain = FINITE
+    eigenstrain_names = thermal_eigenstrain
     decomposition_method = HughesWinget
     volumetric_locking_correction = false
     add_variables = false
@@ -403,21 +404,18 @@
     variable = spindle_reaction_x
     v = Ux
     vector_tag = reaction
-    execute_on = 'TIMESTEP_END'
   []
   [spindle_reaction_y_aux]
     type = ReactionForceAux
     variable = spindle_reaction_y
     v = Uy
     vector_tag = reaction
-    execute_on = 'TIMESTEP_END'
   []
   [spindle_reaction_z_aux]
     type = ReactionForceAux
     variable = spindle_reaction_z
     v = Uz
     vector_tag = reaction
-    execute_on = 'TIMESTEP_END'
   []
 
   # Solid-State Layer Qualification diagnostic.  A true deposited shape is
