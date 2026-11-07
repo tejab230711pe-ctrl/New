@@ -259,6 +259,7 @@
     displacements = 'Ux Uy Uz'
     strain = FINITE
     eigenstrain_names = thermal_eigenstrain
+    temperature = T
     decomposition_method = HughesWinget
     volumetric_locking_correction = false
     add_variables = false
@@ -401,18 +402,21 @@
   # Extract actual resultant reactions at the prescribed spindle face.
   [spindle_reaction_x_aux]
     type = ReactionForceAux
+    block = 'plate rod'
     variable = spindle_reaction_x
     v = Ux
     vector_tag = reaction
   []
   [spindle_reaction_y_aux]
     type = ReactionForceAux
+    block = 'plate rod'
     variable = spindle_reaction_y
     v = Uy
     vector_tag = reaction
   []
   [spindle_reaction_z_aux]
     type = ReactionForceAux
+    block = 'plate rod'
     variable = spindle_reaction_z
     v = Uz
     vector_tag = reaction

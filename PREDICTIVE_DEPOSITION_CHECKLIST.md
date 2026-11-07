@@ -2,7 +2,7 @@
 
 Project: coupled AA5083 friction stir additive manufacturing in MOOSE.
 
-Based on the source review and executable checks recorded in `PROJECT_ANALYSIS.md`, 7 November 2026. These are outstanding implementation or verification requirements. An unchecked item may have partial code already; it stays open until its acceptance evidence exists. This document does not claim that new simulation tests have been performed.
+Based on the source review and executable checks recorded in `PROJECT_ANALYSIS.md`, 7 November 2026. Subsequent implementation and test evidence is recorded in `test/verification/BASELINE_PROGRESS.md`. An unchecked item may have partial code already; it stays open until its acceptance evidence exists.
 
 **Completion means:** starting from initial geometry, material data and machine commands, the model predicts temperature, forces, torque, rod consumption, bead geometry and flash through the specified process. The prediction must survive numerical refinement, conserve mass and energy within declared tolerances, and agree with independent experiments within a stated operating range.
 
@@ -26,7 +26,7 @@ Measured bead profiles may support calibration and validation. They cannot be re
 
 ## 3. Complete and verify the constitutive coupling
 
-- [ ] **Connect thermal expansion to mechanics.** Supply the thermal eigenstrain to the strain calculator through the appropriate MOOSE action parameters. **Complete when:** free expansion and constrained thermal-stress reference cases produce the expected response.
+- [x] **Connect thermal expansion to mechanics.** The action now specifies `eigenstrain_names = thermal_eigenstrain` and `temperature = T`. Free expansion and fully constrained thermal-stress reference cases pass using `python3 scripts/check_thermal_expansion.py`. This verifies elastic thermal coupling, not the full deposition constitutive model.
 - [ ] **Select and calibrate the flow law.** Establish whether tabulated J2 plasticity, a rate-dependent solid law, the hyperbolic-sine flow law, or a justified combination represents the relevant AA5083 temper and deformation regime. **Complete when:** calibration data cover the intended temperature/strain/rate range and the two formulations have a consistent transition.
 - [ ] **Resolve the ALE strain-rate convention.** Check `sqrt(2 D:D)` against the equivalent strain rate used by the fitted law and by `mu = sigma/(3 rate)`. **Complete when:** simple-shear and uniaxial tests reproduce the intended equivalent stress, rate and dissipated power.
 - [ ] **Unify material properties and units.** Reconcile thermal tables, parsed functions and ALE fits; document data sources and valid ranges. Fix the mismatched yield table if that helper remains supported. **Complete when:** properties are continuous where intended, positive over the operating range, and consistent across stage transitions.
