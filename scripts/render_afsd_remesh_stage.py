@@ -258,8 +258,8 @@ def render(
     # Literal 1200 RPM spindle rotation.  Because the stage mesh is created at
     # its end centre, y - stage_end_y_m is its local shoulder coordinate.  At
     # each rezone the circular shoulder can restart its angular reference
-    # without changing contact geometry; its physical tangential velocity and
-    # Coulomb slip are continuous in magnitude.
+    # without changing the reference circular footprint. Commanded angular
+    # speed is preserved; continuity of solved slip/history needs verification.
     theta = f"125.663706143592 * (t - {stage_start_s:.12g})"
     spin_ux = (
         "  [rod_spin_ux]\n    type = ParsedFunction\n"

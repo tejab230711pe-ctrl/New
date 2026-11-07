@@ -12,7 +12,9 @@ class Function;
  * contact state.  This BC converts that pressure to a surface heat flux
  * q = eta * mu_contact * p * omega * r.  mu_contact is deliberately the
  * same coefficient used by the Coulomb contact constraint, so the thermal
- * source exactly represents that solved mechanical dissipation.
+ * source is a full-sliding approximation. It does not yet use solved local
+ * relative slip or account for sticking; do not interpret it as a closed
+ * mechanical energy balance.
  */
 class ContactFrictionHeatFlux : public IntegratedBC
 {

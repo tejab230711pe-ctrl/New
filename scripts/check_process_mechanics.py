@@ -214,6 +214,17 @@ def main():
             stage = dict(stage, previous_exodus=None, output_exodus=str(directory/'unused.e'))
             target = directory/'rendered.i'
             render(source, stage, target)
+            regular = target.read_text()
+            low_target = directory / 'low_memory.i'
+            render(source, stage, low_target, low_ram=True)
+            # Resource choices must not silently change physical coefficients.
+            import re
+            for parameter in ('penalty', 'gap_conductance', 'nl_abs_tol', 'nl_rel_tol'):
+                pattern = rf'^\s*{parameter}\s*=\s*(\S+)'
+                normal_value = re.search(pattern, regular, re.MULTILINE).group(1)
+                low_value = re.search(pattern, low_target.read_text(), re.MULTILINE).group(1)
+                if normal_value != low_value:
+                    raise AssertionError(f'low-memory mode changed {parameter}')
             start_y = (.0125 + stage['previous_bead_length_mm']/1000)
             end_y = stage['tool_center_y_mm']/1000
             speed = (end_y-start_y)/(stage['time_end_s']-stage['time_start_s'])
@@ -221,6 +232,12 @@ def main():
                    start_y, stage['time_start_s'], speed, 'rod_stage_center_y')
         torque(directory)
         material(directory)
+        result = run(directory, 'thermal_contact',
+                     (ROOT / 'test/verification/thermal_contact_equilibrium.i').read_text())
+        close(result['time'], 0.001, 'thermal-contact final time')
+        close(result['minimum'], 293.15, 'thermal-contact minimum', atol=1e-8)
+        close(result['maximum'], 293.15, 'thermal-contact maximum', atol=1e-8)
+        print('PASS partial-footprint thermal contact: uniform equilibrium preserved')
 
 
 if __name__ == '__main__':

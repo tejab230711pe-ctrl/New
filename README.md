@@ -1,18 +1,45 @@
 # Rotating Disk Friction Deposition (AFSD) — MOOSE Framework Simulation
 
-## 1. Project Overview
+## Current model and verification status
 
-This project provides a high-fidelity, multiphysics finite element simulation for **Rotating Disk Friction Deposition (Additive Friction Stir Deposition - AFSD)** of **AA5083 Aluminum Alloy**, converted from a legacy FreeFEM++ codebase ([`final.edp`](file:///home/teja/Videos/final.edp)) to the modern, parallel **MOOSE (Multiphysics Object Oriented Simulation Environment)** framework.
+This is a research MOOSE application for coupled AA5083 friction stir additive
+manufacturing. The intended process is a consumable rod rotating at 1200 rpm,
+feeding downward and traversing along the plate, with solved mushroom-shaped
+spreading and backward transport into a deposited track. `scratch/final.edp` is
+incomplete reference material only, not the mechanical specification.
 
-The simulation models the non-linear thermo-mechanical phenomena occurring during the deposition process:
-- **Spindle rotation and frictional heat generation** at the rod-substrate interface.
-- **Dynamic axial load servo control** (dwelling and plunging stages).
-- **Temperature-dependent thermophysical and mechanical properties** for AA5083 alloy.
-- **Solid-liquid phase change and latent heat release** using an apparent heat capacity (mushy zone) formulation.
-- **Johnson-Cook viscoplasticity** (J2 Plasticity) with strain hardening, strain rate sensitivity, and thermal softening.
-- **Mortar mechanical contact** between the rotating consumable rod and the substrate plate.
-- **Arbitrary Lagrangian-Eulerian (ALE) mesh adaptation** to capture continuous material feed and rod consumption without mesh distortion.
-- **Machine limit checks and thermodynamic energy balance validation**.
+The active solid model uses finite-strain temperature-dependent J2 plasticity,
+node-on-face Coulomb contact, friction/plastic heating and gap heat transfer.
+The separate ALE prototype uses a regularized viscoplastic flow law. The active
+models treat deformation as solid-state flow: they do not establish melting,
+latent heat, Johnson–Cook behavior, a working axial servo, or a complete
+conservative deposition loop.
+
+Recent changes correct spindle motion/axis definitions, signed torque,
+partial-footprint thermal transfer and the ALE equivalent strain-rate convention.
+Spindle motion is prescribed at the top face; tip motion is solved. Analytical
+regressions pass, but sustained rotating contact with the free tip still needs
+convergence work. Mushroom-shaped bead formation and backward material transport
+have not yet been demonstrated by a validated solve.
+
+From the repository root, with the application built:
+
+```bash
+python3 scripts/check_process_mechanics.py
+python3 scripts/check_thermal_expansion.py
+```
+
+See [process mechanics](PROCESS_MECHANICS.md),
+[verification evidence](test/verification/MODELLING_IMPROVEMENTS.md), and the
+[predictive-workflow checklist](PREDICTIVE_DEPOSITION_CHECKLIST.md).
+The stage renderer's `--low-ram` option changes solver/output choices; it no
+longer changes physical contact penalty or gap conductance. Existing generated
+decks retain their old contents until regenerated.
+
+**Historical documentation below:** paths, physics claims and campaign results
+in the older sections have not all been updated. Use the specification and
+verification reports above as the current status; do not interpret historical
+animations or completed campaigns as validation of the present model.
 
 ---
 

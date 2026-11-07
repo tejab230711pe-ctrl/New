@@ -592,9 +592,8 @@
     formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
-    # Keep the calibrated dimensional penalty used by the stable normal-contact
-    # model.  Normalizing 1e7 here magnifies the first interference correction
-    # and inverted the rod mesh before the friction state could converge.
+    # Numerical contact stiffness; requires penetration/refinement sensitivity.
+    # It is not a calibrated material property. Resource modes preserve it.
     penalty = 1.0e10
   []
 []
@@ -617,6 +616,8 @@
 [ThermalContact]
   [rod_plate]
     type = GapHeatTransfer
+    # Quadrature search excludes portions of the plate outside the rod footprint.
+    quadrature = true
     variable = T
     primary = back_to_rod
     secondary = front_to_plate
@@ -667,20 +668,8 @@
     function = rod_motion_z_top
   []
 
-  # Tip Uz is free: the contact constraint solves it. Prescribing it here as
-  # well over-constrained contact and inverted the plate mesh.
-  [rod_bottom_x]
-    type = FunctionDirichletBC
-    variable = Ux
-    boundary = 'back_to_rod'
-    function = rod_spin_ux
-  []
-  [rod_bottom_y]
-    type = FunctionDirichletBC
-    variable = Uy
-    boundary = 'back_to_rod'
-    function = rod_spin_uy
-  []
+  # Drive the spindle face only. All tip displacement components are solved
+  # through stress/contact; prescribing tip rotation would suppress material slip.
 
   # Backing plate conductive/convective heat dissipation into steel anvil table at z = 0
   [plate_base_cooling]
@@ -700,14 +689,14 @@
     coefficient = 25.0
   []
 
-  # q = eta * mu(T) * solved_contact_pressure * omega * radius: thermal
-  # dissipation of the literal solved Coulomb sliding contact above.
+  # Full-sliding heat approximation: eta * mu * contact_pressure * omega * r.
+  # TODO: replace imposed spindle speed with solved local slip/dissipation.
+  # This source is not a verified energy balance for sticking or a deforming tip.
   # The entire uncapped interface source is applied at the contact interface;
   # GapHeatTransfer then partitions it by the thermal response of both bodies.
   # For AA5083 rod + AA5083 plate, sqrt(k*rho*cp) is identical on both sides,
-  # so the governing effusivity partition is H_plate = H_rod = 0.5.  Do not
-  # additionally multiply this source by 0.5: that would discard half of the
-  # generated energy instead of depositing it into the rod.
+  # but equal properties alone do not establish equal transient heat partition.
+  # The heat balance and contact-conductance sensitivity remain to be verified.
   [rod_friction_heat]
     type = ContactFrictionHeatFlux
     variable = T
