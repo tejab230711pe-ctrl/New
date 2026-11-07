@@ -2,6 +2,8 @@
 
 Reviewed on 7 November 2026. Project revision: `38e4692`. Local MOOSE revision: `72570b9a2f`.
 
+Scope clarification after this review: the user identifies `scratch/final.edp` as incomplete reference material only. Comparisons to it below are historical observations, not requirements or correctness criteria. `PROCESS_MECHANICS.md` records the intended mechanics; `test/verification/BASELINE_PROGRESS.md` records subsequent implementation changes.
+
 This project is an evolving AA5083 friction-deposition research application. It contains a substantial coupled solid-contact implementation, an external geometry/state-transfer workflow, and a separate experimental ALE viscoplastic-flow model. It does **not yet demonstrate a working, conservative, end-to-end prediction of rod consumption, deposited geometry, and retained flash**.
 
 The analysis follows the implementation rather than accepting the README's feature claims. Authored C++ sources and headers, input decks, Python and shell scripts, scratch examples, and the 2,403-line FreeFEM predecessor were examined. Generated campaign inputs were compared structurally; manifests and CSV histories were inspected. Large log files were sampled at their ends, with the ALE log read in full. Binary libraries, every mesh element, and every line of the multi-gigabyte logs were not individually audited. This is a source review with limited executable checks, not experimental validation or a completed new simulation campaign.

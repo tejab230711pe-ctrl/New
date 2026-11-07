@@ -2,6 +2,8 @@
 
 Project: coupled AA5083 friction stir additive manufacturing in MOOSE.
 
+The user's clarified mechanics and motion/flow acceptance criteria are recorded in `PROCESS_MECHANICS.md`. `scratch/final.edp` is reference only and must not serve as the mechanical specification. The target explicitly includes 1200 rpm rotation, traverse along the longest plate direction, mushroom-shaped spreading, backward transport of rod material, and a solved deposited layer.
+
 Based on the source review and executable checks recorded in `PROJECT_ANALYSIS.md`, 7 November 2026. Subsequent implementation and test evidence is recorded in `test/verification/BASELINE_PROGRESS.md`. An unchecked item may have partial code already; it stays open until its acceptance evidence exists.
 
 **Completion means:** starting from initial geometry, material data and machine commands, the model predicts temperature, forces, torque, rod consumption, bead geometry and flash through the specified process. The prediction must survive numerical refinement, conserve mass and energy within declared tolerances, and agree with independent experiments within a stated operating range.

@@ -135,8 +135,13 @@
     type = ParsedFunction
     expression = 'if(t < 4.0, 0.0, if(t < 32.0, 0.00178571428571429 * (t - 4.0), 0.050))'
   []
-  # The 0.25 mm initial interference creates the displacement-controlled
-  # forging contact.  No prescribed force is applied.
+  [rod_center_y]
+    type = ParsedFunction
+    symbol_names = 'travel'
+    symbol_values = 'rod_motion_y'
+    expression = '0.050 + travel'
+  []
+  # Contact loading depends on the selected mesh and axial boundary condition.
   [rod_motion_z_bottom]
     type = ParsedFunction
     expression = '0.0'
@@ -166,11 +171,11 @@
   # these with stage-local versions after every rezone.
   [rod_spin_ux]
     type = ParsedFunction
-    expression = 'x * (cos(125.663706143592 * t) - 1.0) - (y - 0.0125) * sin(125.663706143592 * t)'
+    expression = 'x * (cos(125.663706143592 * t) - 1.0) - (y - 0.050) * sin(125.663706143592 * t)'
   []
   [rod_spin_uy]
     type = ParsedFunction
-    expression = 'x * sin(125.663706143592 * t) + (y - 0.0125) * (cos(125.663706143592 * t) - 1.0)'
+    expression = 'x * sin(125.663706143592 * t) + (y - 0.050) * (cos(125.663706143592 * t) - 1.0) + if(t < 4.0, 0.0, min(0.050, 0.00178571428571429*(t - 4.0)))'
   []
 
   # Piecewise-linear true stress vs plastic strain hardening curves for AA5083 across temperatures:
@@ -272,6 +277,10 @@
 []
 
 [AuxVariables]
+  [tool_center_y]
+    order = FIRST
+    family = LAGRANGE
+  []
   [mushy_fraction]
     order = FIRST
     family = LAGRANGE
@@ -363,6 +372,12 @@
 []
 
 [AuxKernels]
+  [tool_center_y_aux]
+    type = FunctionAux
+    variable = tool_center_y
+    function = rod_center_y
+    execute_on = 'INITIAL TIMESTEP_BEGIN NONLINEAR TIMESTEP_END'
+  []
   # The commanded spindle speed is already 1200 RPM during both dwell and travel.
   [tool_rpm_aux]
     type = ParsedAux
@@ -386,12 +401,13 @@
   [friction_heat_aux]
     type = ParsedAux
     variable = friction_heat
-    coupled_variables = 'contact_pressure tool_rpm'
+    coupled_variables = 'contact_pressure tool_rpm tool_center_y'
+    use_displaced_mesh = true
     use_xyzt = true
     expression = 'if(contact_pressure > 0.0 & tool_rpm > 10.0,
                     0.90 * 0.35 *
                     contact_pressure * (tool_rpm * 2.0 * 3.14159265 / 60.0) *
-                    sqrt(x*x + (y - (0.0125 + if(t < 4.0, 0.0, min(0.050, 0.00178571428571429*(t - 4.0)))))^2),
+                    sqrt(x*x + (y - tool_center_y)^2),
                     0.0)'
     # Keep the diagnostic synchronized with ContactPressureAux, which is
     # refreshed during nonlinear contact iterations.  This does not prescribe
@@ -435,10 +451,10 @@
     variable = is_deposited
     use_xyzt = true
     block = 'bead'
-    coupled_variables = 'T contact_pressure is_deposited'
+    coupled_variables = 'T contact_pressure is_deposited tool_center_y'
     expression = 'if(is_deposited > 0.5, 1.0,
                     if(t >= 4.0 & contact_pressure >= 2.5e5 & T >= 623.15 & T <= 798.15 &
-                       y <= (0.0125 + min(0.050, 0.00178571428571429 * (t - 4.0)) + 0.015),
+                       y <= (tool_center_y + 0.0125),
                        1.0, 0.0))'
     execute_on = 'TIMESTEP_END'
   []
@@ -699,7 +715,8 @@
     contact_pressure = contact_pressure
     rpm = 1200
     friction_coefficient = 0.35
-    tool_center_y = rod_motion_y
+    tool_center_y = rod_center_y
+    use_displaced_mesh = true
     heat_partition = 1.0
   []
 []
@@ -796,11 +813,11 @@
     boundary = front_to_rod
   []
   [spindle_torque_Nm]
-    type = TorqueReaction
+    type = MovingAxisTorqueReaction
     boundary = front_to_rod
     reaction_force_variables = 'spindle_reaction_x spindle_reaction_y spindle_reaction_z'
-    axis_origin = '0.0 0.050 0.0'
-    direction_vector = '0.0 0.0 1.0'
+    center_y = rod_center_y
+    direction_vector = '0 0 1'
   []
   # Tool RPM
   [current_rpm]

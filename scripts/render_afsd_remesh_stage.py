@@ -195,7 +195,9 @@ def render(
     # while making the actual contact and friction source follow the CNC Y path.
     text = text.replace("function = rod_motion_y", "function = rod_stage_translation_y")
     text = text.replace("function = rod_motion_z_top", "function = rod_stage_translation_z")
-    text = text.replace("tool_center_y = rod_motion_y", "tool_center_y = rod_stage_center_y")
+    text = text.replace("tool_center_y = rod_center_y", "tool_center_y = rod_stage_center_y")
+    text = text.replace("function = rod_center_y", "function = rod_stage_center_y")
+    text = text.replace("center_y = rod_center_y", "center_y = rod_stage_center_y")
     # The broad BC substitutions above must not alter diagnostic functions:
     # these report the absolute CNC program, not the local remesh-frame motion.
     text = text.replace(
@@ -273,12 +275,6 @@ def render(
         begin = text.index(f"  [{name}]\n", text.index("[Functions]"))
         finish = text.index("  []", begin) + len("  []")
         text = text[:begin] + replacement + text[finish:]
-    # Measure spindle torque about the stage-local shoulder axis, not the
-    # source deck's nominal centre.
-    text = text.replace(
-        "axis_origin = '0.0 0.050 0.0'",
-        f"axis_origin = '0.0 {stage_end_y_m:.12g} 0.0'",
-    )
     text = text.replace(
         "type = TemperatureDependentHardeningStressUpdate",
         "type = RemeshTemperatureDependentHardeningStressUpdate",
