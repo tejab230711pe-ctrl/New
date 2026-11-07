@@ -268,7 +268,8 @@ def render(
     )
     spin_uy = (
         "  [rod_spin_uy]\n    type = ParsedFunction\n"
-        f"    expression = 'x * sin({theta}) + (y - {stage_end_y_m:.12g}) * (cos({theta}) - 1.0) + ({stage_start_y_m:.12g} + {stage_speed_mps:.12g} * (t - {stage_start_s:.12g}) - {stage_end_y_m:.12g})'\n"
+        "    symbol_names = translation\n    symbol_values = rod_stage_translation_y\n"
+        f"    expression = 'x * sin({theta}) + (y - {stage_end_y_m:.12g}) * (cos({theta}) - 1.0) + translation'\n"
         "  []"
     )
     for name, replacement in (("rod_spin_ux", spin_ux), ("rod_spin_uy", spin_uy)):
@@ -333,8 +334,8 @@ def render(
     if low_ram:
         # A small sequential direct solve is more robust than AMG/ILU for the
         # first penalty-contact increment and remains within the launcher cap.
-        text = text.replace("penalty = 1.0e10", "penalty = 1.0e7")
-        text = text.replace("gap_conductance = 1.0e8", "gap_conductance = 1.0e7")
+        # Resource mode must preserve contact stiffness and thermal conductance.
+        # Use explicit MOOSE command-line overrides for sensitivity studies.
         text = text.replace(
             "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
             "  petsc_options_value = 'hypre boomeramg 200'",
@@ -344,9 +345,7 @@ def render(
         # Assemble the contact Jacobian.  Matrix-free Newton is inexpensive
         # before contact, but stalls once the normal constraint activates.
         text = text.replace("solve_type = PJFNK", "solve_type = NEWTON")
-        text = text.replace("nl_rel_tol = 1.0e-3", "nl_rel_tol = 5.0e-3")
         text = text.replace("line_search = 'none'", "line_search = 'bt'")
-        text = text.replace("l_tol = 1.0e-2", "l_tol = 5.0e-2")
         # Active contact needs a converged linear correction; one iteration
         # only works while the bodies are not touching.
         text = text.replace("l_max_its = 200", "l_max_its = 25")

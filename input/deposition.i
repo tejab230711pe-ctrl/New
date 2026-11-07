@@ -589,7 +589,7 @@
     primary = back_to_rod
     secondary = front_to_plate
     model = coulomb
-    formulation = tangential_penalty
+    formulation = penalty
     displacements = 'Ux Uy Uz'
     friction_coefficient = 0.35
     # Keep the calibrated dimensional penalty used by the stable normal-contact
@@ -736,6 +736,15 @@
     scale_factor = 1000.0
   []
   # Peak temperature in the substrate (K)
+  [T_min]
+    type = NodalExtremeValue
+    variable = T
+    value_type = min
+  []
+  [T_mean]
+    type = ElementAverageValue
+    variable = T
+  []
   [T_max]
     type = NodalExtremeValue
     variable = T
@@ -908,8 +917,8 @@
   petsc_options_value = 'hypre boomeramg 200'
   line_search = 'none'
 
-  nl_rel_tol = 1.0e-3
-  nl_abs_tol = 5.0
+  nl_rel_tol = 1.0e-7
+  nl_abs_tol = 1.0e-8
   l_tol = 1.0e-2
   l_max_its = 200
   nl_max_its = 40
