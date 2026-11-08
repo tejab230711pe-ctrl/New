@@ -22,8 +22,9 @@ vx = -omega*(y-c_y), vy = omega*(x-c_x)+V_traverse, vz = -V_feed.
 These are spindle/inlet conditions, not constraints on every point in the
 plasticized material. Interfacial slip and material velocity must be solved.
 
-Current timing (4 s dwell, 28 s deposition), 75 mm/min feed and 50 mm traverse
-are existing code assumptions, not additional experimentally confirmed user inputs.
+The user confirmed prescribed axial feed at 75 mm/min on 8 November 2026;
+axial force is an output, not a prescribed control target. Current timing (4 s
+dwell, 28 s deposition) and 50 mm traverse remain existing code assumptions.
 Plate and rod dimensions differ between the main template and generated stages;
 a single physical geometry still needs to be established.
 

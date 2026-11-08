@@ -30,6 +30,9 @@ top[] = Surface In BoundingBox{{-0.020001,-0.007501,0.015999,0.020001,0.032501,0
 inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,0.015999,0.012501,0.025001,0.016001}};
 bottom[] = Surface In BoundingBox{{-0.020001,-0.007501,0.009999,0.020001,0.032501,0.010001}};
 external[] = CombinedBoundary{{ Volume{{v[]}}; }};
+For i In {{0:#external[]-1}}
+  external[i] = Abs(external[i]);
+EndFor
 free[] = external[];
 free[] -= inlet[];
 free[] -= bottom[];

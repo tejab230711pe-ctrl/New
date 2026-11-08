@@ -295,9 +295,11 @@
   end_time = 8.0
   dtmin = 1.e-6
   dtmax = 1.e-4
-  nl_rel_tol = 1.e-5
-  nl_abs_tol = 1.e-6
-  nl_max_its = 20
+  automatic_scaling = true
+  off_diagonals_in_auto_scaling = true
+  nl_rel_tol = 1.e-7
+  nl_abs_tol = 1.e-12
+  nl_max_its = 60
   l_max_its = 100
   [TimeStepper]
     type = IterationAdaptiveDT
