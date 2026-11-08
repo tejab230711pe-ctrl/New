@@ -602,6 +602,8 @@
 # This damps only a reversal within one Newton solve; it does not reduce the
 # prescribed spindle RPM or the physical accumulated slip.
 [Dampers]
+  # Backtracking handles full-penalty contact; this slip damper is opt-in.
+  inactive = 'rod_plate_slip'
   [rod_plate_slip]
     type = ContactSlipDamper
     primary = 'back_to_rod'
@@ -917,11 +919,12 @@
   # Literal rotation needs a small recovery step when a contact Newton solve
   # cuts back, rather than aborting at the old 0.1 ms floor.
   dtmin = 1.0e-6
-  dtmax = 0.05
+  # Resolve rotation: 200 steps per revolution at the maximum increment.
+  dtmax = 0.00025
 
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 0.25
+    dt = 0.000025
     optimal_iterations = 8
     iteration_window = 4
     growth_factor = 1.25

@@ -21,15 +21,19 @@ protected:
   void computeQpProperties() override;
 
   const ADVariableValue & _temperature;
+  const ADVariableGradient & _grad_temperature;
   const ADVectorVariableGradient & _grad_velocity;
 
   ADMaterialProperty<Real> & _rho;
   ADMaterialProperty<Real> & _cp;
   ADMaterialProperty<Real> & _k;
   ADMaterialProperty<Real> & _mu;
+  ADMaterialProperty<RealVectorValue> & _grad_k;
+  ADMaterialProperty<Real> & _heat;
   ADMaterialProperty<Real> & _plastic_fraction;
   ADMaterialProperty<Real> & _effective_strain_rate;
 
+  const Real _taylor_quinney;
   const Real _activation_energy;
   const Real _sinh_alpha_per_pa;
   const Real _stress_exponent;

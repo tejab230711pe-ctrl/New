@@ -147,6 +147,10 @@ def material(directory):
   family = MONOMIAL
   order = CONSTANT
  []
+ [heat]
+  family = MONOMIAL
+  order = CONSTANT
+ []
  [viscosity]
   family = MONOMIAL
   order = CONSTANT
@@ -174,6 +178,11 @@ def material(directory):
   variable = rate
   property = effective_strain_rate
  []
+ [heat]
+  type = ADMaterialRealAux
+  variable = heat
+  property = viscoplastic_heat
+ []
  [viscosity]
   type = ADMaterialRealAux
   variable = viscosity
@@ -184,6 +193,10 @@ def material(directory):
  [rate]
   type = ElementAverageValue
   variable = rate
+ []
+ [heat]
+  type = ElementAverageValue
+  variable = heat
  []
  [viscosity]
   type = ElementAverageValue
@@ -197,6 +210,7 @@ def material(directory):
         mu = min(1e10, max(1e4, sigma/(3*rate)))
         close(result['rate'], rate, name + ' equivalent rate')
         close(result['viscosity'], mu, name + ' viscosity')
+        close(result['heat'], .9*3*mu*expected**2, name + ' dissipation')
     print('PASS flow law: simple shear, uniaxial extension, rigid rotation')
 
 

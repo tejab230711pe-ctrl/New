@@ -143,7 +143,7 @@
     use_displaced_mesh = true
   []
   [temperature_supg]
-    type = INSADEnergySUPG
+    type = AFSDEnergySUPG
     variable = T
     velocity = velocity
     use_displaced_mesh = true
@@ -151,7 +151,6 @@
   [plastic_heat]
     type = ALEViscoplasticDissipationHeat
     variable = T
-    velocity = velocity
     use_displaced_mesh = true
   []
   # Harmonic mesh extension; free-surface displacement conditions below
@@ -288,6 +287,9 @@
 [Executioner]
   type = Transient
   solve_type = NEWTON
+  # Pivoting direct solver for the coupled saddle-point system.
+  petsc_options_iname = '-ksp_type -pc_type -pc_factor_mat_solver_type'
+  petsc_options_value = 'preonly lu mumps'
   line_search = bt
   start_time = 4.0
   end_time = 8.0

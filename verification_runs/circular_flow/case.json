@@ -1,0 +1,13 @@
+{
+  "kind": "standalone_flow_qualification",
+  "rpm": 1200,
+  "feed_m_per_s": 0.00125,
+  "traverse_m_per_s": 0.0017857142857142859,
+  "rod_radius_m": 0.0125,
+  "initial_flow_radius_m": 0.02,
+  "initial_flow_height_m": 0.006,
+  "temperature_K": 723.15,
+  "start_s": 4,
+  "end_s": 4.00003,
+  "mesh_size_m": 0.006
+}

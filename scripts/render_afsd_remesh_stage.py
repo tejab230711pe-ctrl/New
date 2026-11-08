@@ -340,17 +340,17 @@ def render(
             "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
             "  petsc_options_value = 'hypre boomeramg 200'",
             "petsc_options_iname = '-ksp_type -pc_type'\n"
-            "  petsc_options_value = 'preonly lu'",
+            "  petsc_options_value = 'gmres lu'",
         )
-        # Assemble the contact Jacobian.  Matrix-free Newton is inexpensive
-        # before contact, but stalls once the normal constraint activates.
-        text = text.replace("solve_type = PJFNK", "solve_type = NEWTON")
+        # Matrix-free Newton resolved the free-tip case that stalled with the
+        # assembled Jacobian. LU remains a preconditioner, not a one-step solve.
+        text = text.replace("l_tol = 1.0e-2", "l_tol = 1.0e-6")
         text = text.replace("line_search = 'none'", "line_search = 'bt'")
         # Active contact needs a converged linear correction; one iteration
         # only works while the bodies are not touching.
-        text = text.replace("l_max_its = 200", "l_max_its = 25")
-        text = text.replace("dtmax = 0.05", f"dtmax = {low_ram_dt:.12g}")
-        text = text.replace("    dt = 0.25", f"    dt = {low_ram_dt:.12g}")
+        text = text.replace("l_max_its = 200", "l_max_its = 100")
+        text = text.replace("dtmax = 0.00025", f"dtmax = {low_ram_dt:.12g}")
+        text = text.replace("    dt = 0.000025", f"    dt = {low_ram_dt:.12g}")
         # Each remesh stage needs only its final Exodus state: it is the input
         # to the next re-zoned mesh.  Writing every 5 ms retains a large
         # in-memory Exodus history and eventually triggers the OOM killer on

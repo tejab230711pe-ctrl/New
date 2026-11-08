@@ -14,6 +14,9 @@ AA5083ALEViscoplasticMaterial::validParams()
                              "sharp-interface ALE flow region.");
   params.addRequiredCoupledVar("temperature", "Temperature in kelvin");
   params.addRequiredCoupledVar("velocity", "ALE material velocity");
+  params.addRangeCheckedParam<Real>("taylor_quinney", 0.90,
+                                   "taylor_quinney >= 0 & taylor_quinney <= 1",
+                                   "Fraction of viscous dissipation converted to heat");
   params.addParam<Real>("activation_energy", 174700.0, "Hot-deformation activation energy (J/mol)");
   params.addParam<Real>("sinh_alpha_per_mpa", 0.015, "Hyperbolic-sine stress coefficient (1/MPa)");
   params.addParam<Real>("stress_exponent", 5.23, "Hyperbolic-sine stress exponent");
@@ -30,13 +33,17 @@ AA5083ALEViscoplasticMaterial::validParams()
 AA5083ALEViscoplasticMaterial::AA5083ALEViscoplasticMaterial(const InputParameters & parameters)
   : Material(parameters),
     _temperature(adCoupledValue("temperature")),
+    _grad_temperature(adCoupledGradient("temperature")),
     _grad_velocity(adCoupledVectorGradient("velocity")),
     _rho(declareADProperty<Real>("rho")),
     _cp(declareADProperty<Real>("cp")),
     _k(declareADProperty<Real>("k")),
     _mu(declareADProperty<Real>("mu")),
+    _grad_k(declareADProperty<RealVectorValue>("grad_k")),
+    _heat(declareADProperty<Real>("viscoplastic_heat")),
     _plastic_fraction(declareADProperty<Real>("plastic_fraction")),
     _effective_strain_rate(declareADProperty<Real>("effective_strain_rate")),
+    _taylor_quinney(getParam<Real>("taylor_quinney")),
     _activation_energy(getParam<Real>("activation_energy")),
     _sinh_alpha_per_pa(getParam<Real>("sinh_alpha_per_mpa") * 1.e-6),
     _stress_exponent(getParam<Real>("stress_exponent")),
@@ -90,8 +97,11 @@ AA5083ALEViscoplasticMaterial::computeQpProperties()
   const Real raw_mu = MetaPhysicL::raw_value(unbounded_mu);
   _mu[_qp] = raw_mu < _mu_min ? _mu_min : (raw_mu > _mu_max ? _mu_max : unbounded_mu);
 
+  _heat[_qp] = 2.0 * _taylor_quinney * _mu[_qp] * D.contract(D);
+
   // AA5083 solid-state thermal properties over the intended AFSD range.
   _rho[_qp] = 2650.0;
   _cp[_qp] = 900.0 + 0.45 * (T - 293.15);
   _k[_qp] = 122.0 + 0.08 * (T - 293.15);
+  _grad_k[_qp] = 0.08 * _grad_temperature[_qp];
 }

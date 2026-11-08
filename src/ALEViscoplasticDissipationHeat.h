@@ -12,7 +12,5 @@ public:
 protected:
   ADReal computeQpResidual() override;
 
-  const ADVectorVariableGradient & _grad_velocity;
-  const ADMaterialProperty<Real> & _mu;
-  const Real _taylor_quinney;
+  const ADMaterialProperty<Real> & _heat;
 };

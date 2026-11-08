@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Create a standalone circular-inlet ALE qualification case (not a dwell handoff)."""
+import argparse
+import json
+import math
+from pathlib import Path
+import subprocess
+from render_afsd_remesh_stage import replace_top_level_block, block_end
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def create(out, size, initial_temperature, end_time):
+    if not (math.isfinite(size) and 0 < size <= .01):
+        raise ValueError('mesh size must be finite and in (0, 0.01] m')
+    if not (math.isfinite(initial_temperature) and 293.15 <= initial_temperature <= 798.15):
+        raise ValueError('qualification temperature must be within 293.15..798.15 K')
+    if not math.isfinite(end_time) or end_time <= 4:
+        raise ValueError('end time must exceed the qualification start time of 4 s')
+    out.mkdir(parents=True, exist_ok=True)
+    mesh = out/'flow.msh'
+    geo = out/'flow.geo'
+    # Two overlapping cylinders fragment into a core and shell. Both volumes
+    # share one material block; the internal cylindrical interface is conforming.
+    geo.write_text(f'''SetFactory("OpenCASCADE");
+Cylinder(1) = {{0, 0.0125, 0.010, 0, 0, 0.006, 0.020}};
+Cylinder(2) = {{0, 0.0125, 0.010, 0, 0, 0.006, 0.0125}};
+v[] = BooleanFragments{{ Volume{{1}}; Delete; }}{{ Volume{{2}}; Delete; }};
+top[] = Surface In BoundingBox{{-0.020001,-0.007501,0.015999,0.020001,0.032501,0.016001}};
+inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,0.015999,0.012501,0.025001,0.016001}};
+bottom[] = Surface In BoundingBox{{-0.020001,-0.007501,0.009999,0.020001,0.032501,0.010001}};
+external[] = CombinedBoundary{{ Volume{{v[]}}; }};
+free[] = external[];
+free[] -= inlet[];
+free[] -= bottom[];
+Physical Volume("flow", 1) = {{v[]}};
+Physical Surface("rod_inlet", 11) = {{inlet[]}};
+Physical Surface("plate", 12) = {{bottom[]}};
+Physical Surface("free_surface", 13) = {{free[]}};
+Mesh.CharacteristicLengthMin = {size};
+Mesh.CharacteristicLengthMax = {size};
+Mesh.MshFileVersion = 2.2;
+''')
+    with (out/'gmsh.log').open('w') as log:
+        subprocess.run(['gmsh',str(geo),'-3','-o',str(mesh)],check=True,
+                       stdout=log,stderr=subprocess.STDOUT)
+    text=(ROOT/'input/afsd_ale_flow_stage.i').read_text()
+    text=replace_top_level_block(text,'Mesh',f'''[Mesh]
+ [file]
+  type = FileMeshGenerator
+  file = {mesh}
+ []
+ [free_nodes]
+  type = ParsedGenerateNodeset
+  input = file
+  new_nodeset_name = free_nodes
+  expression = '1'
+  included_nodesets = free_surface
+  excluded_nodesets = 'rod_inlet plate'
+ []
+ displacements = 'mesh_x mesh_y mesh_z'
+[]
+''')
+    text=replace_top_level_block(text,'Functions', '''[Functions]
+ [center_y]
+  type = ParsedFunction
+  expression = '0.0125 + 0.00178571428571429*(t-4)'
+ []
+ [inlet_mesh_y]
+  type = ParsedFunction
+  expression = '0.00178571428571429*(t-4)'
+ []
+ [shoulder_vx]
+  type = ParsedFunction
+  symbol_names = center
+  symbol_values = center_y
+  expression = '-125.663706143592*(y-center)'
+ []
+ [shoulder_vy]
+  type = ParsedFunction
+  expression = '125.663706143592*x + 0.00178571428571429'
+ []
+ [shoulder_vz]
+  type = ConstantFunction
+  value = -0.00125
+ []
+[]
+''')
+    text=text.replace('initial_condition = 623.15',f'initial_condition = {initial_temperature}')
+    text=text.replace('boundary = back','boundary = plate').replace('boundary = front','boundary = rod_inlet')
+    text=text.replace("boundary = 'left right bottom top'",'boundary = free_nodes')
+    text=text.replace('associated_subdomain = 0','associated_subdomain = flow')
+    # Dummy integrated terms require side sets; nodal motion uses disjoint node
+    # sets so the inlet rim/plate edge cannot receive incompatible constraints.
+    for component in ('x','y','z'):
+        name=f'  [move_free_{component}_dummy]'
+        a=text.index(name);b=text.index('  []',a)
+        text=text[:a]+text[a:b].replace('boundary = free_nodes','boundary = free_surface')+text[b:]
+    a=text.index('  [shoulder_inlet]');b=text.index('  []',a)
+    text=text[:b]+'    use_displaced_mesh = true\n'+text[b:]
+    new_bcs=''
+    for component in ('x','y','z'):
+        new_bcs+=f'''  [inlet_mesh_{component}]
+    type = FunctionDirichletBC
+    variable = mesh_{component}
+    boundary = rod_inlet
+    function = {'inlet_mesh_y' if component == 'y' else '0'}
+  []
+'''
+    new_bcs+=f'''  [inlet_temperature]
+    type = DirichletBC
+    variable = T
+    boundary = rod_inlet
+    value = {initial_temperature}
+  []
+  [free_cooling]
+    type = ConvectiveFluxFunction
+    variable = T
+    boundary = free_surface
+    coefficient = 25
+    T_infinity = 293.15
+    use_displaced_mesh = true
+  []
+'''
+    end=block_end(text,text.index('[BCs]'));close=text.rfind('[]',0,end)
+    text=text[:close]+new_bcs+text[close:]
+    text=text.replace('end_time = 8.0',f'end_time = {end_time}')
+    text=text.replace('file_base = ale_flow_stage',f'file_base = {out/"flow"}')
+    text=text.replace('execute_on = FINAL',"execute_on = 'INITIAL TIMESTEP_END'")
+    text=text.replace('  csv = true',f'  csv = true\n  file_base = {out/"flow"}')
+    text+='''
+[Postprocessors]
+ [volume]
+  type = VolumePostprocessor
+  use_displaced_mesh = true
+  execute_on = 'INITIAL TIMESTEP_END'
+ []
+ [T_min]
+  type = NodalExtremeValue
+  variable = T
+  value_type = min
+ []
+ [T_max]
+  type = NodalExtremeValue
+  variable = T
+  value_type = max
+ []
+ [inlet_area]
+  type = FunctionSideIntegral
+  function = 1
+  boundary = rod_inlet
+  use_displaced_mesh = true
+  execute_on = 'INITIAL TIMESTEP_END'
+ []
+[]
+'''
+    text='# Standalone hot-flow qualification; temperature is prescribed, not transferred from dwell.\n'+text
+    (out/'flow.i').write_text(text)
+    (out/'case.json').write_text(json.dumps(dict(kind='standalone_flow_qualification',
+        rpm=1200,feed_m_per_s=.00125,traverse_m_per_s=.05/28,
+        rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
+        temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')
+    return out/'flow.i'
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output',type=Path)
+    parser.add_argument('--mesh-size',type=float,default=.006)
+    parser.add_argument('--temperature',type=float,default=723.15)
+    parser.add_argument('--end-time',type=float,default=4.001)
+    args=parser.parse_args()
+    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time))
