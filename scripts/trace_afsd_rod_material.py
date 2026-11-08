@@ -35,13 +35,17 @@ class TetraInterpolator:
         found = np.zeros(len(points), dtype=bool)
         if not len(points):
             return output, found
-        _, candidates = self.tree.query(points, k=min(24, len(self.connectivity)))
+        finite_ids = np.flatnonzero(np.isfinite(points).all(axis=1))
+        if not len(finite_ids):
+            return output, found
+        _, candidates = self.tree.query(points[finite_ids], k=min(24, len(self.connectivity)))
         if candidates.ndim == 1:
             candidates = candidates[:, None]
-        for i, point in enumerate(points):
+        for i, nearest in zip(finite_ids, candidates):
+            point = points[i]
             # Nearest-centroid search is only an accelerator. The fallback is
             # exhaustive over bounding boxes, so thin tetrahedra are not lost.
-            for selection in (candidates[i], np.flatnonzero(
+            for selection in (nearest, np.flatnonzero(
                     np.all(point >= self.lower, axis=1) & np.all(point <= self.upper, axis=1))):
                 coordinates = np.einsum('nij,nj->ni', self.inverse[selection],
                                          point-self.origin[selection])

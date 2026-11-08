@@ -1,0 +1,467 @@
+{
+  "scope": "Passive rod-origin particles, not a validated marker concentration or deposited mass",
+  "integrator": "midpoint RK2 on linearly interpolated accepted fields",
+  "initial_rod_volume_m3": 1.8982413586393167e-06,
+  "supplied_volume_m3": 5.932004245749851e-10,
+  "accounting_error_m3": 2.2178780174078055e-22,
+  "particle_count": 2898,
+  "history": [
+    {
+      "time_s": 4.0000005,
+      "supplied_rod_volume_m3": 2.9660021206541765e-13,
+      "tracked_active_rod_volume_m3": 1.898241655239529e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871748391851971e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000000999999999,
+      "supplied_rod_volume_m3": 5.932004241308353e-13,
+      "tracked_active_rod_volume_m3": 1.898241951839741e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871749951988546e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000001499999999,
+      "supplied_rod_volume_m3": 8.89800636196253e-13,
+      "tracked_active_rod_volume_m3": 1.8982422484399532e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.87175151212512e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000002499999999,
+      "supplied_rod_volume_m3": 1.483001060853956e-12,
+      "tracked_active_rod_volume_m3": 1.8982428416403778e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.87175463239827e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000004499999999,
+      "supplied_rod_volume_m3": 2.669401910169362e-12,
+      "tracked_active_rod_volume_m3": 1.898244028041227e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871760872944573e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000008499999999,
+      "supplied_rod_volume_m3": 5.042203608273306e-12,
+      "tracked_active_rod_volume_m3": 1.8982464008429253e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871773354037174e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000016499999999,
+      "supplied_rod_volume_m3": 9.787807005008062e-12,
+      "tracked_active_rod_volume_m3": 1.898251146446322e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871798316222379e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000032499999999,
+      "supplied_rod_volume_m3": 1.9279013797950708e-11,
+      "tracked_active_rod_volume_m3": 1.8982606376531153e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871842000337089e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000052499999999,
+      "supplied_rod_volume_m3": 3.114302228952416e-11,
+      "tracked_active_rod_volume_m3": 1.8982725016616064e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871900565642747e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000072499999999,
+      "supplied_rod_volume_m3": 4.300703078109762e-11,
+      "tracked_active_rod_volume_m3": 1.898284365670098e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.871959130948403e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000092499999999,
+      "supplied_rod_volume_m3": 5.487103927267107e-11,
+      "tracked_active_rod_volume_m3": 1.8982962296785893e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.9101175011888e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000112499999999,
+      "supplied_rod_volume_m3": 6.673504776424453e-11,
+      "tracked_active_rod_volume_m3": 1.898308093687081e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.91017606649446e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000132499999999,
+      "supplied_rod_volume_m3": 7.859905625581799e-11,
+      "tracked_active_rod_volume_m3": 1.8983199576955728e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.910234631800114e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0001524999999996,
+      "supplied_rod_volume_m3": 9.046306474739144e-11,
+      "tracked_active_rod_volume_m3": 1.8983318217040644e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.910293197105773e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0001725,
+      "supplied_rod_volume_m3": 1.023270732389649e-10,
+      "tracked_active_rod_volume_m3": 1.898343685712556e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.910351762411431e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0001925,
+      "supplied_rod_volume_m3": 1.1419108173053835e-10,
+      "tracked_active_rod_volume_m3": 1.8983555497210473e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.85920822970137e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0002125,
+      "supplied_rod_volume_m3": 1.2605509022211182e-10,
+      "tracked_active_rod_volume_m3": 1.8983674137295388e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.859266795007026e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0002325,
+      "supplied_rod_volume_m3": 1.379190987136853e-10,
+      "tracked_active_rod_volume_m3": 1.8983792777380306e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.859325360312685e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0002525,
+      "supplied_rod_volume_m3": 1.4978310720525876e-10,
+      "tracked_active_rod_volume_m3": 1.898391141746522e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.89748373055308e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0002725,
+      "supplied_rod_volume_m3": 1.6164711569683223e-10,
+      "tracked_active_rod_volume_m3": 1.8984030057550137e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.89754229585874e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0002925000000005,
+      "supplied_rod_volume_m3": 1.735111241884057e-10,
+      "tracked_active_rod_volume_m3": 1.8984148697635055e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.897600861164396e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000312500000001,
+      "supplied_rod_volume_m3": 1.8537513267997916e-10,
+      "tracked_active_rod_volume_m3": 1.8984267337719968e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.897659426470054e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000332500000001,
+      "supplied_rod_volume_m3": 1.9723914117155263e-10,
+      "tracked_active_rod_volume_m3": 1.8984385977804884e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.897717991775715e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000352500000001,
+      "supplied_rod_volume_m3": 2.091031496631261e-10,
+      "tracked_active_rod_volume_m3": 1.8984504617889802e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.89777655708137e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000372500000001,
+      "supplied_rod_volume_m3": 2.2096715815469957e-10,
+      "tracked_active_rod_volume_m3": 1.8984623257974717e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.897884253916048e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000392500000001,
+      "supplied_rod_volume_m3": 2.3283116664627303e-10,
+      "tracked_active_rod_volume_m3": 1.8984741898059633e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.897945457156152e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000412500000001,
+      "supplied_rod_volume_m3": 2.446951751378465e-10,
+      "tracked_active_rod_volume_m3": 1.8984860538144548e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.898006660396254e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000432500000001,
+      "supplied_rod_volume_m3": 2.5655918362941997e-10,
+      "tracked_active_rod_volume_m3": 1.8984979178229468e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.898067863636356e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0004525000000015,
+      "supplied_rod_volume_m3": 2.6842319212099344e-10,
+      "tracked_active_rod_volume_m3": 1.898509781831438e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885026773795474e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000472500000002,
+      "supplied_rod_volume_m3": 2.802872006125669e-10,
+      "tracked_active_rod_volume_m3": 1.8985216458399295e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885087977035576e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000492500000002,
+      "supplied_rod_volume_m3": 2.9215120910414037e-10,
+      "tracked_active_rod_volume_m3": 1.8985335098484213e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885149180275676e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000512500000002,
+      "supplied_rod_volume_m3": 3.0401521759571384e-10,
+      "tracked_active_rod_volume_m3": 1.8985453738569126e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.83400828550006e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000532500000002,
+      "supplied_rod_volume_m3": 3.158792260872873e-10,
+      "tracked_active_rod_volume_m3": 1.8985572378654041e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834069488740162e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000552500000002,
+      "supplied_rod_volume_m3": 3.277432345788608e-10,
+      "tracked_active_rod_volume_m3": 1.8985691018738955e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834130691980264e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000572500000002,
+      "supplied_rod_volume_m3": 3.3960724307043424e-10,
+      "tracked_active_rod_volume_m3": 1.8985809658823873e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834191895220368e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000592500000002,
+      "supplied_rod_volume_m3": 3.514712515620077e-10,
+      "tracked_active_rod_volume_m3": 1.8985928298908788e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.83425309846047e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000612500000003,
+      "supplied_rod_volume_m3": 3.633352600535812e-10,
+      "tracked_active_rod_volume_m3": 1.8986046938993708e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834314301700572e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000632500000003,
+      "supplied_rod_volume_m3": 3.7519926854515465e-10,
+      "tracked_active_rod_volume_m3": 1.8986165579078623e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.8856184594767e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000652500000003,
+      "supplied_rod_volume_m3": 3.870632770367281e-10,
+      "tracked_active_rod_volume_m3": 1.8986284219163537e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.8856796627168e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000672500000003,
+      "supplied_rod_volume_m3": 3.989272855283016e-10,
+      "tracked_active_rod_volume_m3": 1.8986402859248452e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885740865956903e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000692500000003,
+      "supplied_rod_volume_m3": 4.1079129401987505e-10,
+      "tracked_active_rod_volume_m3": 1.8986521499333368e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885802069197007e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000712500000003,
+      "supplied_rod_volume_m3": 4.226553025114485e-10,
+      "tracked_active_rod_volume_m3": 1.8986640139418284e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885863272437109e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000732500000003,
+      "supplied_rod_volume_m3": 4.34519311003022e-10,
+      "tracked_active_rod_volume_m3": 1.89867587795032e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.88592447567721e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0007525000000035,
+      "supplied_rod_volume_m3": 4.4638331949459545e-10,
+      "tracked_active_rod_volume_m3": 1.8986877419588113e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.885985678917312e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000772500000004,
+      "supplied_rod_volume_m3": 4.582473279861689e-10,
+      "tracked_active_rod_volume_m3": 1.898699605967303e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.886046882157412e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000792500000004,
+      "supplied_rod_volume_m3": 4.701113364777423e-10,
+      "tracked_active_rod_volume_m3": 1.8987114699757946e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834905987381794e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000812500000004,
+      "supplied_rod_volume_m3": 4.819753449693158e-10,
+      "tracked_active_rod_volume_m3": 1.8987233339842863e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.834967190621894e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000832500000004,
+      "supplied_rod_volume_m3": 4.938393534608893e-10,
+      "tracked_active_rod_volume_m3": 1.898735197992778e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.835028393861998e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000852500000004,
+      "supplied_rod_volume_m3": 5.057033619524627e-10,
+      "tracked_active_rod_volume_m3": 1.8987470620012692e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.835089597102102e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000872500000004,
+      "supplied_rod_volume_m3": 5.175673704440362e-10,
+      "tracked_active_rod_volume_m3": 1.8987589260097608e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.835150800342204e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000892500000004,
+      "supplied_rod_volume_m3": 5.294313789356097e-10,
+      "tracked_active_rod_volume_m3": 1.8987707900182526e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.886454958118333e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.0009125000000045,
+      "supplied_rod_volume_m3": 5.412953874271831e-10,
+      "tracked_active_rod_volume_m3": 1.8987826540267441e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.831579547243217e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000932500000005,
+      "supplied_rod_volume_m3": 5.531593959187566e-10,
+      "tracked_active_rod_volume_m3": 1.8987945180352355e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.83164075048332e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000952500000005,
+      "supplied_rod_volume_m3": 5.650234044103301e-10,
+      "tracked_active_rod_volume_m3": 1.8988063820437272e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.83170195372342e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000972500000005,
+      "supplied_rod_volume_m3": 5.768874129019035e-10,
+      "tracked_active_rod_volume_m3": 1.8988182460522188e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.83176315696352e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.000992500000005,
+      "supplied_rod_volume_m3": 5.88751421393477e-10,
+      "tracked_active_rod_volume_m3": 1.8988301100607103e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.831824360203624e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    },
+    {
+      "time_s": 4.001,
+      "supplied_rod_volume_m3": 5.932004245749851e-10,
+      "tracked_active_rod_volume_m3": 1.898834559063892e-06,
+      "escaped_or_unlocated_rod_volume_m3": 0.0,
+      "rod_volume_with_negative_relative_y_velocity_m3": 9.831847311418648e-07,
+      "rod_volume_in_trailing_region_m3": 0.0
+    }
+  ],
+  "warning": "Negative tool-relative Y velocity alone does not prove deposition; inspect trailing rod-origin volume and trajectories. Particle/time/mesh refinement is required."
+}
