@@ -21,6 +21,8 @@ The resulting `variable_mu_flow` case completes 1 ms and passes the existing
 screens: maximum feed-volume error 0.8087%, absolute surface leakage 0.6632%,
 minimum element-volume ratio 0.9426 and Tmax 738.092 K. These remain short,
 initially hot qualification runs, not predictions starting from the cold rod.
+The coarse polygonal inlet area is 3.323% below the nominal circular area; volume
+screens use the actual mesh area. Geometric and spatial refinement remain needed.
 
 `trace_afsd_rod_material.py` follows rod-origin particles through accepted
 velocity/mesh fields using tetrahedral interpolation. The latest run tracks
@@ -160,6 +162,10 @@ python3 scripts/check_process_mechanics.py
 python3 scripts/check_thermal_expansion.py
 python3 scripts/check_ale_boundary.py
 python3 test/verification/test_surface_flux.py
+python3 test/verification/test_rod_tracking.py
+python3 test/verification/test_thermal_budget.py
+python3 scripts/check_variable_viscosity.py
+python3 scripts/check_mortar_heat.py
 c++ -std=c++17 -Isrc test/verification/test_penalty_slip.cpp -o /tmp/test_penalty_slip
 /tmp/test_penalty_slip
 ```
