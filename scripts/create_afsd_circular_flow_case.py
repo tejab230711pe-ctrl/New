@@ -166,6 +166,7 @@ Mesh.MshFileVersion = 2.2;
 '''
     end=block_end(text,text.index('[BCs]'));close=text.rfind('[]',0,end)
     text=text[:close]+new_bcs+text[close:]
+    text=text.replace('type = INSADStabilized3Eqn','type = AFSDStabilized3Eqn')
     text=text.replace('type = INSADDisplaceBoundaryBC','type = AFSDDisplaceBoundaryBC')
     text=text.replace('  solve_type = NEWTON',f'  solve_type = NEWTON\n  scheme = {scheme}')
     text=text.replace('dtmin = 1.e-6',f'dtmin = {time_step}')
@@ -211,6 +212,7 @@ Mesh.MshFileVersion = 2.2;
         rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
         inlet_extension_m=inlet_extension,inlet_z_m=inlet_z,time_step_s=time_step,
         time_scheme=scheme,max_time_step_s=max_time_step,rod_layers=rod_layers,
+        stabilization="variable-viscosity strong residual on affine P1 TET4",
         inlet_mesh_motion="rigid rotation and traverse, fixed Z",mesh_method="layered extrusion",
         temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')
     return out/'flow.i'

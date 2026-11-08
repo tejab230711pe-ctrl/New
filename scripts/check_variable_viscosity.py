@@ -3,7 +3,7 @@
 import math
 from pathlib import Path
 import tempfile
-from check_process_mechanics import BASE, run, close
+from check_process_mechanics import BASE, ROOT, run, close
 
 DECK = '''
 [Functions]
@@ -81,4 +81,14 @@ if __name__ == '__main__':
         close(result['gradient'], expected, 'temperature viscosity gradient', atol=1e-7)
         result = run(folder, 'clamped', BASE+DECK.replace('CLAMP','mu_min = 1e4\n  mu_max = 1e4'))
         close(result['gradient'],0.,'clamped viscosity gradient')
-        print('PASS viscosity gradient: finite difference and constant clipped branch')
+        residual_deck = (ROOT/'test/verification/variable_viscosity_residual.i').read_text()
+        result = run(folder, 'residual', residual_deck)
+        close(result['momentum_y'], -6*result['gradient'], 'variable viscosity stress divergence')
+        try:
+            run(folder, 'unsupported_hex', residual_deck.replace('elem_type = TET4','elem_type = HEX8'))
+        except RuntimeError as error:
+            if 'requires Cartesian TET4' not in str(error):
+                raise
+        else:
+            raise AssertionError('unsupported element accepted by the P1 tetrahedral residual')
+        print('PASS viscosity: finite difference, clamp, stress divergence and unsupported-element guard')
