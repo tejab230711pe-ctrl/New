@@ -8,6 +8,7 @@ complete actuator/mechanical energy balance or a finite-deformation mass audit.
 """
 import argparse
 import csv
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -42,6 +43,8 @@ def assess(directory, tolerance):
         raise ValueError('only confirmed-geometry elastic contact qualification is supported')
     with (directory/'dwell.csv').open() as f:
         rows = [{k:float(v) for k,v in r.items()} for r in csv.DictReader(f)]
+    if not rows or any(not math.isfinite(value) for row in rows for value in row.values()):
+        raise ValueError('finite, nonempty diagnostic history required')
     if any(r['max_effective_plastic_strain'] > 1e-14 for r in rows):
         raise ValueError('plastic heat is active; this elastic-only budget is insufficient')
     with netcdf_file(directory/'dwell.e',mmap=False) as f:
@@ -49,9 +52,18 @@ def assess(directory, tolerance):
         names = [b''.join(r).decode().strip('\x00 ') for r in v['name_nod_var'].data]
         T = np.array(v[f'vals_nod_var{names.index("T")+1}'].data)
         reference = np.column_stack([v['coord'+a].data for a in 'xyz'])
-        blocks = [np.array(var.data,dtype=int)-1 for name,var in v.items() if name.startswith('connect')]
-        if any(b.shape[1] != 4 for b in blocks):
-            raise ValueError('linear tetrahedra required')
+        blocks = []
+        for name,var in v.items():
+            if not name.startswith('connect'):
+                continue
+            kind = var.elem_type.decode().upper()
+            if kind.startswith('TRI'):
+                continue  # Mortar interface elements carry no bulk heat capacity.
+            if not kind.startswith('TET') or var.shape[1] != 4:
+                raise ValueError('linear tetrahedral bulk elements required')
+            blocks.append(np.array(var.data,dtype=int)-1)
+        if not blocks:
+            raise ValueError('no tetrahedral bulk elements found')
         connectivity = np.vstack(blocks)
         times = np.array(v['time_whole'].data)
     if (len(times) < 2 or abs(times[0]) > 1e-12 or not np.all(np.diff(times)>0)
@@ -86,11 +98,13 @@ def assess(directory, tolerance):
         records.append(dict(time_s=float(times[i]),stored_increment_J=energies[i]-energies[0],
                             generated_heat_J=supplied,convective_loss_J=lost,
                             thermal_balance_error_J=error,relative_to_generated_heat=error/supplied))
-    worst = max(abs(r['relative_to_generated_heat']) for r in records)
-    complete = abs(times[-1]-case['end_s'])<1e-12
+    worst = float(max(abs(r['relative_to_generated_heat']) for r in records))
+    complete = bool(abs(times[-1]-case['end_s'])<1e-12)
     result = dict(passed=complete and worst<=tolerance,complete=complete,
                   scope='Reference-domain thermal budget in elastic, low-temperature contact qualification',
-                  maximum_relative_thermal_error=worst,allowed_relative_error=tolerance,samples=records)
+                  maximum_relative_thermal_error=worst,allowed_relative_error=tolerance,samples=records,
+                  artifact_sha256={name:hashlib.sha256((directory/name).read_bytes()).hexdigest()
+                                   for name in ('dwell.i','dwell.csv','dwell.e','case.json')})
     (directory/'thermal_balance.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
 

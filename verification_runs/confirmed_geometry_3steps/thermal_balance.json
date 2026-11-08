@@ -1,0 +1,39 @@
+{
+  "passed": false,
+  "complete": true,
+  "scope": "Reference-domain thermal budget in elastic, low-temperature contact qualification",
+  "maximum_relative_thermal_error": 0.07498183433648081,
+  "allowed_relative_error": 0.02,
+  "samples": [
+    {
+      "time_s": 2.5e-05,
+      "stored_increment_J": 0.00406068336645748,
+      "generated_heat_J": 0.004233018654949,
+      "convective_loss_J": 1.4113310002197397e-09,
+      "thermal_balance_error_J": -0.00017233387716052064,
+      "relative_to_generated_heat": -0.040711816131270256
+    },
+    {
+      "time_s": 5e-05,
+      "stored_increment_J": 0.00850701231453811,
+      "generated_heat_J": 0.00903090776070025,
+      "convective_loss_J": 4.338512544443882e-09,
+      "thermal_balance_error_J": -0.0005238911076495961,
+      "relative_to_generated_heat": -0.05801090228486333
+    },
+    {
+      "time_s": 7.5e-05,
+      "stored_increment_J": 0.012787665503284851,
+      "generated_heat_J": 0.013824241154572998,
+      "convective_loss_J": 8.691208392918449e-09,
+      "thermal_balance_error_J": -0.0010365669600797527,
+      "relative_to_generated_heat": -0.07498183433648081
+    }
+  ],
+  "artifact_sha256": {
+    "dwell.i": "64680c120a0c92db93c7163ea603b0b7d2b17470dc0f2f804cbd55c0fdbd5df1",
+    "dwell.csv": "9ed67808ae003e13079110fa335cdcbc1bcb17d0effda9dd9491a3b8be0fb886",
+    "dwell.e": "83f9d81fa41d9f2530895d7a7aebe9c917cf1053f43a72a5bc4a6b33c51a2f71",
+    "case.json": "669da369cff756850453d2940412e6c0851bd33709bfbee6052ec6c8aa39456a"
+  }
+}

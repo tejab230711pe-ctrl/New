@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Create a conservative mortar thermal-contact qualification variant.
+
+Preserves the source deck. Uses the same prescribed closed-contact conductance;
+open gaps have zero transfer. Mechanical Coulomb penalty contact is unchanged.
+"""
+import argparse
+from pathlib import Path
+import re
+from render_afsd_remesh_stage import block_end
+from enable_solved_contact_heat import append_block
+
+
+def convert(source, target):
+    if source.resolve() == target.resolve():
+        raise ValueError('source and target must differ')
+    text = source.read_text()
+    start = text.index('[ThermalContact]')
+    end = block_end(text, start)
+    old = text[start:end]
+    def value(key):
+        match = re.search(r'^\s*'+key+r'\s*=\s*([^\n#]+)', old, re.M)
+        if not match:
+            raise ValueError('missing '+key)
+        return match.group(1).strip().strip("'\"")
+    # Put the smaller rod face on the multiplier side. The plate extends far
+    # outside its footprint; using that whole plate as secondary leaves many
+    # unsupported multiplier faces. This does not change mechanical contact.
+    if value('primary') != 'rod_bottom' or value('secondary') != 'workpiece_top':
+        raise ValueError('this converter requires the confirmed rod/plate boundary names')
+    primary, secondary = value('secondary'), value('primary')
+    conductance = float(value('gap_conductance'))
+    replacement = f'''[MortarGapHeatTransfer]
+  [conservative_contact]
+    temperature = T
+    primary_boundary = {primary}
+    secondary_boundary = {secondary}
+    boundary = {secondary}
+    use_displaced_mesh = true
+    displacements = 'Ux Uy Uz'
+    user_created_gap_flux_models = closed_contact_flux
+  []
+[]
+'''
+    text = text[:start]+replacement+text[end:]
+    text = append_block(text, 'UserObjects', f'''  [closed_contact_flux]
+    type = AFSDContactGapFlux
+    temperature = T
+    boundary = {secondary}
+    conductance = {conductance}
+    use_displaced_mesh = true
+  []
+''')
+    text = re.sub(r'(?m)^(\s*file_base\s*=\s*)[^\n]+',
+                  lambda m:m.group(1)+str(target.with_suffix('').resolve()),text)
+    target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_text(text)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source',type=Path)
+    parser.add_argument('target',type=Path)
+    args = parser.parse_args()
+    convert(args.source,args.target)

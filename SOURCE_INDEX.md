@@ -308,3 +308,12 @@ Companion to PROJECT_ANALYSIS.md. Line numbers refer to the source snapshot revi
 - `scripts/check_ale_boundary.py`, `test/verification/ale_boundary_translation.i`: manufactured surface translation.
 - `test/verification/test_penalty_slip.cpp`, `test_surface_flux.py`: analytical contact/flux/time-derivative tests.
 - `test/verification/NUMERICAL_EXPERIMENTS.md`: current results and unresolved full-process requirements.
+
+## Further numerical qualification components
+
+- `src/AFSDStabilized3Eqn.{h,C}`: temperature-dependent viscosity contribution to the strong momentum residual, restricted to affine linear tetrahedra.
+- `scripts/check_variable_viscosity.py` and `test/verification/variable_viscosity_residual.i`: independent property-gradient and actual MOOSE residual checks.
+- `scripts/trace_afsd_rod_material.py`: passive rod-origin tracking in accepted, qualified ALE fields; reports loss and trailing-region transport separately.
+- `scripts/check_contact_thermal_balance.py`: reference-domain elastic thermal-energy audit, with artifact hashes and explicit tolerance.
+- `test/verification/test_thermal_budget.py`: analytical enthalpy derivative and tetrahedral integration checks.
+- `src/AFSDContactGapFlux.{h,C}` and `scripts/enable_mortar_contact_heat.py`: candidate conservative thermal contact using the MOOSE mortar constraint and prescribed closed-gap conductance. See the numerical report for acceptance status.

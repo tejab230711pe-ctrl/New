@@ -57,3 +57,24 @@ conservative solved-state handoff, rod-origin transport, surface remeshing and
 full feed/traverse continuation. No prescribed bead profile or assumed flash
 percentage can replace those calculations. See
 `test/verification/NUMERICAL_EXPERIMENTS.md` for the evidence and remaining work.
+
+For a qualified flow directory, inspect rod-origin transport separately:
+
+```bash
+python3 scripts/trace_afsd_rod_material.py verification_runs/variable_mu_flow
+```
+
+This requires passing qualification and checks the Exodus hash. Outputs include
+`rod_particles.csv`, selected `rod_trajectories.csv` and `rod_transport.json`.
+These passive particles do not establish a conservative concentration field.
+
+For an elastic contact run with INITIAL Exodus output, audit generated heat:
+
+```bash
+python3 scripts/check_contact_thermal_balance.py verification_runs/confirmed_geometry_3steps --tolerance .02
+```
+
+The retained three-step quadrature-gap run fails this screen. A separate mortar
+candidate is generated with `enable_mortar_contact_heat.py SOURCE.i TARGET.i`;
+this is thermal coupling only and retains penalty mechanical contact. Consult
+the numerical report before selecting a qualified variant.

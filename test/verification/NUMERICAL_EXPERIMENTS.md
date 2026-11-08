@@ -7,6 +7,37 @@ measured data. Confirmed process dimensions and commands are recorded in
 50 × 100 × 10 mm plate, 1200 rpm and prescribed 75 mm/min downward feed.
 The existing 4 s dwell and 50 mm travel during 35 mm consumption are assumptions.
 
+## Latest coupled checks
+
+The temperature-dependent viscosity contribution to stress divergence is now
+included in SUPG/PSPG stabilization through `AFSDStabilized3Eqn`. This correction
+is restricted to affine FIRST-order TET4 velocity fields, where the strain rate
+is spatially constant inside each element; unsupported elements are rejected.
+`check_variable_viscosity.py` verifies the property gradient independently by
+finite differences, the clamped branch, the actual momentum residual, and the
+unsupported-element guard.
+
+The resulting `variable_mu_flow` case completes 1 ms and passes the existing
+screens: maximum feed-volume error 0.8087%, absolute surface leakage 0.6632%,
+minimum element-volume ratio 0.9426 and Tmax 738.092 K. These remain short,
+initially hot qualification runs, not predictions starting from the cold rod.
+
+`trace_afsd_rod_material.py` follows rod-origin particles through accepted
+velocity/mesh fields using tetrahedral interpolation. The latest run tracks
+2,898 particles with no unlocated particles. Some rod material has negative
+velocity relative to the moving tool, but **none has yet reached the trailing
+region**. Rotation alone is not proof of backward deposition. Particle volume
+bookkeeping is not an independent conservation test or a conservative material
+concentration solution.
+
+The confirmed cylindrical solid-contact case completes three 25 microsecond
+steps. Its new reference-domain thermal audit **fails** the declared 2% screen:
+stored heat plus convection is up to 7.498% below generated friction heat.
+Plastic strain remains zero, so this is an elastic thermal qualification only.
+The old independently integrated gap transfer is being replaced in a separate
+qualification case with conservative mortar coupling. Keep the failed case as a
+regression; do not accept full energy closure from a successful nonlinear solve.
+
 ## Free-surface conservation correction
 
 The coplanar inlet/free-surface junction made incompatible normal-motion demands
