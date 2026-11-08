@@ -29,7 +29,7 @@ def assess(csv_path, case_path, tolerance):
         if dt <= 0:
             raise ValueError('times must be strictly increasing')
         # This case keeps its inlet flat and at fixed Z. Its mesh moves only
-        # in Y, so prescribed axial feed equals relative normal inlet velocity.
+        # in its own plane, so axial feed equals relative normal inlet velocity.
         supplied += dt * case['feed_m_per_s'] * .5 * (old['inlet_area']+new['inlet_area'])
         error = new['volume']-rows[0]['volume']-supplied
         records.append(dict(time=new['time'],supplied_volume_m3=supplied,

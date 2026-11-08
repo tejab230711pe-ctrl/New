@@ -10,13 +10,16 @@ from render_afsd_remesh_stage import replace_top_level_block, block_end
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def create(out, size, initial_temperature, end_time):
+def create(out, size, initial_temperature, end_time, inlet_extension=.004):
     if not (math.isfinite(size) and 0 < size <= .01):
         raise ValueError('mesh size must be finite and in (0, 0.01] m')
     if not (math.isfinite(initial_temperature) and 293.15 <= initial_temperature <= 798.15):
         raise ValueError('qualification temperature must be within 293.15..798.15 K')
     if not math.isfinite(end_time) or end_time <= 4:
         raise ValueError('end time must exceed the qualification start time of 4 s')
+    if not math.isfinite(inlet_extension) or inlet_extension < 0:
+        raise ValueError("inlet extension must be finite and nonnegative")
+    inlet_z = .016 + inlet_extension
     out.mkdir(parents=True, exist_ok=True)
     mesh = out/'flow.msh'
     geo = out/'flow.geo'
@@ -24,10 +27,9 @@ def create(out, size, initial_temperature, end_time):
     # share one material block; the internal cylindrical interface is conforming.
     geo.write_text(f'''SetFactory("OpenCASCADE");
 Cylinder(1) = {{0, 0.0125, 0.010, 0, 0, 0.006, 0.020}};
-Cylinder(2) = {{0, 0.0125, 0.010, 0, 0, 0.006, 0.0125}};
+Cylinder(2) = {{0, 0.0125, 0.010, 0, 0, {0.006+inlet_extension}, 0.0125}};
 v[] = BooleanFragments{{ Volume{{1}}; Delete; }}{{ Volume{{2}}; Delete; }};
-top[] = Surface In BoundingBox{{-0.020001,-0.007501,0.015999,0.020001,0.032501,0.016001}};
-inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,0.015999,0.012501,0.025001,0.016001}};
+inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,{inlet_z-1e-6},0.012501,0.025001,{inlet_z+1e-6}}};
 bottom[] = Surface In BoundingBox{{-0.020001,-0.007501,0.009999,0.020001,0.032501,0.010001}};
 external[] = CombinedBoundary{{ Volume{{v[]}}; }};
 For i In {{0:#external[]-1}}
@@ -69,9 +71,13 @@ Mesh.MshFileVersion = 2.2;
   type = ParsedFunction
   expression = '0.0125 + 0.00178571428571429*(t-4)'
  []
+ [inlet_mesh_x]
+  type = ParsedFunction
+  expression = 'x*(cos(125.663706143592*(t-4))-1)-(y-0.0125)*sin(125.663706143592*(t-4))'
+ []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = '0.00178571428571429*(t-4)'
+  expression = 'x*sin(125.663706143592*(t-4))+(y-0.0125)*(cos(125.663706143592*(t-4))-1)+0.00178571428571429*(t-4)'
  []
  [shoulder_vx]
   type = ParsedFunction
@@ -98,6 +104,9 @@ Mesh.MshFileVersion = 2.2;
         'y': '(125.663706143592*x + 0.00178571428571429)*(z-0.010)/0.006 + 3*0.00125*(z-0.010)*(0.016-z)/0.006^3*(y-0.0125)',
         'z': '-0.00125*(3*((z-0.010)/0.006)^2 - 2*((z-0.010)/0.006)^3)',
     }.items():
+        # Continue the inlet velocity as rigid spin plus axial plug feed above
+        # the deforming pad. The upstream inlet avoids a coplanar source/free rim.
+        expression = expression.replace("z-0.010", "min(z-0.010,0.006)").replace("0.016-z", "max(0.016-z,0)")
         initial_functions += f"  [initial_v{component}]\n    type = ParsedFunction\n    expression = '{expression}'\n  []\n"
     end = block_end(text, text.index('[Functions]'))
     close = text.rfind('[]', 0, end)
@@ -121,7 +130,7 @@ Mesh.MshFileVersion = 2.2;
     type = FunctionDirichletBC
     variable = mesh_{component}
     boundary = rod_inlet
-    function = {'inlet_mesh_y' if component == 'y' else '0'}
+    function = {'inlet_mesh_'+component if component in ('x','y') else '0'}
   []
 '''
     new_bcs+=f'''  [inlet_temperature]
@@ -179,6 +188,7 @@ Mesh.MshFileVersion = 2.2;
         initial_velocity='assumed divergence-free spin/feed profile; not a dwell transfer',
         rpm=1200,feed_m_per_s=.00125,traverse_m_per_s=.05/28,
         rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
+        inlet_extension_m=inlet_extension,inlet_z_m=inlet_z,
         temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')
     return out/'flow.i'
 
@@ -189,5 +199,7 @@ if __name__=='__main__':
     parser.add_argument('--mesh-size',type=float,default=.006)
     parser.add_argument('--temperature',type=float,default=723.15)
     parser.add_argument('--end-time',type=float,default=4.001)
+    parser.add_argument('--inlet-extension',type=float,default=.004,
+                        help='Resolved rod length above the flow pad (m); zero reproduces the coplanar defect')
     args=parser.parse_args()
-    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time))
+    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time,args.inlet_extension))

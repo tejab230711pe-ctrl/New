@@ -79,7 +79,7 @@ def analyze(directory):
         radius = np.hypot(p[:, 0], p[:, 1]-.0125)
         if np.all(abs(p[:, 2]-.010) < 1e-9):
             labels.append('plate')
-        elif (np.all(abs(p[:, 2]-(.010+case['initial_flow_height_m'])) < 1e-9)
+        elif (np.all(abs(p[:, 2]-case.get('inlet_z_m', .010+case['initial_flow_height_m'])) < 1e-9)
               and np.all(radius <= case['rod_radius_m']+1e-9)):
             labels.append('inlet')
         else:
