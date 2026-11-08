@@ -86,6 +86,20 @@ Mesh.MshFileVersion = 2.2;
  []
 []
 ''')
+    # Divergence-free qualification initial velocity: no slip on the plate,
+    # prescribed spin/traverse/feed at the inlet, outward feed accommodation.
+    # This is an explicit assumed initial state, not a transferred dwell result.
+    initial_functions = ""
+    for component, expression in {
+        'x': '-125.663706143592*(y-0.0125)*(z-0.010)/0.006 + 3*0.00125*(z-0.010)*(0.016-z)/0.006^3*x',
+        'y': '(125.663706143592*x + 0.00178571428571429)*(z-0.010)/0.006 + 3*0.00125*(z-0.010)*(0.016-z)/0.006^3*(y-0.0125)',
+        'z': '-0.00125*(3*((z-0.010)/0.006)^2 - 2*((z-0.010)/0.006)^3)',
+    }.items():
+        initial_functions += f"  [initial_v{component}]\n    type = ParsedFunction\n    expression = '{expression}'\n  []\n"
+    end = block_end(text, text.index('[Functions]'))
+    close = text.rfind('[]', 0, end)
+    text = text[:close] + initial_functions + text[close:]
+    text += "\n[ICs]\n [initial_velocity]\n  type = VectorFunctionIC\n  variable = velocity\n  function_x = initial_vx\n  function_y = initial_vy\n  function_z = initial_vz\n []\n[]\n"
     text=text.replace('initial_condition = 623.15',f'initial_condition = {initial_temperature}')
     text=text.replace('boundary = back','boundary = plate').replace('boundary = front','boundary = rod_inlet')
     text=text.replace("boundary = 'left right bottom top'",'boundary = free_nodes')
@@ -139,11 +153,13 @@ Mesh.MshFileVersion = 2.2;
   type = NodalExtremeValue
   variable = T
   value_type = min
+  execute_on = 'INITIAL TIMESTEP_END'
  []
  [T_max]
   type = NodalExtremeValue
   variable = T
   value_type = max
+  execute_on = 'INITIAL TIMESTEP_END'
  []
  [inlet_area]
   type = FunctionSideIntegral
@@ -157,6 +173,7 @@ Mesh.MshFileVersion = 2.2;
     text='# Standalone hot-flow qualification; temperature is prescribed, not transferred from dwell.\n'+text
     (out/'flow.i').write_text(text)
     (out/'case.json').write_text(json.dumps(dict(kind='standalone_flow_qualification',
+        initial_velocity='assumed divergence-free spin/feed profile; not a dwell transfer',
         rpm=1200,feed_m_per_s=.00125,traverse_m_per_s=.05/28,
         rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
         temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')

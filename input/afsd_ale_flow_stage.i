@@ -145,7 +145,7 @@
   [temperature_supg]
     type = AFSDEnergySUPG
     variable = T
-    velocity = velocity
+    material_velocity = relative_velocity
     use_displaced_mesh = true
   []
   [plastic_heat]

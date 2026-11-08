@@ -10,6 +10,7 @@ normal MOOSE restart (the mesh topology has changed).
 from __future__ import annotations
 
 import argparse
+import math
 import json
 import re
 import subprocess
@@ -128,8 +129,10 @@ def transfer_fragment(
 
 
 def render(
-    source: Path, stage: dict, target: Path, low_ram: bool = False, low_ram_dt: float = 0.005
+    source: Path, stage: dict, target: Path, low_ram: bool = False, low_ram_dt: float = 0.000025
 ) -> None:
+    if not math.isfinite(low_ram_dt) or low_ram_dt <= 0 or low_ram_dt > 0.00025:
+        raise ValueError("low_ram_dt must be finite, positive and <= 0.00025 s to resolve rotation")
     text = source.read_text(encoding="utf-8")
     mesh = Path(stage["mesh"]).resolve()
     text = replace_top_level_block(
@@ -339,8 +342,8 @@ def render(
         text = text.replace(
             "petsc_options_iname = '-pc_type -pc_hypre_type -ksp_gmres_restart'\n"
             "  petsc_options_value = 'hypre boomeramg 200'",
-            "petsc_options_iname = '-ksp_type -pc_type'\n"
-            "  petsc_options_value = 'gmres lu'",
+            "petsc_options_iname = '-ksp_type -pc_type -pc_factor_mat_solver_type'\n"
+            "  petsc_options_value = 'gmres lu mumps'",
         )
         # Matrix-free Newton resolved the free-tip case that stalled with the
         # assembled Jacobian. LU remains a preconditioner, not a one-step solve.
@@ -378,8 +381,8 @@ def main() -> None:
     parser.add_argument(
         "--low-ram-dt",
         type=float,
-        default=0.005,
-        help="Initial and maximum time step for a low-RAM deck (s; default: 0.005).",
+        default=0.000025,
+        help="Initial and maximum time step for a low-RAM deck (s; default: 0.000025).",
     )
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))

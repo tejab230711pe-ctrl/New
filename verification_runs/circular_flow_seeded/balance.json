@@ -1,0 +1,32 @@
+{
+  "passed": false,
+  "completed_requested_interval": false,
+  "final_time": 4.000025,
+  "maximum_relative_feed_error": 0.2835996004957347,
+  "allowed_relative_feed_error": 0.02,
+  "inlet_area_relative_geometry_error": -0.033233614691446256,
+  "samples": [
+    {
+      "time": 4.00001,
+      "supplied_volume_m3": 5.9320042455233036e-12,
+      "volume_error_m3": 1.6820838542529486e-12,
+      "relative_to_feed": 0.2835607974357679,
+      "relative_to_initial_volume": 2.2556722727737846e-07
+    },
+    {
+      "time": 4.000015,
+      "supplied_volume_m3": 8.898006368811823e-12,
+      "volume_error_m3": 2.5228787309879943e-12,
+      "relative_to_feed": 0.2835330327286428,
+      "relative_to_initial_volume": 3.383177114905331e-07
+    },
+    {
+      "time": 4.000025,
+      "supplied_volume_m3": 1.4830010614335126e-11,
+      "volume_error_m3": 4.205785085572947e-12,
+      "relative_to_feed": 0.2835996004957347,
+      "relative_to_initial_volume": 5.639952359560427e-07
+    }
+  ],
+  "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+}
