@@ -1,0 +1,130 @@
+{
+  "passed": true,
+  "completed_requested_interval": true,
+  "final_time": 4.001,
+  "maximum_relative_feed_error": 0.00798950153539959,
+  "allowed_relative_feed_error": 0.02,
+  "inlet_area_relative_geometry_error": -0.033233614691446256,
+  "samples": [
+    {
+      "time": 4.000001,
+      "supplied_volume_m3": 5.932004246577039e-13,
+      "volume_error_m3": 4.739375703602415e-15,
+      "relative_to_feed": 0.00798950153539959,
+      "relative_to_initial_volume": 5.081856357875767e-10
+    },
+    {
+      "time": 4.000002,
+      "supplied_volume_m3": 1.1864008493154078e-12,
+      "volume_error_m3": 6.35065195673112e-15,
+      "relative_to_feed": 0.005352872058710725,
+      "relative_to_initial_volume": 6.809567977157695e-10
+    },
+    {
+      "time": 4.000004,
+      "supplied_volume_m3": 2.3728016981039477e-12,
+      "volume_error_m3": 7.62510205600511e-15,
+      "relative_to_feed": 0.0032135437453952253,
+      "relative_to_initial_volume": 8.176113434794249e-10
+    },
+    {
+      "time": 4.000008,
+      "supplied_volume_m3": 4.745603396734763e-12,
+      "volume_error_m3": 8.564904569379346e-15,
+      "relative_to_feed": 0.0018048083359162444,
+      "relative_to_initial_volume": 9.183828728204787e-10
+    },
+    {
+      "time": 4.000016,
+      "supplied_volume_m3": 9.49120679294266e-12,
+      "volume_error_m3": 8.956107743079553e-15,
+      "relative_to_feed": 0.0009436216003363252,
+      "relative_to_initial_volume": 9.603301346503113e-10
+    },
+    {
+      "time": 4.000032,
+      "supplied_volume_m3": 1.8982413586412185e-11,
+      "volume_error_m3": 7.606614117736943e-15,
+      "relative_to_feed": 0.0004007190172687966,
+      "relative_to_initial_volume": 8.156289505967361e-10
+    },
+    {
+      "time": 4.000064,
+      "supplied_volume_m3": 3.796482717282437e-11,
+      "volume_error_m3": -1.6832714939399642e-15,
+      "relative_to_feed": -4.4337657228816996e-05,
+      "relative_to_initial_volume": -1.804909439234331e-10
+    },
+    {
+      "time": 4.000128,
+      "supplied_volume_m3": 7.592965434564874e-11,
+      "volume_error_m3": -5.433794490536308e-14,
+      "relative_to_feed": -0.0007156353518745736,
+      "relative_to_initial_volume": -5.826455804745114e-09
+    },
+    {
+      "time": 4.000228,
+      "supplied_volume_m3": 1.3524969680298923e-10,
+      "volume_error_m3": -2.537304017095309e-13,
+      "relative_to_feed": -0.0018760145694014085,
+      "relative_to_initial_volume": -2.7206567610452543e-08
+    },
+    {
+      "time": 4.000328,
+      "supplied_volume_m3": 1.9456973926032973e-10,
+      "volume_error_m3": -5.618623597495319e-13,
+      "relative_to_feed": -0.002887717082242544,
+      "relative_to_initial_volume": -6.024641184225835e-08
+    },
+    {
+      "time": 4.000428,
+      "supplied_volume_m3": 2.538897817181971e-10,
+      "volume_error_m3": -9.447838174544424e-13,
+      "relative_to_feed": -0.0037212360854407974,
+      "relative_to_initial_volume": -1.0130565605717956e-07
+    },
+    {
+      "time": 4.000528,
+      "supplied_volume_m3": 3.132098241755376e-10,
+      "volume_error_m3": -1.3927271743756816e-12,
+      "relative_to_feed": -0.004446626723927828,
+      "relative_to_initial_volume": -1.4933695677486959e-07
+    },
+    {
+      "time": 4.000628,
+      "supplied_volume_m3": 3.725298666328781e-10,
+      "volume_error_m3": -1.9039835319046827e-12,
+      "relative_to_feed": -0.005110955395640872,
+      "relative_to_initial_volume": -2.041570751511847e-07
+    },
+    {
+      "time": 4.000728,
+      "supplied_volume_m3": 4.3184990909021855e-10,
+      "volume_error_m3": -2.479524089548438e-12,
+      "relative_to_feed": -0.005741633927333851,
+      "relative_to_initial_volume": -2.6587014929835814e-07
+    },
+    {
+      "time": 4.000828,
+      "supplied_volume_m3": 4.911699515480859e-10,
+      "volume_error_m3": -3.1212116477736607e-12,
+      "relative_to_feed": -0.0063546469769498745,
+      "relative_to_initial_volume": -3.3467592038457853e-07
+    },
+    {
+      "time": 4.000928,
+      "supplied_volume_m3": 5.504899940054265e-10,
+      "volume_error_m3": -3.831211904448312e-12,
+      "relative_to_feed": -0.006959639496027871,
+      "relative_to_initial_volume": -4.108066081402034e-07
+    },
+    {
+      "time": 4.001,
+      "supplied_volume_m3": 5.932004245749856e-10,
+      "volume_error_m3": -4.337133074116909e-12,
+      "relative_to_feed": -0.007311412626220495,
+      "relative_to_initial_volume": -4.650546541583754e-07
+    }
+  ],
+  "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+}

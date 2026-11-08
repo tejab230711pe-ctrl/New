@@ -1,0 +1,427 @@
+{
+  "scope": "End-step surface flux diagnostic; not a time-integrated volume balance",
+  "time_scheme": "bdf2",
+  "sign": "outward positive; negative free-surface relative flux means artificial influx",
+  "samples": [
+    {
+      "time_s": 4.000001,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261146958480357,
+          "fluid_m3_s": 5.932004245748166e-07,
+          "mesh_m3_s": 6.081839535321168e-07,
+          "relative_m3_s": -1.498352895730774e-08,
+          "absolute_normal_leak_m3_s": 1.4983532939169754e-08
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9998319299855534,
+      "fluid_net_relative_to_feed": 5.0512085406208683e-14,
+      "free_surface_leak_relative_to_feed": -0.025258796751617494,
+      "absolute_free_surface_leak_relative_to_feed": 0.025258803464124513
+    },
+    {
+      "time_s": 4.000002,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261155999765991,
+          "fluid_m3_s": 5.932004245748115e-07,
+          "mesh_m3_s": 5.931917829803389e-07,
+          "relative_m3_s": 8.64159447110677e-12,
+          "absolute_normal_leak_m3_s": 3.242501852585104e-11
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598292,
+          "fluid_m3_s": -5.932004245747864e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747864e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747864e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.999662816144757,
+      "fluid_net_relative_to_feed": 4.2301640428521066e-14,
+      "free_surface_leak_relative_to_feed": 1.4567748290640847e-05,
+      "absolute_free_surface_leak_relative_to_feed": 5.4661151918584175e-05
+    },
+    {
+      "time_s": 4.000004000000001,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261174044894059,
+          "fluid_m3_s": 5.93200424574795e-07,
+          "mesh_m3_s": 5.931830353881536e-07,
+          "relative_m3_s": 1.738918664277787e-11,
+          "absolute_normal_leak_m3_s": 6.489032165076831e-11
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747865e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747865e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747865e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9993244398629245,
+      "fluid_net_relative_to_feed": 1.4279034743804576e-14,
+      "free_surface_leak_relative_to_feed": 2.9314184417926972e-05,
+      "absolute_free_surface_leak_relative_to_feed": 0.00010939021444106771
+    },
+    {
+      "time_s": 4.000008,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261210366304465,
+          "fluid_m3_s": 5.93200424574802e-07,
+          "mesh_m3_s": 5.931650175282038e-07,
+          "relative_m3_s": 3.540704659440299e-11,
+          "absolute_normal_leak_m3_s": 1.2942814822771329e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982924,
+          "fluid_m3_s": -5.932004245747864e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747864e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747864e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9986474265908766,
+      "fluid_net_relative_to_feed": 2.6237726341740915e-14,
+      "free_surface_leak_relative_to_feed": 5.968816799108532e-05,
+      "absolute_free_surface_leak_relative_to_feed": 0.00021818620295238159
+    },
+    {
+      "time_s": 4.0000160000000005,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261284234036795,
+          "fluid_m3_s": 5.932004245747827e-07,
+          "mesh_m3_s": 5.931271544832652e-07,
+          "relative_m3_s": 7.32700915161231e-11,
+          "absolute_normal_leak_m3_s": 2.571955156395383e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982935,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9972925523863125,
+      "fluid_net_relative_to_feed": -6.604053569009616e-15,
+      "free_surface_leak_relative_to_feed": 0.00012351658643643755,
+      "absolute_free_surface_leak_relative_to_feed": 0.00043357270997218045
+    },
+    {
+      "time_s": 4.000026,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261378988663152,
+          "fluid_m3_s": 5.932004245747876e-07,
+          "mesh_m3_s": 5.930798874325688e-07,
+          "relative_m3_s": 1.2053714221802583e-10,
+          "absolute_normal_leak_m3_s": 4.179327129040416e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.995597442133034,
+      "fluid_net_relative_to_feed": 1.6063914086780147e-15,
+      "free_surface_leak_relative_to_feed": 0.0002031980039536019,
+      "absolute_free_surface_leak_relative_to_feed": 0.0007045387959788142
+    },
+    {
+      "time_s": 4.000036,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261476495738198,
+          "fluid_m3_s": 5.932004245747793e-07,
+          "mesh_m3_s": 5.930354161755512e-07,
+          "relative_m3_s": 1.6500839922970743e-10,
+          "absolute_normal_leak_m3_s": 5.826367544172886e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598292,
+          "fluid_m3_s": -5.932004245747865e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747865e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747865e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9939006686366444,
+      "fluid_net_relative_to_feed": -1.213717953223389e-14,
+      "free_surface_leak_relative_to_feed": 0.00027816635388956017,
+      "absolute_free_surface_leak_relative_to_feed": 0.000982192072493761
+    },
+    {
+      "time_s": 4.000045999999999,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261576801784454,
+          "fluid_m3_s": 5.932004245747777e-07,
+          "mesh_m3_s": 5.92991666779629e-07,
+          "relative_m3_s": 2.087577951500028e-10,
+          "absolute_normal_leak_m3_s": 7.49197220347388e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982935,
+          "fluid_m3_s": -5.932004245747868e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747868e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747868e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9922022409363165,
+      "fluid_net_relative_to_feed": -1.5349962349589913e-14,
+      "free_surface_leak_relative_to_feed": 0.00035191781142038616,
+      "absolute_free_surface_leak_relative_to_feed": 0.0012629748552260758
+    },
+    {
+      "time_s": 4.000055999999999,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261679946909675,
+          "fluid_m3_s": 5.932004245747834e-07,
+          "mesh_m3_s": 5.929476839583485e-07,
+          "relative_m3_s": 2.5274061643865863e-10,
+          "absolute_normal_leak_m3_s": 9.166332013683219e-10
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982924,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9905021634095471,
+      "fluid_net_relative_to_feed": -5.5331259632242725e-15,
+      "free_surface_leak_relative_to_feed": 0.0004260627706391583,
+      "absolute_free_surface_leak_relative_to_feed": 0.001545233555800935
+    },
+    {
+      "time_s": 4.000065999999999,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018261785969203542,
+          "fluid_m3_s": 5.932004245747918e-07,
+          "mesh_m3_s": 5.929034704213055e-07,
+          "relative_m3_s": 2.9695415348501157e-10,
+          "absolute_normal_leak_m3_s": 1.0849468007802554e-09
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9888004388792632,
+      "fluid_net_relative_to_feed": 8.745908780580302e-15,
+      "free_surface_leak_relative_to_feed": 0.0005005966637631319,
+      "absolute_free_surface_leak_relative_to_feed": 0.0018289717199005016
+    },
+    {
+      "time_s": 4.000075999999998,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.001826189490620158,
+          "fluid_m3_s": 5.932004245747954e-07,
+          "mesh_m3_s": 5.928590244532464e-07,
+          "relative_m3_s": 3.4140012154383273e-10,
+          "absolute_normal_leak_m3_s": 1.2541360117895236e-09
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9870970696502764,
+      "fluid_net_relative_to_feed": 1.4814498546697246e-14,
+      "free_surface_leak_relative_to_feed": 0.000575522382318847,
+      "absolute_free_surface_leak_relative_to_feed": 0.0021141859645304596
+    },
+    {
+      "time_s": 4.000085999999998,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018262006795372338,
+          "fluid_m3_s": 5.932004245747882e-07,
+          "mesh_m3_s": 5.92814350435686e-07,
+          "relative_m3_s": 3.860741390997255e-10,
+          "absolute_normal_leak_m3_s": 1.4242047803286416e-09
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.0004745603396598294,
+          "fluid_m3_s": -5.932004245747868e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747868e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747868e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9853920578554082,
+      "fluid_net_relative_to_feed": 2.4988310801658e-15,
+      "free_surface_leak_relative_to_feed": 0.0006508325400752504,
+      "absolute_free_surface_leak_relative_to_feed": 0.0024008829416289255
+    },
+    {
+      "time_s": 4.000095999999997,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018262121674176453,
+          "fluid_m3_s": 5.93200424574784e-07,
+          "mesh_m3_s": 5.927694432943752e-07,
+          "relative_m3_s": 4.309812804140982e-10,
+          "absolute_normal_leak_m3_s": 1.5951476612379438e-09
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982935,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9836854055720478,
+      "fluid_net_relative_to_feed": -4.462198357438929e-15,
+      "free_surface_leak_relative_to_feed": 0.0007265356910744474,
+      "absolute_free_surface_leak_relative_to_feed": 0.002689053471904315
+    },
+    {
+      "time_s": 4.0001,
+      "boundaries": {
+        "free_surface": {
+          "area_m2": 0.0018262168471508996,
+          "fluid_m3_s": 5.932004245747887e-07,
+          "mesh_m3_s": 5.927585667553096e-07,
+          "relative_m3_s": 4.418578194822269e-10,
+          "absolute_normal_leak_m3_s": 1.6710527435692382e-09
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        },
+        "inlet": {
+          "area_m2": 0.00047456033965982935,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        }
+      },
+      "minimum_element_volume_ratio": 0.9830022858487537,
+      "fluid_net_relative_to_feed": 3.3912707516535864e-15,
+      "free_surface_leak_relative_to_feed": 0.000744871043878561,
+      "absolute_free_surface_leak_relative_to_feed": 0.0028170120491182544
+    }
+  ]
+}

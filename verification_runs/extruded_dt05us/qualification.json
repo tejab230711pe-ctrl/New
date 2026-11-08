@@ -1,0 +1,76 @@
+{
+  "passed": true,
+  "checks": {
+    "complete_and_volume": true,
+    "surface_leakage": true,
+    "fluid_continuity": true,
+    "positive_elements": true,
+    "temperature_screen": true
+  },
+  "scope": "Numerical hot-flow qualification only; no dwell handoff or experimental validation",
+  "maximum_absolute_surface_leak_relative_to_feed": 0.012629485338523573,
+  "maximum_fluid_net_relative_to_feed": 2.6237726341740905e-14,
+  "minimum_element_volume_ratio": 0.9994937740682265,
+  "surface_tolerance": 0.02,
+  "continuity_tolerance": 1e-06,
+  "volume": {
+    "passed": true,
+    "completed_requested_interval": true,
+    "final_time": 4.000003,
+    "maximum_relative_feed_error": 0.004015521463184163,
+    "allowed_relative_feed_error": 0.02,
+    "inlet_area_relative_geometry_error": -0.033233614691446256,
+    "samples": [
+      {
+        "time": 4.0000005,
+        "supplied_volume_m3": 2.9660021206541806e-13,
+        "volume_error_m3": 1.1630888348384113e-15,
+        "relative_to_feed": 0.00392140257331266,
+        "relative_to_initial_volume": 1.247136914173146e-10
+      },
+      {
+        "time": 4.000001,
+        "supplied_volume_m3": 5.932004246577039e-13,
+        "volume_error_m3": 2.3615763437406702e-15,
+        "relative_to_feed": 0.003981076623644323,
+        "relative_to_initial_volume": 2.5322305104289135e-10
+      },
+      {
+        "time": 4.0000015,
+        "supplied_volume_m3": 8.89800636723122e-13,
+        "volume_error_m3": 3.559264780408525e-15,
+        "relative_to_feed": 0.004000069940965952,
+        "relative_to_initial_volume": 3.8164672912370847e-10
+      },
+      {
+        "time": 4.000002,
+        "supplied_volume_m3": 1.1864008493154078e-12,
+        "volume_error_m3": 4.7559514972649215e-15,
+        "relative_to_feed": 0.004008722262807938,
+        "relative_to_initial_volume": 5.099629965135183e-10
+      },
+      {
+        "time": 4.0000025,
+        "supplied_volume_m3": 1.4830010613808259e-12,
+        "volume_error_m3": 5.951539292223586e-15,
+        "relative_to_feed": 0.004013172645124133,
+        "relative_to_initial_volume": 6.381614305940053e-10
+      },
+      {
+        "time": 4.000003,
+        "supplied_volume_m3": 1.7796012739731118e-12,
+        "volume_error_m3": 7.14602711154891e-15,
+        "relative_to_feed": 0.004015521463184163,
+        "relative_to_initial_volume": 7.662419183770179e-10
+      }
+    ],
+    "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+  },
+  "artifact_sha256": {
+    "flow.i": "91eb300a712b3324dea91e53822a6235925c9966368ec6297a3e98089b68597c",
+    "flow.msh": "9b48ab4de5f2d24fa27aadc33658221bedffc26c851b30787f1c792b45389379",
+    "flow.csv": "4980abc90a838413164dd4076d8db22a75c48f81c2e04973c8c301d3be2461d2",
+    "flow.e": "9b347dcfb0110b210b393f1b9f44321a89819e322987225d502be59070be36ee",
+    "case.json": "d50a92dd6bee334bab719f29f0b24d6f3153513b3cc6ccc3324b5cbe5aeb8454"
+  }
+}

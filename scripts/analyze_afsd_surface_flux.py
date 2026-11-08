@@ -26,6 +26,24 @@ def exterior_faces(connectivity):
             if len(opposite) == 1]
 
 
+def mesh_derivative(displacement, times, i, scheme):
+    dt = times[i]-times[i-1]
+    if scheme == 'implicit-euler' or i == 1:
+        return (displacement[i]-displacement[i-1])/dt
+    if scheme != 'bdf2':
+        raise ValueError('unsupported mesh time derivative')
+    old_dt = times[i-1]-times[i-2]
+    return ((1+dt/(dt+old_dt))*displacement[i]
+            -(dt+old_dt)/old_dt*displacement[i-1]
+            +dt*dt/(old_dt*(dt+old_dt))*displacement[i-2])/dt
+
+
+def tetra_determinants(positions, connectivity):
+    p = positions[connectivity]
+    return np.linalg.det(np.stack([p[:, 1]-p[:, 0], p[:, 2]-p[:, 0],
+                                  p[:, 3]-p[:, 0]], axis=-1))
+
+
 def surface_fluxes(positions, faces, velocity, mesh_velocity, labels):
     result = {label: dict(area_m2=0., fluid_m3_s=0., mesh_m3_s=0.,
                           relative_m3_s=0., absolute_normal_leak_m3_s=0.)
@@ -87,17 +105,25 @@ def analyze(directory):
     if set(labels) != {'plate', 'inlet', 'free_surface'}:
         raise ValueError('geometry does not match the circular qualification case')
     records = []
+    reference_det = tetra_determinants(reference, connectivity)
+    if np.any(reference_det == 0):
+        raise ValueError('degenerate initial tetrahedron')
+    scheme = case.get('time_scheme', 'implicit-euler')
     for i in range(1, len(times)):
-        dt = times[i]-times[i-1]
         flux = surface_fluxes(reference+displacement[i], faces, velocity[i],
-                              (displacement[i]-displacement[i-1])/dt, labels)
+                              mesh_derivative(displacement, times, i, scheme), labels)
         incoming = -flux['inlet']['relative_m3_s']
         if incoming <= 0:
             raise ValueError('expected positive supplied material flux')
         records.append(dict(time_s=float(times[i]), boundaries=flux,
+            minimum_element_volume_ratio=float(np.min(
+                tetra_determinants(reference+displacement[i], connectivity)/reference_det)),
             fluid_net_relative_to_feed=sum(x['fluid_m3_s'] for x in flux.values())/incoming,
-            free_surface_leak_relative_to_feed=flux['free_surface']['relative_m3_s']/incoming))
+            free_surface_leak_relative_to_feed=flux['free_surface']['relative_m3_s']/incoming,
+            absolute_free_surface_leak_relative_to_feed=
+                flux['free_surface']['absolute_normal_leak_m3_s']/incoming))
     return dict(scope='End-step surface flux diagnostic; not a time-integrated volume balance',
+                time_scheme=scheme,
                 sign='outward positive; negative free-surface relative flux means artificial influx',
                 samples=records)
 

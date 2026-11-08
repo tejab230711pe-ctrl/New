@@ -90,6 +90,8 @@ def convert(source, target):
         lines.append(line)
     # Generated stage decks use different boundary names than the main template.
     lines = [line.replace('front_to_plate', secondary).replace('back_to_rod', primary) for line in lines]
+    lines = [re.sub(r'(file_base\s*=\s*).*', lambda m: m.group(1)+str(target.with_suffix('')), line)
+             for line in lines]
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text('''# Solved penalty-contact heating qualification variant.
 # Heat = eta * tangential force dot irreversible slip / dt, in nodal watts.

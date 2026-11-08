@@ -1,0 +1,109 @@
+{
+  "passed": true,
+  "completed_requested_interval": true,
+  "final_time": 4.0001,
+  "maximum_relative_feed_error": 0.00798950153539959,
+  "allowed_relative_feed_error": 0.02,
+  "inlet_area_relative_geometry_error": -0.033233614691446256,
+  "samples": [
+    {
+      "time": 4.000001,
+      "supplied_volume_m3": 5.932004246577039e-13,
+      "volume_error_m3": 4.739375703602415e-15,
+      "relative_to_feed": 0.00798950153539959,
+      "relative_to_initial_volume": 5.081856357875767e-10
+    },
+    {
+      "time": 4.000002,
+      "supplied_volume_m3": 1.1864008493154078e-12,
+      "volume_error_m3": 6.35065195673112e-15,
+      "relative_to_feed": 0.005352872058710725,
+      "relative_to_initial_volume": 6.809567977157695e-10
+    },
+    {
+      "time": 4.000004,
+      "supplied_volume_m3": 2.3728016981039477e-12,
+      "volume_error_m3": 7.62510205600511e-15,
+      "relative_to_feed": 0.0032135437453952253,
+      "relative_to_initial_volume": 8.176113434794249e-10
+    },
+    {
+      "time": 4.000008,
+      "supplied_volume_m3": 4.745603396734763e-12,
+      "volume_error_m3": 8.564904569379346e-15,
+      "relative_to_feed": 0.0018048083359162444,
+      "relative_to_initial_volume": 9.183828728204787e-10
+    },
+    {
+      "time": 4.000016,
+      "supplied_volume_m3": 9.49120679294266e-12,
+      "volume_error_m3": 8.956107743079553e-15,
+      "relative_to_feed": 0.0009436216003363252,
+      "relative_to_initial_volume": 9.603301346503113e-10
+    },
+    {
+      "time": 4.000026,
+      "supplied_volume_m3": 1.542321103899283e-11,
+      "volume_error_m3": 8.308362211502036e-15,
+      "relative_to_feed": 0.0005386921173870283,
+      "relative_to_initial_volume": 8.908747896049555e-10
+    },
+    {
+      "time": 4.000036,
+      "supplied_volume_m3": 2.1355215284516134e-11,
+      "volume_error_m3": 6.929815814627163e-15,
+      "relative_to_feed": 0.00032450226899148675,
+      "relative_to_initial_volume": 7.430583848776336e-10
+    },
+    {
+      "time": 4.000046,
+      "supplied_volume_m3": 2.7287219530566305e-11,
+      "volume_error_m3": 5.013270832237224e-15,
+      "relative_to_feed": 0.00018372230364554042,
+      "relative_to_initial_volume": 5.375543920941514e-10
+    },
+    {
+      "time": 4.000056,
+      "supplied_volume_m3": 3.321922377608961e-11,
+      "volume_error_m3": 2.6234246945811293e-15,
+      "relative_to_feed": 7.897308836184808e-05,
+      "relative_to_initial_volume": 2.8130007615627113e-10
+    },
+    {
+      "time": 4.000066,
+      "supplied_volume_m3": 3.915122802213978e-11,
+      "volume_error_m3": -2.1942196639895682e-16,
+      "relative_to_feed": -5.604472132390715e-06,
+      "relative_to_initial_volume": -2.352780165021677e-11
+    },
+    {
+      "time": 4.000076,
+      "supplied_volume_m3": 4.508323226766308e-11,
+      "volume_error_m3": -3.5096675151181616e-15,
+      "relative_to_feed": -7.784862217245115e-05,
+      "relative_to_initial_volume": -3.763285987683221e-10
+    },
+    {
+      "time": 4.000086,
+      "supplied_volume_m3": 5.1015236513186385e-11,
+      "volume_error_m3": -7.247012628781971e-15,
+      "relative_to_feed": -0.00014205584692151272,
+      "relative_to_initial_volume": -7.770702199276656e-10
+    },
+    {
+      "time": 4.000096,
+      "supplied_volume_m3": 5.694724075923656e-11,
+      "volume_error_m3": -1.1432858826753957e-14,
+      "relative_to_feed": -0.00020076229636990103,
+      "relative_to_initial_volume": -1.2259029448387805e-09
+    },
+    {
+      "time": 4.0001,
+      "supplied_volume_m3": 5.93200424573405e-11,
+      "volume_error_m3": -1.3188356976320646e-14,
+      "relative_to_feed": -0.0002223254810683074,
+      "relative_to_initial_volume": -1.4141384845077204e-09
+    }
+  ],
+  "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+}
