@@ -29,6 +29,7 @@ protected:
   ADMaterialProperty<Real> & _k;
   ADMaterialProperty<Real> & _mu;
   ADMaterialProperty<RealVectorValue> & _grad_k;
+  ADMaterialProperty<RealVectorValue> & _grad_mu_temperature;
   ADMaterialProperty<Real> & _heat;
   ADMaterialProperty<Real> & _plastic_fraction;
   ADMaterialProperty<Real> & _effective_strain_rate;

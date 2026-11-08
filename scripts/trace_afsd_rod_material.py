@@ -93,6 +93,8 @@ def trace(directory):
     initial_volume = float(weights.sum())
     birth = np.full(len(points), times[0])
     active = np.ones(len(points), dtype=bool)
+    selected = np.unique(np.linspace(0, len(points)-1, min(64,len(points))).astype(int))
+    trajectories = [[float(times[0]), int(j), *points[j], 1] for j in selected]
     supplied = 0.
     history = []
     for i in range(1, len(times)):
@@ -127,6 +129,8 @@ def trace(directory):
         ids = np.flatnonzero(active)
         material_v, inside = current.interpolate(points[ids])
         active[ids[~inside]] = False
+        trajectories.extend([[float(times[i]), int(j), *points[j], int(active[j])]
+                             for j in selected])
         ids = ids[inside]
         relative_y = material_v[inside,1]-case['traverse_m_per_s']
         center_y = .0125+case['traverse_m_per_s']*(times[i]-case['start_s'])
@@ -141,6 +145,10 @@ def trace(directory):
         writer.writerow(['particle_id','birth_time_s','x_m','y_m','z_m','volume_weight_m3','located_in_domain'])
         for j in range(len(points)):
             writer.writerow([j,birth[j],*points[j],weights[j],int(active[j])])
+    with (directory/'rod_trajectories.csv').open('w') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['time_s','particle_id','x_m','y_m','z_m','located_in_domain'])
+        writer.writerows(trajectories)
     report = dict(scope='Passive rod-origin particles, not a validated marker concentration or deposited mass',
                   integrator='midpoint RK2 on linearly interpolated accepted fields',
                   initial_rod_volume_m3=initial_volume, supplied_volume_m3=supplied,

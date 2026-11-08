@@ -40,6 +40,7 @@ AA5083ALEViscoplasticMaterial::AA5083ALEViscoplasticMaterial(const InputParamete
     _k(declareADProperty<Real>("k")),
     _mu(declareADProperty<Real>("mu")),
     _grad_k(declareADProperty<RealVectorValue>("grad_k")),
+    _grad_mu_temperature(declareADProperty<RealVectorValue>("grad_mu_temperature")),
     _heat(declareADProperty<Real>("viscoplastic_heat")),
     _plastic_fraction(declareADProperty<Real>("plastic_fraction")),
     _effective_strain_rate(declareADProperty<Real>("effective_strain_rate")),
@@ -96,6 +97,19 @@ AA5083ALEViscoplasticMaterial::computeQpProperties()
   const ADReal unbounded_mu = asinh(argument) / (_sinh_alpha_per_pa * 3.0 * rate);
   const Real raw_mu = MetaPhysicL::raw_value(unbounded_mu);
   _mu[_qp] = raw_mu < _mu_min ? _mu_min : (raw_mu > _mu_max ? _mu_max : unbounded_mu);
+
+  // On affine FIRST-order tetrahedra D and its invariant are spatially
+  // constant. The complete within-element viscosity gradient is then this
+  // temperature term. Higher-order/curved elements additionally need grad(rate).
+  if (raw_mu < _mu_min || raw_mu > _mu_max)
+    _grad_mu_temperature[_qp] = ADRealVectorValue();
+  else
+  {
+    const ADReal dmu_dT = -argument / sqrt(1.0 + argument * argument) *
+        _activation_energy / (_stress_exponent * _gas_constant * T * T *
+                              _sinh_alpha_per_pa * 3.0 * rate);
+    _grad_mu_temperature[_qp] = dmu_dT * _grad_temperature[_qp];
+  }
 
   _heat[_qp] = 2.0 * _taylor_quinney * _mu[_qp] * D.contract(D);
 
