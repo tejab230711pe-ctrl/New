@@ -1,14 +1,10 @@
-# Sharp-interface ALE viscoplastic AFSD stage (MOOSE-only)
-#
-# This deck is deliberately separate from input/deposition.i.  Run the latter
-# for the 0--4 s solid/solid rotating-contact dwell.  A rezone script transfers
-# the qualified plastic region to this connected flow mesh at t = 4 s.
-#
-# The flow domain is a connected AA5083 body. The underside is bonded to the
-# plate, the top face receives the consuming-rod velocity, and its exposed
-# sides/top are material free surfaces. They move with the solved velocity via
-# INSADDisplaceBoundaryBC. Flash is therefore retained in the mesh, never
-# discarded as an assumed percentage.
+# Experimental ALE viscoplastic AFSD stage (MOOSE-only).
+# This rectangular prototype is separate from the solid-contact dwell model.
+# A conservative solved-state handoff/rezone driver is NOT yet implemented.
+# scripts/create_afsd_circular_flow_case.py creates the circular qualification case.
+# Its fixed-inlet-rim/free-surface nodal motion currently FAILS the feed-volume
+# screen. Do not interpret generated shapes as validated deposition predictions.
+# No latent heat or solid-liquid transition is modeled.
 
 [Mesh]
   type = GeneratedMesh

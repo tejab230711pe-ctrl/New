@@ -4,7 +4,7 @@
 
 This is a research MOOSE application for coupled AA5083 friction stir additive
 manufacturing. The intended process is a consumable rod rotating at 1200 rpm,
-feeding downward and traversing along the plate, with solved mushroom-shaped
+feeding downward at the confirmed 75 mm/min and traversing along the plate, with solved mushroom-shaped
 spreading and backward transport into a deposited track. `scratch/final.edp` is
 incomplete reference material only, not the mechanical specification.
 
@@ -18,9 +18,11 @@ conservative deposition loop.
 Recent changes correct spindle motion/axis definitions, signed torque,
 partial-footprint thermal transfer and the ALE equivalent strain-rate convention.
 Spindle motion is prescribed at the top face; tip motion is solved. Analytical
-regressions pass, but sustained rotating contact with the free tip still needs
-convergence work. Mushroom-shaped bead formation and backward material transport
-have not yet been demonstrated by a validated solve.
+regressions pass and a free-tip rotating-contact increment now converges. A new
+circular-inlet ALE qualification case also converges, but fails its feed-volume
+check by 28.36%; the free-surface mesh treatment must be corrected. Sustained
+dwell, mushroom-shaped bead formation and backward rod-material transport have
+not yet been demonstrated by a validated solve.
 
 From the repository root, with the application built:
 

@@ -45,18 +45,18 @@ solidus/liquidus, latent heat, liquid behavior and phase transition must be spec
 
 | Requirement | Current evidence | Remaining work |
 | --- | --- | --- |
-| 1200 rpm rod rotation | Trigonometric displacement BCs exist; generated stages use a local axis | Demonstrate converged rotation; impose spindle motion without forcing softened tip material to remain rigid |
-| Traverse along longest plate direction | Generated stages add +Y translation to rotation | Unify moving axis, heat-source center and torque origin; main template currently lacks translation in spin Uy and uses a rotation center inconsistent with its rod mesh |
+| 1200 rpm rod rotation | Trigonometric displacement BCs exist; generated stages use a local axis | Top-only spindle BCs and a 25-microsecond free-tip increment pass; sustained rotation remains unverified |
+| Traverse along longest plate direction | Generated stages add +Y translation to rotation | Moving axis, heat-source center, torque origin and spin Uy translation corrected and analytically tested; full travel solve remains open |
 | Continuous rod feed and consumption | Template prescribes top feed; renderer instead holds local Z fixed and shortens stage geometry externally | Resolve material influx/consumption continuously with a mass budget, rather than equating geometry replacement with solved transport |
 | Contact heating and softening | Solid contact, friction heat and temperature-dependent plasticity are present | Verify pressure, slip, dissipation, heat partition and transition to large material flow |
-| Mushroom-shaped spreading | Separate ALE prototype moves free sides | Use a circular moving rod/contact footprint with surrounding free surface; current rectangular top inlet does not represent that footprint |
+| Mushroom-shaped spreading | Separate ALE prototype moves free sides | Circular qualification mesh now exists; its free-surface volume error is 28.36% of feed and must be corrected |
 | Backward material transport | No accepted coupled flow solution demonstrates it | Resolve velocity, pressure and thermal advection, and trace rod material into the wake |
 | Deposited track | Generator imports profiles and creates rectangular bead volumes | Generate bead/flash geometry from the solved free surface and carry state conservatively through rezoning |
 
-The solid dwell still fails before its first accepted step in the current tested
-configuration. The ALE prototype is separate and has not demonstrated the complete
-solid-contact-to-deposition handoff. Presence of motion expressions is not proof
-of successful material movement.
+A free-tip rotating-contact increment now converges with PJFNK; the complete
+dwell remains unverified. The separate circular ALE qualification solve advances
+but fails its volume screen. Neither establishes the complete solid-contact-to-
+deposition handoff. See `test/verification/MODELLING_IMPROVEMENTS.md` for evidence.
 
 ## Acceptance checks for backward flow and layer formation
 

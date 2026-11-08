@@ -1,0 +1,18 @@
+{
+  "passed": false,
+  "completed_requested_interval": true,
+  "final_time": 4.00001,
+  "maximum_relative_feed_error": 0.28356078058650686,
+  "allowed_relative_feed_error": 0.02,
+  "inlet_area_relative_geometry_error": -0.033233614691446256,
+  "samples": [
+    {
+      "time": 4.00001,
+      "supplied_volume_m3": 5.9320042455233036e-12,
+      "volume_error_m3": 1.6820837543030608e-12,
+      "relative_to_feed": 0.28356078058650686,
+      "relative_to_initial_volume": 2.2556721387411143e-07
+    }
+  ],
+  "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+}
