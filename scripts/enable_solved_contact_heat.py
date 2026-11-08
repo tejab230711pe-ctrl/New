@@ -23,6 +23,8 @@ def append_block(text, parent, body):
 
 
 def convert(source, target):
+    if source.resolve() == target.resolve():
+        raise ValueError('use a separate target so the source input is preserved')
     text = source.read_text()
     a, b = subblock(text, 'rod_plate')
     contact = text[a:b]

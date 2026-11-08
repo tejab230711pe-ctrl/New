@@ -1,17 +1,11 @@
 {
   "scope": "End-step surface flux diagnostic; not a time-integrated volume balance",
+  "time_scheme": "implicit-euler",
   "sign": "outward positive; negative free-surface relative flux means artificial influx",
   "samples": [
     {
       "time_s": 4.00001,
       "boundaries": {
-        "plate": {
-          "area_m2": 0.0012379717325257972,
-          "fluid_m3_s": 0.0,
-          "mesh_m3_s": 0.0,
-          "relative_m3_s": 0.0,
-          "absolute_normal_leak_m3_s": 0.0
-        },
         "inlet": {
           "area_m2": 0.0004745603396598293,
           "fluid_m3_s": -5.932004245747868e-07,
@@ -25,10 +19,19 @@
           "mesh_m3_s": 7.612442058265267e-07,
           "relative_m3_s": -1.6804378125173805e-07,
           "absolute_normal_leak_m3_s": 1.680437818157568e-07
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257972,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
         }
       },
+      "minimum_element_volume_ratio": 0.997724100488254,
       "fluid_net_relative_to_feed": 3.2127828173560285e-15,
-      "free_surface_leak_relative_to_feed": -0.28328331250301086
+      "free_surface_leak_relative_to_feed": -0.28328331250301086,
+      "absolute_free_surface_leak_relative_to_feed": 0.28328331345381724
     }
   ]
 }

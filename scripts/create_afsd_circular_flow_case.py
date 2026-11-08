@@ -10,7 +10,7 @@ from render_afsd_remesh_stage import replace_top_level_block, block_end
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_step=1e-6, scheme="implicit-euler", max_time_step=None):
+def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_step=1e-6, scheme="implicit-euler", max_time_step=None, rod_layers=4):
     if not (math.isfinite(size) and 0 < size <= .01):
         raise ValueError('mesh size must be finite and in (0, 0.01] m')
     if not (math.isfinite(initial_temperature) and 293.15 <= initial_temperature <= 798.15):
@@ -26,6 +26,8 @@ def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_
     max_time_step = time_step if max_time_step is None else max_time_step
     if not math.isfinite(max_time_step) or not time_step <= max_time_step <= 1e-4:
         raise ValueError('maximum time step must lie between initial step and 1e-4 s')
+    if rod_layers < 1:
+        raise ValueError("rod_layers must be positive")
     inlet_z = .016 + inlet_extension
     out.mkdir(parents=True, exist_ok=True)
     mesh = out/'flow.msh'
@@ -40,7 +42,7 @@ s[] = BooleanFragments{{ Surface{{1}}; Delete; }}{{ Surface{{2}}; Delete; }};
 Extrude {{0,0,0.006}} {{ Surface{{s[]}}; Layers{{{max(1,math.ceil(.006/size))}}}; }}
 If ({inlet_extension} > 0)
   core_top[] = Surface In BoundingBox{{-0.012501,-0.000001,0.015999,0.012501,0.025001,0.016001}};
-  Extrude {{0,0,{inlet_extension}}} {{ Surface{{core_top[]}}; Layers{{{max(1,math.ceil(inlet_extension/size))}}}; }}
+  Extrude {{0,0,{inlet_extension}}} {{ Surface{{core_top[]}}; Layers{{{max(rod_layers,math.ceil(inlet_extension/size))}}}; }}
 EndIf
 v[] = Volume{{:}};
 inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,{inlet_z-1e-6},0.012501,0.025001,{inlet_z+1e-6}}};
@@ -208,7 +210,7 @@ Mesh.MshFileVersion = 2.2;
         rpm=1200,feed_m_per_s=.00125,traverse_m_per_s=.05/28,
         rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
         inlet_extension_m=inlet_extension,inlet_z_m=inlet_z,time_step_s=time_step,
-        time_scheme=scheme,max_time_step_s=max_time_step,
+        time_scheme=scheme,max_time_step_s=max_time_step,rod_layers=rod_layers,
         inlet_mesh_motion="rigid rotation and traverse, fixed Z",mesh_method="layered extrusion",
         temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')
     return out/'flow.i'
@@ -225,5 +227,6 @@ if __name__=='__main__':
     parser.add_argument('--time-step',type=float,default=1e-6)
     parser.add_argument('--scheme',choices=('implicit-euler','bdf2'),default='implicit-euler')
     parser.add_argument('--max-time-step',type=float)
+    parser.add_argument('--rod-layers',type=int,default=4)
     args=parser.parse_args()
-    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time,args.inlet_extension,args.time_step,args.scheme,args.max_time_step))
+    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time,args.inlet_extension,args.time_step,args.scheme,args.max_time_step,args.rod_layers))

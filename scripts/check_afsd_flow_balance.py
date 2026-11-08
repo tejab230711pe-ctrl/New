@@ -11,6 +11,11 @@ def assess(csv_path, case_path, tolerance):
     if not math.isfinite(tolerance) or tolerance <= 0:
         raise ValueError('acceptance tolerance must be finite and positive')
     case = json.loads(case_path.read_text())
+    if any(not math.isfinite(case[k]) or case[k] <= 0
+           for k in ('feed_m_per_s', 'rod_radius_m')):
+        raise ValueError('feed and radius must be finite and positive')
+    if not all(math.isfinite(case[k]) for k in ('start_s', 'end_s')) or case['end_s'] <= case['start_s']:
+        raise ValueError('case must have a finite, positive duration')
     with csv_path.open() as stream:
         rows = [{k:float(v) for k,v in row.items()} for row in csv.DictReader(stream)]
     if len(rows) < 2:

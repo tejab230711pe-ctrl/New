@@ -1,0 +1,41 @@
+{
+  "passed": false,
+  "checks": {
+    "complete_and_volume": false,
+    "surface_leakage": false,
+    "fluid_continuity": true,
+    "positive_elements": true,
+    "temperature_screen": true
+  },
+  "scope": "Numerical hot-flow qualification only; no dwell handoff or experimental validation",
+  "maximum_absolute_surface_leak_relative_to_feed": 0.28328331345381724,
+  "maximum_fluid_net_relative_to_feed": 3.2127828173560285e-15,
+  "minimum_element_volume_ratio": 0.997724100488254,
+  "surface_tolerance": 0.02,
+  "continuity_tolerance": 1e-06,
+  "volume": {
+    "passed": false,
+    "completed_requested_interval": true,
+    "final_time": 4.00001,
+    "maximum_relative_feed_error": 0.28356078058650686,
+    "allowed_relative_feed_error": 0.02,
+    "inlet_area_relative_geometry_error": -0.033233614691446256,
+    "samples": [
+      {
+        "time": 4.00001,
+        "supplied_volume_m3": 5.9320042455233036e-12,
+        "volume_error_m3": 1.6820837543030608e-12,
+        "relative_to_feed": 0.28356078058650686,
+        "relative_to_initial_volume": 2.2556721387411143e-07
+      }
+    ],
+    "scope": "Volume screen for constant-density standalone flow; not an energy or validation certificate"
+  },
+  "artifact_sha256": {
+    "flow.i": "e8f7f16b7b086e93e32087b7e3edb47972de4cc351e046f81f3d8230d6c70096",
+    "flow.msh": "ebdc02b56f8aba64d2ab91f3bd1f2b8cb2529a7fda9e78afce97074bae3dd253",
+    "flow.csv": "6596f6373d18cda30d6bad1ed87c330ee999d2673e72fa732138377b120babd8",
+    "flow.e": "e7af493f6cb1501027d94872d8d7abc7820fa9687706eab48028390e749c726c",
+    "case.json": "1635d33acf6b26b19228aad90956f89dfcb24041025e9733f97444d24a0c6552"
+  }
+}

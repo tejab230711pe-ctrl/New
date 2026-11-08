@@ -1,0 +1,15 @@
+{
+  "scope": "One accepted 25 microsecond contact increment, not a complete dwell or energy closure",
+  "command_overrides": {
+    "Contact/rod_plate/penalty": 10000000.0,
+    "ThermalContact/rod_plate/gap_conductance": 10000000.0,
+    "Executioner/end_time": 2.5e-05,
+    "Executioner/num_steps": 1
+  },
+  "heat_W": 169.32074619796,
+  "discarded_negative_power_W": 0.0,
+  "T_max_K": 293.15679609202,
+  "T_min_K": 293.14785564463,
+  "torque_Nm": 1.698568579062,
+  "frictionless_heat_W": 5.2030224118834e-20
+}
