@@ -1,0 +1,20 @@
+SetFactory("OpenCASCADE");
+Cylinder(1) = {0, 0.0125, 0.010, 0, 0, 0.006, 0.020};
+Cylinder(2) = {0, 0.0125, 0.010, 0, 0, 0.01, 0.0125};
+v[] = BooleanFragments{ Volume{1}; Delete; }{ Volume{2}; Delete; };
+inlet[] = Surface In BoundingBox{-0.012501,-0.000001,0.019999,0.012501,0.025001,0.020001};
+bottom[] = Surface In BoundingBox{-0.020001,-0.007501,0.009999,0.020001,0.032501,0.010001};
+external[] = CombinedBoundary{ Volume{v[]}; };
+For i In {0:#external[]-1}
+  external[i] = Abs(external[i]);
+EndFor
+free[] = external[];
+free[] -= inlet[];
+free[] -= bottom[];
+Physical Volume("flow", 1) = {v[]};
+Physical Surface("rod_inlet", 11) = {inlet[]};
+Physical Surface("plate", 12) = {bottom[]};
+Physical Surface("free_surface", 13) = {free[]};
+Mesh.CharacteristicLengthMin = 0.006;
+Mesh.CharacteristicLengthMax = 0.006;
+Mesh.MshFileVersion = 2.2;

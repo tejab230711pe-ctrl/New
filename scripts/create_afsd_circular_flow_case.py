@@ -10,7 +10,7 @@ from render_afsd_remesh_stage import replace_top_level_block, block_end
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def create(out, size, initial_temperature, end_time, inlet_extension=.004):
+def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_step=1e-6):
     if not (math.isfinite(size) and 0 < size <= .01):
         raise ValueError('mesh size must be finite and in (0, 0.01] m')
     if not (math.isfinite(initial_temperature) and 293.15 <= initial_temperature <= 798.15):
@@ -19,16 +19,25 @@ def create(out, size, initial_temperature, end_time, inlet_extension=.004):
         raise ValueError('end time must exceed the qualification start time of 4 s')
     if not math.isfinite(inlet_extension) or inlet_extension < 0:
         raise ValueError("inlet extension must be finite and nonnegative")
+    if not math.isfinite(time_step) or time_step <= 0 or time_step > 1e-4:
+        raise ValueError("time step must be finite and in (0, 1e-4] s")
     inlet_z = .016 + inlet_extension
     out.mkdir(parents=True, exist_ok=True)
     mesh = out/'flow.msh'
     geo = out/'flow.geo'
-    # Two overlapping cylinders fragment into a core and shell. Both volumes
-    # share one material block; the internal cylindrical interface is conforming.
+    # Extrude a conforming disk/annulus mesh. Vertical inlet-adjacent facets
+    # keep axial feed tangent to the rod side even on the polygonal mesh;
+    # independently meshed cylinder rings would introduce artificial side flux.
     geo.write_text(f'''SetFactory("OpenCASCADE");
-Cylinder(1) = {{0, 0.0125, 0.010, 0, 0, 0.006, 0.020}};
-Cylinder(2) = {{0, 0.0125, 0.010, 0, 0, {0.006+inlet_extension}, 0.0125}};
-v[] = BooleanFragments{{ Volume{{1}}; Delete; }}{{ Volume{{2}}; Delete; }};
+Disk(1) = {{0, 0.0125, 0.010, 0.020, 0.020}};
+Disk(2) = {{0, 0.0125, 0.010, 0.0125, 0.0125}};
+s[] = BooleanFragments{{ Surface{{1}}; Delete; }}{{ Surface{{2}}; Delete; }};
+Extrude {{0,0,0.006}} {{ Surface{{s[]}}; Layers{{{max(1,math.ceil(.006/size))}}}; }}
+If ({inlet_extension} > 0)
+  core_top[] = Surface In BoundingBox{{-0.012501,-0.000001,0.015999,0.012501,0.025001,0.016001}};
+  Extrude {{0,0,{inlet_extension}}} {{ Surface{{core_top[]}}; Layers{{{max(1,math.ceil(inlet_extension/size))}}}; }}
+EndIf
+v[] = Volume{{:}};
 inlet[] = Surface In BoundingBox{{-0.012501,-0.000001,{inlet_z-1e-6},0.012501,0.025001,{inlet_z+1e-6}}};
 bottom[] = Surface In BoundingBox{{-0.020001,-0.007501,0.009999,0.020001,0.032501,0.010001}};
 external[] = CombinedBoundary{{ Volume{{v[]}}; }};
@@ -150,6 +159,9 @@ Mesh.MshFileVersion = 2.2;
 '''
     end=block_end(text,text.index('[BCs]'));close=text.rfind('[]',0,end)
     text=text[:close]+new_bcs+text[close:]
+    text=text.replace('dtmin = 1.e-6',f'dtmin = {time_step}')
+    text=text.replace('dtmax = 1.e-4',f'dtmax = {time_step}')
+    text=text.replace('dt = 1.e-5',f'dt = {time_step}')
     text=text.replace('end_time = 8.0',f'end_time = {end_time}')
     text=text.replace('file_base = ale_flow_stage',f'file_base = {out/"flow"}')
     text=text.replace('execute_on = FINAL',"execute_on = 'INITIAL TIMESTEP_END'")
@@ -188,7 +200,8 @@ Mesh.MshFileVersion = 2.2;
         initial_velocity='assumed divergence-free spin/feed profile; not a dwell transfer',
         rpm=1200,feed_m_per_s=.00125,traverse_m_per_s=.05/28,
         rod_radius_m=.0125,initial_flow_radius_m=.02,initial_flow_height_m=.006,
-        inlet_extension_m=inlet_extension,inlet_z_m=inlet_z,
+        inlet_extension_m=inlet_extension,inlet_z_m=inlet_z,time_step_s=time_step,
+        inlet_mesh_motion="rigid rotation and traverse, fixed Z",mesh_method="layered extrusion",
         temperature_K=initial_temperature,start_s=4,end_s=end_time,mesh_size_m=size),indent=2)+'\n')
     return out/'flow.i'
 
@@ -201,5 +214,6 @@ if __name__=='__main__':
     parser.add_argument('--end-time',type=float,default=4.001)
     parser.add_argument('--inlet-extension',type=float,default=.004,
                         help='Resolved rod length above the flow pad (m); zero reproduces the coplanar defect')
+    parser.add_argument('--time-step',type=float,default=1e-6)
     args=parser.parse_args()
-    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time,args.inlet_extension))
+    print(create(args.output.resolve(),args.mesh_size,args.temperature,args.end_time,args.inlet_extension,args.time_step))

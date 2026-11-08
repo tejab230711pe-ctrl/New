@@ -1,0 +1,90 @@
+{
+  "scope": "End-step surface flux diagnostic; not a time-integrated volume balance",
+  "sign": "outward positive; negative free-surface relative flux means artificial influx",
+  "samples": [
+    {
+      "time_s": 4.000001,
+      "boundaries": {
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747867e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747867e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747867e-07
+        },
+        "free_surface": {
+          "area_m2": 0.0018261146958480357,
+          "fluid_m3_s": 5.932004245748166e-07,
+          "mesh_m3_s": 6.081839535321151e-07,
+          "relative_m3_s": -1.4983528957307136e-08,
+          "absolute_normal_leak_m3_s": 1.4983532939168715e-08
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        }
+      },
+      "fluid_net_relative_to_feed": 5.0512085406208683e-14,
+      "free_surface_leak_relative_to_feed": -0.025258796751616477
+    },
+    {
+      "time_s": 4.000002,
+      "boundaries": {
+        "inlet": {
+          "area_m2": 0.0004745603396598292,
+          "fluid_m3_s": -5.932004245747864e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747864e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747864e-07
+        },
+        "free_surface": {
+          "area_m2": 0.001826115590635114,
+          "fluid_m3_s": 5.932004245978752e-07,
+          "mesh_m3_s": 6.08179510375071e-07,
+          "relative_m3_s": -1.497908577719976e-08,
+          "absolute_normal_leak_m3_s": 1.4979089771415467e-08
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        }
+      },
+      "fluid_net_relative_to_feed": 3.892232836846541e-11,
+      "free_surface_leak_relative_to_feed": -0.02525130656799
+    },
+    {
+      "time_s": 4.000003,
+      "boundaries": {
+        "inlet": {
+          "area_m2": 0.0004745603396598293,
+          "fluid_m3_s": -5.932004245747864e-07,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": -5.932004245747864e-07,
+          "absolute_normal_leak_m3_s": 5.932004245747864e-07
+        },
+        "free_surface": {
+          "area_m2": 0.0018261164880035326,
+          "fluid_m3_s": 5.932004245747819e-07,
+          "mesh_m3_s": 6.08175072996321e-07,
+          "relative_m3_s": -1.4974648421532266e-08,
+          "absolute_normal_leak_m3_s": 1.4974652417858064e-08
+        },
+        "plate": {
+          "area_m2": 0.0012379717325257977,
+          "fluid_m3_s": 0.0,
+          "mesh_m3_s": 0.0,
+          "relative_m3_s": 0.0,
+          "absolute_normal_leak_m3_s": 0.0
+        }
+      },
+      "fluid_net_relative_to_feed": -7.674981174794961e-15,
+      "free_surface_leak_relative_to_feed": -0.025243826203034638
+    }
+  ]
+}
