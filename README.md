@@ -15,14 +15,21 @@ models treat deformation as solid-state flow: they do not establish melting,
 latent heat, Johnson–Cook behavior, a working axial servo, or a complete
 conservative deposition loop.
 
-Recent changes correct spindle motion/axis definitions, signed torque,
-partial-footprint thermal transfer and the ALE equivalent strain-rate convention.
-Spindle motion is prescribed at the top face; tip motion is solved. Analytical
-regressions pass and a free-tip rotating-contact increment now converges. A new
-circular-inlet ALE qualification case also converges, but fails its feed-volume
-check by 28.36%; the free-surface mesh treatment must be corrected. Sustained
-dwell, mushroom-shaped bead formation and backward rod-material transport have
-not yet been demonstrated by a validated solve.
+Confirmed geometry is a 25 mm diameter × 200 mm rod and a 50 × 100 × 10 mm
+plate. Generate the cylindrical solid-contact case with
+`scripts/create_afsd_dwell_case.py`; `input/deposition.i` remains its legacy
+rectangular rendering template. Process confirmations are recorded in
+`input/process_specification.json`.
+
+Recent work corrects the leaking inlet/free-surface geometry and adds consistent
+BE/BDF2 surface motion. A 1 ms hot-flow qualification now passes volume, local
+surface-flux, continuity, element-volume and temperature screens. Solved-slip
+contact heating also passes analytical and short coupled tests. The complete
+dwell-to-deposition transition, rod-origin transport and conservative remeshing
+remain unfinished; no validated mushroom-shaped track is claimed.
+
+See [numerical experiments](test/verification/NUMERICAL_EXPERIMENTS.md) for exact
+commands, retained results, assumptions and remaining work.
 
 From the repository root, with the application built:
 

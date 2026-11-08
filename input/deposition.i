@@ -1,3 +1,5 @@
+# LEGACY RECTANGULAR RENDERING TEMPLATE. For the confirmed cylindrical geometry,
+# use scripts/create_afsd_dwell_case.py; see test/verification/NUMERICAL_EXPERIMENTS.md.
 # ==============================================================================
 # Additive Friction Stir Deposition (AFSD) — Full Coupled Thermo-Mechanical Model
 # Application: RotatingDiskDepositionApp

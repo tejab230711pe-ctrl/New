@@ -295,3 +295,16 @@ Companion to PROJECT_ANALYSIS.md. Line numbers refer to the source snapshot revi
 - [[BCs]](/home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/test/test_finite_strain.i:64).
 - [[Executioner]](/home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/test/test_finite_strain.i:73).
 
+
+## Added numerical qualification components
+
+- `src/AFSDDisplaceBoundaryBC.{h,C}`: BE/BDF2 material surface motion consistent with ALE mesh velocity.
+- `src/PenaltySlipDissipation.h`: tangential penalty return-map dissipation, excluding reversible spring motion.
+- `src/PenaltyContactHeatPowerAux.{h,C}`: solved-slip nodal heat and discarded-negative-power diagnostic.
+- `scripts/create_afsd_dwell_case.py`: confirmed cylinder/plate geometry with explicit contact assumptions.
+- `scripts/enable_solved_contact_heat.py`: separate solid input variant using solved contact work.
+- `scripts/qualify_afsd_flow.py`: combined numerical acceptance gate and artifact hashes.
+- `scripts/analyze_afsd_surface_flux.py`: independent TET4 surface flux and inversion checks.
+- `scripts/check_ale_boundary.py`, `test/verification/ale_boundary_translation.i`: manufactured surface translation.
+- `test/verification/test_penalty_slip.cpp`, `test_surface_flux.py`: analytical contact/flux/time-derivative tests.
+- `test/verification/NUMERICAL_EXPERIMENTS.md`: current results and unresolved full-process requirements.

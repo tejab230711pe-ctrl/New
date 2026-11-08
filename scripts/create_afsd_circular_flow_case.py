@@ -10,7 +10,7 @@ from render_afsd_remesh_stage import replace_top_level_block, block_end
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_step=1e-6, scheme="implicit-euler", max_time_step=None, rod_layers=4):
+def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_step=5e-7, scheme="bdf2", max_time_step=None, rod_layers=4):
     if not (math.isfinite(size) and 0 < size <= .01):
         raise ValueError('mesh size must be finite and in (0, 0.01] m')
     if not (math.isfinite(initial_temperature) and 293.15 <= initial_temperature <= 798.15):
@@ -23,7 +23,7 @@ def create(out, size, initial_temperature, end_time, inlet_extension=.004, time_
         raise ValueError("time step must be finite and in (0, 1e-4] s")
     if scheme not in ('implicit-euler', 'bdf2'):
         raise ValueError('unsupported time integration scheme')
-    max_time_step = time_step if max_time_step is None else max_time_step
+    max_time_step = (max(time_step, 2e-5) if scheme == "bdf2" else time_step) if max_time_step is None else max_time_step
     if not math.isfinite(max_time_step) or not time_step <= max_time_step <= 1e-4:
         raise ValueError('maximum time step must lie between initial step and 1e-4 s')
     if rod_layers < 1:
@@ -224,8 +224,8 @@ if __name__=='__main__':
     parser.add_argument('--end-time',type=float,default=4.001)
     parser.add_argument('--inlet-extension',type=float,default=.004,
                         help='Resolved rod length above the flow pad (m); zero reproduces the coplanar defect')
-    parser.add_argument('--time-step',type=float,default=1e-6)
-    parser.add_argument('--scheme',choices=('implicit-euler','bdf2'),default='implicit-euler')
+    parser.add_argument('--time-step',type=float,default=5e-7)
+    parser.add_argument('--scheme',choices=('implicit-euler','bdf2'),default='bdf2')
     parser.add_argument('--max-time-step',type=float)
     parser.add_argument('--rod-layers',type=int,default=4)
     args=parser.parse_args()

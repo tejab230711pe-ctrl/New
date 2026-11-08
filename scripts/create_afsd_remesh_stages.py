@@ -30,19 +30,22 @@ from pathlib import Path
 # The process specification is kept in mm, but MOOSE's existing constitutive
 # data use SI.  Every coordinate written to Gmsh is therefore converted to m.
 MM = 1.0e-3
-ROD_RADIUS_MM = 12.5
-ROD_LENGTH_MM = 200.0
-TOTAL_FEED_MM = 35.0
+PROCESS_SPECIFICATION = json.loads((Path(__file__).resolve().parents[1] / 'input/process_specification.json').read_text())
+CONFIRMED = PROCESS_SPECIFICATION['confirmed']
+ASSUMED = PROCESS_SPECIFICATION['existing_code_assumptions']
+ROD_RADIUS_MM = CONFIRMED['rod_diameter_mm'] / 2
+ROD_LENGTH_MM = CONFIRMED['rod_length_mm']
+TOTAL_FEED_MM = ASSUMED['consumed_length_mm']
 # User-specified machine control: 75 mm/min is the Z-axis rod-consumption
 # rate.  The machine X axis maps to AFSD simulation Y and completes 50 mm
 # during the same 35 mm Z consumption.
-TRAVERSE_MM = 50.0
-AXIAL_FEED_MM_PER_MIN = 75.0
-DWELL_S = 4.0
+TRAVERSE_MM = ASSUMED['traverse_mm']
+AXIAL_FEED_MM_PER_MIN = CONFIRMED['axial_feed_mm_per_min']
+DWELL_S = ASSUMED['dwell_s']
 DEPOSITION_S = TOTAL_FEED_MM / AXIAL_FEED_MM_PER_MIN * 60.0
-PLATE_LX_MM = 50.0
-PLATE_LY_MM = 100.0
-PLATE_LZ_MM = 10.0
+PLATE_LX_MM = CONFIRMED['plate_width_mm']
+PLATE_LY_MM = CONFIRMED['plate_length_mm']
+PLATE_LZ_MM = CONFIRMED['plate_thickness_mm']
 # A small imposed overlap provides the initial contact pressure on the
 # displacement-controlled CNC shoulder without prescribing a second tip BC.
 INITIAL_INTERFERENCE_MM = 0.25

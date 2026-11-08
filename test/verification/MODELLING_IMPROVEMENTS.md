@@ -1,5 +1,9 @@
 # Modelling improvements — 8 November 2026
 
+**Latest continuation:** see `NUMERICAL_EXPERIMENTS.md` for the corrected upstream inlet,
+BE/BDF2 surface update, passing numerical screens and solved-slip heating.
+The status below records the earlier implementation stage.
+
 This work follows `PROCESS_MECHANICS.md`. The FreeFEM reference is not a
 mechanical specification. This report supersedes earlier baseline results where
 noted; it does not establish a complete predictive deposition workflow.

@@ -4,7 +4,12 @@ Project: coupled AA5083 friction stir additive manufacturing in MOOSE.
 
 The user's clarified mechanics and motion/flow acceptance criteria are recorded in `PROCESS_MECHANICS.md`. `scratch/final.edp` is reference only and must not serve as the mechanical specification. The target explicitly includes 1200 rpm rotation, traverse along the longest plate direction, mushroom-shaped spreading, backward transport of rod material, and a solved deposited layer.
 
-Implementation update: `test/verification/MODELLING_IMPROVEMENTS.md` records corrected motion/torque, partial-footprint thermal contact, equivalent strain rate and resource-mode behavior. Analytical checks and a free-tip contact increment pass. A circular flow case converges but fails the feed-volume screen by 28.36%; sustained dwell, full energy balance and conservative surface transport remain open. Prescribed feed is confirmed at 75 mm/min.
+Implementation update: `test/verification/NUMERICAL_EXPERIMENTS.md` records the
+confirmed cylindrical geometry, corrected upstream inlet, consistent BE/BDF2
+surface motion and solved-slip penalty heating. A 1 ms flow qualification passes
+explicit conservation screens; full dwell, state handoff, rod-origin transport,
+conservative remeshing and complete deposition remain open. The user will check
+experimental data; no physical experiments are claimed here.
 
 
 Based on the source review and executable checks recorded in `PROJECT_ANALYSIS.md`, 7 November 2026. Subsequent implementation and test evidence is recorded in `test/verification/BASELINE_PROGRESS.md`. An unchecked item may have partial code already; it stays open until its acceptance evidence exists.
@@ -27,7 +32,7 @@ Measured bead profiles may support calibration and validation. They cannot be re
 - [ ] **Establish a clean build.** Use the working MOOSE Makefile route; document MOOSE/libMesh/PETSc/MPI versions and either repair or retire the incomplete CMake route. **Complete when:** the executable can be rebuilt from the recorded source/configuration without relying on stale binary artifacts.
 - [ ] **Validate the real geometry and boundaries.** Use the intended cylindrical rod, correct initial contact geometry, and verified plate/deposit connectivity and boundary tags. **Complete when:** mesh inspection confirms contact faces, bonded interfaces and exposed surfaces; no unintended duplicate/disconnected material remains.
 - [ ] **Pass an actual coupled dwell solve.** Progress from a small contact increment to the complete 0–4 s dwell using the chosen physics. **Complete when:** accepted timesteps reach 4 s with plausible fields, converged contact and recorded conservation checks. Syntax success alone does not satisfy this item.
-- [ ] **Diagnose and fix the ALE first-step failure.** Explicit pivoting MUMPS LU resolves the initial zero pivot and circular cases advance with scaling; the surface volume error is now the demonstrated blocker. **Complete when:** the flow model advances through a sustained transient with stable mesh quality; the cause and remedy are demonstrated rather than inferred from the error message alone.
+- [ ] **Diagnose and fix the ALE first-step failure.** Explicit pivoting MUMPS LU resolves the initial zero pivot and circular cases advance with scaling; the corrected upstream inlet now passes a 1 ms numerical qualification; full-length mesh evolution remains open. **Complete when:** the flow model advances through a sustained transient with stable mesh quality; the cause and remedy are demonstrated rather than inferred from the error message alone.
 
 ## 3. Complete and verify the constitutive coupling
 
@@ -118,4 +123,4 @@ Measured bead profiles may support calibration and validation. They cannot be re
 
 **Current position:** code exists across several gates, but G1 is not yet satisfied by the current contact inputs. No later gate should be marked complete solely because an older campaign finished or an animation shows a deposited bead.
 
-Recommended immediate implementation order: correct inlet-rim/free-surface volume leakage; establish sustained refined contact/flow runs and consistent geometry; close contact-work/energy budgets; implement solved-state handoff, conservative rod-origin transport and rezoning; then validate complete deposition against independent experiments.
+Recommended immediate implementation order: extend the passing inlet/free-surface treatment to sustained refined contact/flow runs and consistent geometry; close contact-work/energy budgets; implement solved-state handoff, conservative rod-origin transport and rezoning; then validate complete deposition against independent experiments.

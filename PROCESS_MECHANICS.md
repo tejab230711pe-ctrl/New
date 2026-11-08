@@ -25,8 +25,11 @@ plasticized material. Interfacial slip and material velocity must be solved.
 The user confirmed prescribed axial feed at 75 mm/min on 8 November 2026;
 axial force is an output, not a prescribed control target. Current timing (4 s
 dwell, 28 s deposition) and 50 mm traverse remain existing code assumptions.
-Plate and rod dimensions differ between the main template and generated stages;
-a single physical geometry still needs to be established.
+The user confirmed a 25 mm diameter × 200 mm rod and a 50 × 100 × 10 mm plate
+on 8 November 2026. `input/process_specification.json` records these values.
+Use `scripts/create_afsd_dwell_case.py` for this geometry; the rectangular main
+input is retained as a legacy rendering template. The user will check measured
+data; runs performed here are numerical experiments, not physical validation.
 
 ## Thermal interpretation
 
@@ -49,13 +52,13 @@ solidus/liquidus, latent heat, liquid behavior and phase transition must be spec
 | Traverse along longest plate direction | Generated stages add +Y translation to rotation | Moving axis, heat-source center, torque origin and spin Uy translation corrected and analytically tested; full travel solve remains open |
 | Continuous rod feed and consumption | Template prescribes top feed; renderer instead holds local Z fixed and shortens stage geometry externally | Resolve material influx/consumption continuously with a mass budget, rather than equating geometry replacement with solved transport |
 | Contact heating and softening | Solid contact, friction heat and temperature-dependent plasticity are present | Verify pressure, slip, dissipation, heat partition and transition to large material flow |
-| Mushroom-shaped spreading | Separate ALE prototype moves free sides | Circular qualification mesh now exists; its free-surface volume error is 28.36% of feed and must be corrected |
+| Mushroom-shaped spreading | Separate ALE prototype moves free sides | Circular qualification mesh now exists; the corrected upstream, layered inlet passes short numerical screens; full morphology remains unverified |
 | Backward material transport | No accepted coupled flow solution demonstrates it | Resolve velocity, pressure and thermal advection, and trace rod material into the wake |
 | Deposited track | Generator imports profiles and creates rectangular bead volumes | Generate bead/flash geometry from the solved free surface and carry state conservatively through rezoning |
 
 A free-tip rotating-contact increment now converges with PJFNK; the complete
-dwell remains unverified. The separate circular ALE qualification solve advances
-but fails its volume screen. Neither establishes the complete solid-contact-to-
+dwell remains unverified. The corrected circular ALE qualification advances for 1 ms and passes its
+explicit volume and local-leakage screens. Neither establishes the complete solid-contact-to-
 deposition handoff. See `test/verification/MODELLING_IMPROVEMENTS.md` for evidence.
 
 ## Acceptance checks for backward flow and layer formation

@@ -1,42 +1,59 @@
-# ALE flow qualification workflow
+# AFSD numerical qualification workflow
 
 The confirmed commands are 1200 rpm and prescribed downward feed at 75 mm/min.
-`input/deposition.i` models solid contact. `input/afsd_ale_flow_stage.i` is a
-separate rectangular flow prototype, not an automatic continuation of dwell.
-The code uses solid-state viscoplastic flow; it has no active melting model.
+The confirmed geometry is a 25 mm diameter × 200 mm rod and a 50 × 100 × 10 mm
+plate. `input/process_specification.json` distinguishes confirmations from
+existing timing assumptions. The user will compare numerical experiments with
+measured data; these scripts do not perform physical experiments.
 
-Generate and run a short circular-inlet qualification case from the repository
-root (Gmsh, the built application and its MOOSE runtime must be available):
+Generate and run the tested circular hot-flow qualification from the repository
+root (Gmsh, NumPy/SciPy, the built application and its MOOSE runtime are required):
 
 ```bash
-python3 scripts/create_afsd_circular_flow_case.py verification_runs/my_flow --end-time 4.00001
+python3 scripts/create_afsd_circular_flow_case.py verification_runs/my_flow \
+  --end-time 4.001 --scheme bdf2 --time-step 5e-7 --max-time-step 2e-5 --rod-layers 4
 UCX_TLS=self ./rotating_disk_deposition-opt -i verification_runs/my_flow/flow.i
-python3 scripts/analyze_afsd_surface_flux.py verification_runs/my_flow
-python3 scripts/check_afsd_flow_balance.py verification_runs/my_flow --max-relative-feed-error .02
+python3 scripts/qualify_afsd_flow.py verification_runs/my_flow \
+  --volume-tolerance .02 --surface-tolerance .02 --continuity-tolerance 1e-6
 ```
 
-The analysis requires NumPy/SciPy. `UCX_TLS=self` is for these serial checks,
-not distributed runs. The generator initializes a uniformly hot 723.15 K domain
-and an assumed divergence-free velocity field. These are explicit qualification
-assumptions, not transferred contact-heating results. Use a new output directory
-for each experiment to retain provenance. The source material owns the
-Taylor–Quinney coefficient; the heat kernel and energy SUPG share its heat property.
+The generator now defaults to this time scheme and mesh layering. Use a new
+output directory for each experiment. `UCX_TLS=self` is for serial checks, not
+MPI campaigns. A supported original-case comparison uses the retained files in
+`verification_runs/circular_flow_tags_fixed`; the new generator changes the
+inlet geometry and mesh motion, so setting zero extension alone does not exactly
+reproduce every aspect of that historical case.
 
-**The current circular case fails the volume check.** The fixed inlet rim and
-adjacent nodal free-surface motion yield about 28.36% excess volume relative to
-supplied feed in the retained short test. Fluid continuity itself balances.
-The checker deliberately returns exit status 2 for a failed screen or incomplete
-requested interval. The 2% threshold shown is an explicit exploratory screen,
-not a validated process tolerance. A small error normalized by the *entire*
-domain volume can hide a large error normalized by newly supplied material.
+The retained 1 ms four-layer case passes all numerical screens. The original
+coplanar case fails. A one-layer 1 ms case passes total volume but fails local
+surface leakage: this is why both quantities are checked. The checker writes
+JSON diagnostics and artifact hashes, and returns 2 on rejection. The thresholds
+shown are exploratory numerical screens, not validated prediction tolerances.
 
-The flux diagnostic reports fluid and mesh fluxes separately using the exported
-TET4 fields. Negative relative flux across a nominal material free surface means
-artificial influx. It is an end-step diagnostic, while the volume checker
-integrates supplied volume over accepted steps. Neither certifies energy closure.
+The flow generator assumes an initially hot 723.15 K pad and a divergence-free
+velocity seed. The short upstream rod section is a truncated qualification domain,
+not the full 200 mm rod. No actual dwell-state transfer is performed. The thermal
+model is solid-state viscoplasticity, with no active phase-change model. A full
+energy balance has not been demonstrated.
 
-Before a production workflow is supported, correct the free-surface junction
-kinematics, verify sustained refined runs, transfer the actual dwell state,
-and implement conservative state/geometry remeshing with rod-origin transport.
-Do not delete flash or replace the solved surface with a prescribed bead profile.
-See `test/verification/MODELLING_IMPROVEMENTS.md` for retained results and blockers.
+For the confirmed full rod/plate geometry and solved-slip contact heating:
+
+```bash
+python3 scripts/create_afsd_dwell_case.py verification_runs/my_dwell \
+  --initial-interference-mm .00515 --penalty 1e7 --gap-conductance 1e7 \
+  --end-time .000025
+UCX_TLS=self ./rotating_disk_deposition-opt -i verification_runs/my_dwell/dwell.i
+```
+
+Interference and contact parameters above reproduce a numerical diagnostic;
+they are not calibrated machine loading. The generator does not require a bead
+profile. The old rectangular `input/deposition.i` remains its rendering template.
+A separate conversion script, `enable_solved_contact_heat.py`, preserves a source
+input while creating a fixed-penalty solved-slip heating variant. Its heat field
+is nodal W, not W/m². It does not support normalized/augmented/mortar penalties.
+
+Before complete deposition is supported, demonstrate the complete dwell,
+conservative solved-state handoff, rod-origin transport, surface remeshing and
+full feed/traverse continuation. No prescribed bead profile or assumed flash
+percentage can replace those calculations. See
+`test/verification/NUMERICAL_EXPERIMENTS.md` for the evidence and remaining work.
