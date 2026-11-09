@@ -712,7 +712,7 @@
   solve_type = PJFNK
   petsc_options_iname = '-ksp_type -pc_type -pc_factor_mat_solver_type'
   petsc_options_value = 'gmres lu mumps'
-  line_search = 'bt'
+  line_search = 'none'
 
   nl_rel_tol = 1.0e-7
   nl_abs_tol = 1.0e-8
@@ -722,7 +722,7 @@
 
   start_time = 0.0
   end_time = 4.0
-  dtmin = 1.0e-5
+  dtmin = 1.0e-7
   dtmax = 0.1
 
   [TimeStepper]
