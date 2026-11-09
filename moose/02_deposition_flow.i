@@ -62,12 +62,12 @@
   expression = '0.0125 + 0.00178571428571429*(t-4)'
  []
  [inlet_mesh_x]
-  type = ParsedFunction
-  expression = 'x*(cos(125.663706143592*(t-4))-1)-(y-0.0125)*sin(125.663706143592*(t-4))'
+  type = ConstantFunction
+  value = 0.0
  []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = 'x*sin(125.663706143592*(t-4))+(y-0.0125)*(cos(125.663706143592*(t-4))-1)+0.00178571428571429*(t-4)'
+  expression = '0.00178571428571429*(t-4)'
  []
  [shoulder_vx]
   type = ParsedFunction
@@ -371,10 +371,9 @@
   petsc_options_value = 'preonly lu mumps'
   line_search = bt
   start_time = 4.0
-  end_time = 4.0000015
-  num_steps = 3
-  dtmin = 5e-07
-  dtmax = 2e-05
+  end_time = 32.0
+  dtmin = 1e-6
+  dtmax = 0.25
   automatic_scaling = true
   off_diagonals_in_auto_scaling = true
   nl_rel_tol = 1.e-7
@@ -383,9 +382,11 @@
   l_max_its = 100
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 5e-07
+    dt = 0.001
+    growth_factor = 1.25
+    cutback_factor = 0.5
+    cutback_factor_at_failure = 0.25
     optimal_iterations = 8
-    cutback_factor_at_failure = 0.5
   []
 []
 

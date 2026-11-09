@@ -495,22 +495,34 @@
   []
 
   [rod_top_x]
-    type = FunctionDirichletBC
+    type = DirichletBC
     variable = Ux
     boundary = 'rod_top'
-    function = rod_spin_ux
+    value = 0.0
   []
   [rod_top_y]
-    type = FunctionDirichletBC
+    type = DirichletBC
     variable = Uy
     boundary = 'rod_top'
-    function = rod_spin_uy
+    value = 0.0
   []
   [rod_top_z]
     type = FunctionDirichletBC
     variable = Uz
     boundary = 'rod_top'
     function = rod_stage_translation_z
+  []
+
+  [rod_friction_heat]
+    type = ContactFrictionHeatFlux
+    variable = T
+    boundary = workpiece_top
+    contact_pressure = contact_pressure
+    rpm = 1200
+    friction_coefficient = 0.35
+    tool_center_y = rod_stage_center_y
+    use_displaced_mesh = true
+    heat_partition = 1.0
   []
 
 
@@ -709,13 +721,13 @@
   nl_max_its = 40
 
   start_time = 0.0
-  end_time = 0.000075
-  dtmin = 1.0e-6
-  dtmax = 2.5e-05
+  end_time = 4.0
+  dtmin = 1.0e-5
+  dtmax = 0.1
 
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 2.5e-05
+    dt = 0.02
     optimal_iterations = 8
     iteration_window = 4
     growth_factor = 1.25
@@ -741,15 +753,5 @@
   [csv]
     type = CSV
     file_base = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/verification_runs/direct_mortar_bulk/dwell
-  []
-[]
-
-[NodalKernels]
-  [solved_contact_heat]
-    type = CoupledForceNodalKernel
-    variable = T
-    v = friction_heat
-    boundary = workpiece_top
-    coef = 1
   []
 []
