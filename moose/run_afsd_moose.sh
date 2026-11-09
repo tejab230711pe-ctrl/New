@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==============================================================================
-# AFSD Native MOOSE Process Runner
+# AFSD Native MOOSE Process Runner (MPI Parallel Execution)
 # Executes the coupled thermo-mechanical contact dwell and ALE flow stages
-# using the compiled MOOSE application: ./rotating_disk_deposition-opt
+# using MPI on 2 cores with the compiled application: ./rotating_disk_deposition-opt
 # Memory safety bounds enforced for systems with <= 2 GB available RAM.
 # ==============================================================================
 
@@ -17,14 +17,33 @@ if [[ ! -x "$MOOSE_APP" ]]; then
     exit 1
 fi
 
-export UCX_TLS=self
-export OMP_NUM_THREADS=2
+NUM_CORES="${NUM_CORES:-2}"
+
+# Prefer conda moose environment mpirun
+if [[ -x "/home/teja/miniforge3/envs/moose/bin/mpirun" ]]; then
+    MPIRUN="/home/teja/miniforge3/envs/moose/bin/mpirun"
+elif command -v mpirun >/dev/null 2>&1; then
+    MPIRUN="$(command -v mpirun)"
+else
+    MPIRUN=""
+fi
+
+export UCX_TLS=shm,self
+export OMP_NUM_THREADS=1
+
+if [[ -n "$MPIRUN" && "$NUM_CORES" -gt 1 ]]; then
+    RUN_CMD=("$MPIRUN" -n "$NUM_CORES" "$MOOSE_APP")
+    echo "Using MPI with $NUM_CORES cores: $MPIRUN -n $NUM_CORES"
+else
+    RUN_CMD=("$MOOSE_APP")
+    echo "Running in serial mode: $MOOSE_APP"
+fi
 
 echo "======================================================================"
 echo "STAGE 1: Running Contact Dwell & Frictional Heating Solve in MOOSE..."
 echo "======================================================================"
 cd "$SCRIPT_DIR"
-"$MOOSE_APP" -i 01_dwell_contact.i "$@"
+"${RUN_CMD[@]}" -i 01_dwell_contact.i "$@"
 
 # Ensure output links in moose/
 mkdir -p "$REPO_ROOT/verification_runs/direct_mortar_bulk"
@@ -38,7 +57,7 @@ fi
 echo "======================================================================"
 echo "STAGE 2: Running Viscoplastic Flow & Spreading Solve in MOOSE..."
 echo "======================================================================"
-"$MOOSE_APP" -i 02_deposition_flow.i "$@"
+"${RUN_CMD[@]}" -i 02_deposition_flow.i "$@"
 
 # Ensure output links in moose/
 mkdir -p "$REPO_ROOT/verification_runs/bdf2_inlet_layers4"
@@ -51,6 +70,6 @@ fi
 
 echo "======================================================================"
 echo "MOOSE Simulation Pipeline Completed Successfully!"
-echo "Exodus outputs generated: $SCRIPT_DIR/dwell_out.e, $SCRIPT_DIR/bdf2_inlet_layers4.e"
-echo "CSV outputs generated: $SCRIPT_DIR/dwell_out.csv, $SCRIPT_DIR/bdf2_inlet_layers4.csv"
+echo "Exodus outputs: $SCRIPT_DIR/dwell_out.e, $SCRIPT_DIR/bdf2_inlet_layers4.e"
+echo "CSV outputs:    $SCRIPT_DIR/dwell_out.csv, $SCRIPT_DIR/bdf2_inlet_layers4.csv"
 echo "======================================================================"
