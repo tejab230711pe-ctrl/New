@@ -371,7 +371,8 @@
   petsc_options_value = 'preonly lu mumps'
   line_search = bt
   start_time = 4.0
-  end_time = 4.001
+  end_time = 4.0000015
+  num_steps = 3
   dtmin = 5e-07
   dtmax = 2e-05
   automatic_scaling = true

@@ -24,12 +24,30 @@ echo "======================================================================"
 echo "STAGE 1: Running Contact Dwell & Frictional Heating Solve in MOOSE..."
 echo "======================================================================"
 cd "$SCRIPT_DIR"
-"$MOOSE_APP" -i 01_dwell_contact.i
+"$MOOSE_APP" -i 01_dwell_contact.i "$@"
+
+# Ensure output links in moose/
+mkdir -p "$REPO_ROOT/verification_runs/direct_mortar_bulk"
+if [[ -f "$REPO_ROOT/verification_runs/direct_mortar_bulk/dwell.e" ]]; then
+    ln -sf "$REPO_ROOT/verification_runs/direct_mortar_bulk/dwell.e" "$SCRIPT_DIR/dwell_out.e"
+fi
+if [[ -f "$REPO_ROOT/verification_runs/direct_mortar_bulk/dwell.csv" ]]; then
+    ln -sf "$REPO_ROOT/verification_runs/direct_mortar_bulk/dwell.csv" "$SCRIPT_DIR/dwell_out.csv"
+fi
 
 echo "======================================================================"
 echo "STAGE 2: Running Viscoplastic Flow & Spreading Solve in MOOSE..."
 echo "======================================================================"
-"$MOOSE_APP" -i 02_deposition_flow.i
+"$MOOSE_APP" -i 02_deposition_flow.i "$@"
+
+# Ensure output links in moose/
+mkdir -p "$REPO_ROOT/verification_runs/bdf2_inlet_layers4"
+if [[ -f "$REPO_ROOT/verification_runs/bdf2_inlet_layers4/flow.e" ]]; then
+    ln -sf "$REPO_ROOT/verification_runs/bdf2_inlet_layers4/flow.e" "$SCRIPT_DIR/bdf2_inlet_layers4.e"
+fi
+if [[ -f "$REPO_ROOT/verification_runs/bdf2_inlet_layers4/flow.csv" ]]; then
+    ln -sf "$REPO_ROOT/verification_runs/bdf2_inlet_layers4/flow.csv" "$SCRIPT_DIR/bdf2_inlet_layers4.csv"
+fi
 
 echo "======================================================================"
 echo "MOOSE Simulation Pipeline Completed Successfully!"
