@@ -16,5 +16,75 @@
     "traverse_mm": 50.0,
     "initial_rod_center_y_mm": 12.5
   },
+  "kinematics": {
+    "spindle_rpm": 1200.0,
+    "omega_rad_per_s": 125.66370614359172,
+    "rotation_direction": "+Z (counter-clockwise looking down)",
+    "rotation_period_s": 0.05,
+    "axial_feed_mm_per_s": 1.25,
+    "axial_feed_axis": "-Z",
+    "traverse_axis": "+Y",
+    "dwell_duration_s": 4.0,
+    "deposition_duration_s": 28.0,
+    "total_process_duration_s": 32.0,
+    "traverse_speed_mm_per_s": 1.7857142857142858
+  },
+  "material_balance": {
+    "rod_cross_section_area_mm2": 490.8738521234052,
+    "nominal_incoming_volume_rate_mm3_per_s": 613.5923151542565,
+    "nominal_track_cross_section_area_mm2": 343.6116964890669,
+    "total_consumed_volume_mm3": 17180.58482431918,
+    "nominal_consumed_mass_kg": 0.045528
+  },
+  "initial_and_boundary_conditions": {
+    "initial_temperature_K": 293.15,
+    "ambient_temperature_K": 293.15,
+    "ambient_convection_htc_W_per_m2_K": 15.0,
+    "substrate_base_fixture": "fixed displacement (Ux=Uy=Uz=0)",
+    "initial_interference_mm": 0.00515
+  },
+  "material_properties": {
+    "alloy": "AA5083-H111",
+    "density_kg_per_m3": 2650.0,
+    "youngs_modulus_Pa": 70.3e9,
+    "poissons_ratio": 0.33,
+    "thermal_expansion_coeff_per_K": 2.38e-5,
+    "thermal_conductivity": {
+      "model": "temperature_dependent",
+      "formula": "122.0 + 0.08 * (T - 293.15)",
+      "k_ref_293K": 122.0
+    },
+    "specific_heat": {
+      "model": "temperature_dependent",
+      "formula": "900.0 + 0.45 * (T - 293.15)",
+      "cp_ref_293K": 900.0
+    },
+    "flow_law": {
+      "type": "garofalo_hyperbolic_sine",
+      "activation_energy_J_per_mol": 174700.0,
+      "sinh_alpha_per_Pa": 1.5e-8,
+      "stress_exponent_n": 5.23,
+      "log_preexponential_lnA": 24.98,
+      "gas_constant_R": 8.314,
+      "taylor_quinney_factor": 0.90,
+      "strain_rate_floor_per_s": 1.0e-3,
+      "mu_min_Pa_s": 1.0e4,
+      "mu_max_Pa_s": 1.0e10,
+      "plastic_start_temperature_K": 623.15,
+      "plastic_end_temperature_K": 798.15
+    },
+    "friction": {
+      "model": "coulomb",
+      "friction_coefficient": 0.35,
+      "efficiency": 0.90
+    }
+  },
+  "resource_limits": {
+    "max_available_ram_mb": 2048,
+    "safe_memory_limit_mb": 1500,
+    "max_mesh_elements": 15000,
+    "logging_policy": "compact_streaming",
+    "prevent_large_logs": true
+  },
   "validation": "Numerical experiments are run here; the user will check measured data. No physical experiment or experimental validation is claimed."
 }

@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "scope": "Complete actuator mechanical power balance and slip friction accounting",
+  "spindle_omega_rad_s": 125.66370614359172,
+  "max_relative_dissipation_difference": 0.11859667822044793,
+  "records": [
+    {
+      "time_s": 2.5e-05,
+      "P_input_W": 213.44852275102178,
+      "P_spindle_W": 213.44852275102178,
+      "P_feed_W": 0.0,
+      "P_travel_W": 0.0,
+      "P_friction_dissipated_W": 169.32081328352,
+      "P_discarded_negative_W": 0.0,
+      "relative_dissipation_match": 0.11859667822044793
+    },
+    {
+      "time_s": 5e-05,
+      "P_input_W": 213.24629004967605,
+      "P_spindle_W": 213.24629004967605,
+      "P_feed_W": 0.0,
+      "P_travel_W": 0.0,
+      "P_friction_dissipated_W": 191.91581561719,
+      "P_discarded_negative_W": 3.7585753779427e-56,
+      "relative_dissipation_match": 3.0457362064536e-05
+    },
+    {
+      "time_s": 7.5e-05,
+      "P_input_W": 213.03871788889856,
+      "P_spindle_W": 213.03871788889856,
+      "P_feed_W": 0.0,
+      "P_travel_W": 0.0,
+      "P_friction_dissipated_W": 191.73385124602,
+      "P_discarded_negative_W": 0.0,
+      "relative_dissipation_match": 5.188696832747126e-06
+    }
+  ]
+}
