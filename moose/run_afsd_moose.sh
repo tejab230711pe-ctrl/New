@@ -18,6 +18,7 @@ if [[ ! -x "$MOOSE_APP" ]]; then
 fi
 
 NUM_CORES="${NUM_CORES:-2}"
+FLOW_STEPS="${FLOW_STEPS:-2000}"
 
 # Prefer conda moose environment mpirun
 if [[ -x "/home/teja/miniforge3/envs/moose/bin/mpirun" ]]; then
@@ -40,10 +41,15 @@ else
 fi
 
 echo "======================================================================"
-echo "STAGE 1: Running Contact Dwell & Frictional Heating Solve in MOOSE..."
+echo "STAGE 1: Running Full Contact Dwell (0.0 to 4.0 s) in MOOSE..."
 echo "======================================================================"
 cd "$SCRIPT_DIR"
-"${RUN_CMD[@]}" -i 01_dwell_contact.i "$@"
+
+if [[ $# -gt 0 ]]; then
+    "${RUN_CMD[@]}" -i 01_dwell_contact.i "$@"
+else
+    "${RUN_CMD[@]}" -i 01_dwell_contact.i
+fi
 
 # Ensure output links in moose/
 mkdir -p "$REPO_ROOT/verification_runs/direct_mortar_bulk"
@@ -55,9 +61,15 @@ if [[ -f "$REPO_ROOT/verification_runs/direct_mortar_bulk/dwell.csv" ]]; then
 fi
 
 echo "======================================================================"
-echo "STAGE 2: Running Viscoplastic Flow & Spreading Solve in MOOSE..."
+echo "STAGE 2: Running Steady Viscoplastic Flow & Track Deposition in MOOSE..."
 echo "======================================================================"
-"${RUN_CMD[@]}" -i 02_deposition_flow.i "$@"
+
+if [[ $# -gt 0 ]]; then
+    "${RUN_CMD[@]}" -i 02_deposition_flow.i "$@"
+else
+    echo "Simulating steady-state deposition track ($FLOW_STEPS steps)..."
+    "${RUN_CMD[@]}" -i 02_deposition_flow.i Executioner/num_steps="$FLOW_STEPS"
+fi
 
 # Ensure output links in moose/
 mkdir -p "$REPO_ROOT/verification_runs/bdf2_inlet_layers4"
