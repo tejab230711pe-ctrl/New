@@ -11,7 +11,7 @@ from render_afsd_remesh_stage import block_end
 from enable_solved_contact_heat import append_block
 
 
-def convert(source, target):
+def convert(source, target, formulation='multiplier'):
     if source.resolve() == target.resolve():
         raise ValueError('source and target must differ')
     text = source.read_text()
@@ -30,6 +30,8 @@ def convert(source, target):
         raise ValueError('this converter requires the confirmed rod/plate boundary names')
     primary, secondary = value('secondary'), value('primary')
     conductance = float(value('gap_conductance'))
+    if formulation not in ('multiplier','direct'):
+        raise ValueError('unknown thermal formulation')
     replacement = f'''[MortarGapHeatTransfer]
   [conservative_contact]
     temperature = T
@@ -42,8 +44,37 @@ def convert(source, target):
   []
 []
 '''
+    if formulation == 'direct':
+        replacement = f'''[Constraints]
+  [conservative_contact]
+    type = AFSDConservativeContactHeat
+    secondary_variable = T
+    primary_boundary = {primary}
+    secondary_boundary = {secondary}
+    primary_subdomain = thermal_primary
+    secondary_subdomain = thermal_secondary
+    use_displaced_mesh = true
+    conductance = {conductance}
+  []
+[]
+'''
     text = text[:start]+replacement+text[end:]
-    text = append_block(text, 'UserObjects', f'''  [closed_contact_flux]
+    if formulation == 'direct':
+        text = append_block(text, 'Mesh', f'''  [thermal_primary]
+    type = LowerDBlockFromSidesetGenerator
+    input = file_mesh
+    sidesets = {primary}
+    new_block_name = thermal_primary
+  []
+  [thermal_secondary]
+    type = LowerDBlockFromSidesetGenerator
+    input = thermal_primary
+    sidesets = {secondary}
+    new_block_name = thermal_secondary
+  []
+''')
+    else:
+        text = append_block(text, 'UserObjects', f'''  [closed_contact_flux]
     type = AFSDContactGapFlux
     temperature = T
     boundary = {secondary}
@@ -61,5 +92,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
     parser.add_argument('target',type=Path)
+    parser.add_argument('--formulation', choices=('multiplier','direct'), default='multiplier')
     args = parser.parse_args()
-    convert(args.source,args.target)
+    convert(args.source,args.target,args.formulation)

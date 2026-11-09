@@ -5,11 +5,13 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from enable_solved_contact_heat import append_block
+from render_afsd_remesh_stage import block_end
 
 ROOT=Path(__file__).resolve().parents[1]
 
 
-def check(directory,gap):
+def check(directory,gap,formulation):
     z=1+gap
     geo=f'''SetFactory("OpenCASCADE");
 Box(1)={{0,0,0,1,1,1}};
@@ -117,6 +119,35 @@ Mesh.MeshSizeMax=.23;
  execute_on = 'INITIAL TIMESTEP_END'
 []
 '''
+    if formulation == 'direct':
+        start=deck.index('[MortarGapHeatTransfer]')
+        end=block_end(deck,start)
+        deck=deck[:start]+'''[Constraints]
+ [exchange]
+  type = AFSDConservativeContactHeat
+  secondary_variable = T
+  primary_boundary = primary
+  secondary_boundary = secondary
+  primary_subdomain = thermal_primary
+  secondary_subdomain = thermal_secondary
+  use_displaced_mesh = false
+  conductance = 10
+ []
+[]
+'''+deck[end:]
+        deck=append_block(deck,'Mesh',''' [thermal_primary]
+  type = LowerDBlockFromSidesetGenerator
+  input = mesh
+  sidesets = primary
+  new_block_name = thermal_primary
+ []
+ [thermal_secondary]
+  type = LowerDBlockFromSidesetGenerator
+  input = thermal_primary
+  sidesets = secondary
+  new_block_name = thermal_secondary
+ []
+''')
     (directory/'test.i').write_text(deck)
     with (directory/'run.log').open('w') as f:
         result=subprocess.run([str(ROOT/'rotating_disk_deposition-opt'),'-i',str(directory/'test.i')],env=dict(os.environ,UCX_TLS='self'),stdout=f,stderr=subprocess.STDOUT)
@@ -134,7 +165,8 @@ Mesh.MeshSizeMax=.23;
 
 if __name__=='__main__':
     with tempfile.TemporaryDirectory(prefix='afsd-mortar-') as name:
-        for gap in [-.001,.001]:
-            directory=Path(name)/str(gap);directory.mkdir()
-            check(directory,gap)
+        for formulation in ['multiplier','direct']:
+            for gap in [-.001,.001]:
+                directory=Path(name)/(formulation+str(gap));directory.mkdir()
+                check(directory,gap,formulation)
     print('PASS mortar heat: partial-footprint conservation, hot-to-cold transfer, open-gap insulation')

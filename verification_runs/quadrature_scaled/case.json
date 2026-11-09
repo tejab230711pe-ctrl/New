@@ -1,0 +1,32 @@
+{
+  "kind": "confirmed_geometry_contact_qualification",
+  "process": {
+    "confirmed": {
+      "rod_diameter_mm": 25.0,
+      "rod_length_mm": 200.0,
+      "plate_width_mm": 50.0,
+      "plate_length_mm": 100.0,
+      "plate_thickness_mm": 10.0,
+      "rpm": 1200.0,
+      "axial_feed_mm_per_min": 75.0,
+      "axial_control": "prescribed feed",
+      "traverse_axis": "+Y (longest plate direction)"
+    },
+    "existing_code_assumptions": {
+      "dwell_s": 4.0,
+      "consumed_length_mm": 35.0,
+      "traverse_mm": 50.0,
+      "initial_rod_center_y_mm": 12.5
+    },
+    "validation": "Numerical experiments are run here; the user will check measured data. No physical experiment or experimental validation is claimed."
+  },
+  "initial_interference_mm": 0.00515,
+  "mesh_min_mm": 2.0,
+  "mesh_max_mm": 4.0,
+  "end_s": 7.5e-05,
+  "penalty_N_per_m": 10000000.0,
+  "gap_conductance": 10000000.0,
+  "heating": "solved irreversible penalty slip; secondary-side source with thermal gap transfer",
+  "caveat": "Contact parameters and initial interference are explicit assumptions, not calibration",
+  "solver": "PJFNK with off-diagonal automatic scaling; tighter nonlinear tolerance"
+}
