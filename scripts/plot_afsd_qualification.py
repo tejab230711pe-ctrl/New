@@ -37,7 +37,7 @@ def plot(flow, contacts, output):
                 [100*r['relative_to_generated_heat'] for r in budget['samples']],marker='o',label=directory.name)
     ax.axhline(2,color='black',ls='--',lw=1)
     ax.axhline(-2,color='black',ls='--',lw=1)
-    ax.set(xlabel='Elapsed contact time (microseconds)',ylabel='Thermal budget error (%)',title='Stored heat + loss − generated heat')
+    ax.set(xlabel='Elapsed contact time (microseconds)',ylabel='Thermal budget error (%)',title='Capacity increment + loss − generated heat')
     ax.legend(fontsize=8)
     ax=axes[1,1]
     tracer=json.loads((flow/'rod_transport.json').read_text())

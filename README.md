@@ -15,6 +15,11 @@ models treat deformation as solid-state flow: they do not establish melting,
 latent heat, Johnson–Cook behavior, a working axial servo, or a complete
 conservative deposition loop.
 
+The generated contact case now uses conservative mortar heat exchange. Its
+75 microsecond numerical test closes the discrete thermal budget to 0.000176%;
+the original quadrature treatment loses about 7.50%. Full-process energy and
+experimental validation remain open. See `test/verification/NUMERICAL_EXPERIMENTS.md`.
+
 Confirmed geometry is a 25 mm diameter × 200 mm rod and a 50 × 100 × 10 mm
 plate. Generate the cylindrical solid-contact case with
 `scripts/create_afsd_dwell_case.py`; `input/deposition.i` remains its legacy

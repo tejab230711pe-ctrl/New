@@ -8,8 +8,9 @@ Implementation update: `test/verification/NUMERICAL_EXPERIMENTS.md` records the
 confirmed cylindrical geometry, corrected upstream inlet, consistent BE/BDF2
 surface motion and solved-slip penalty heating. A 1 ms flow qualification passes
 explicit conservation screens; passive rod-origin tracking is available but has
-not yet demonstrated a trailing deposit. The three-step contact thermal audit
-fails with 7.50% missing heat and requires correction. Full dwell, state handoff,
+not yet demonstrated a trailing deposit. The corrected three-step contact thermal audit
+passes at 0.000176% maximum error; the original gap treatment loses 7.50%.
+This is discrete thermal-equation closure, not complete process energy validation. Full dwell, state handoff,
 conservative rod-origin transport,
 conservative remeshing and complete deposition remain open. The user will check
 experimental data; no physical experiments are claimed here.

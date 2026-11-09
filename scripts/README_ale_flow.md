@@ -68,13 +68,17 @@ This requires passing qualification and checks the Exodus hash. Outputs include
 `rod_particles.csv`, selected `rod_trajectories.csv` and `rod_transport.json`.
 These passive particles do not establish a conservative concentration field.
 
-For an elastic contact run with INITIAL Exodus output, audit generated heat:
+For an elastic contact run with INITIAL Exodus output, audit the discrete thermal equation against generated heat:
 
 ```bash
 python3 scripts/check_contact_thermal_balance.py verification_runs/confirmed_geometry_3steps --tolerance .02
 ```
 
-The retained three-step quadrature-gap run fails this screen. A separate mortar
-candidate is generated with `enable_mortar_contact_heat.py SOURCE.i TARGET.i`;
-this is thermal coupling only and retains penalty mechanical contact. Consult
-the numerical report before selecting a qualified variant.
+The retained three-step quadrature-gap run fails this screen. The generator now
+uses direct conservative mortar heat exchange and restricts bulk heat kernels
+and materials to the rod/plate volumes. `--thermal-contact quadrature` retains
+the failed comparison formulation. Convert an existing confirmed-geometry deck
+with `enable_mortar_contact_heat.py SOURCE.i TARGET.i --formulation direct`.
+This changes thermal coupling and retains penalty mechanical contact. The
+multiplier alternative remains available for diagnostics, but did not complete
+the coupled qualification. Consult the numerical report for accepted intervals.

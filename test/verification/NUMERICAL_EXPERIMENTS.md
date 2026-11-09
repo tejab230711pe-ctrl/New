@@ -33,16 +33,35 @@ bookkeeping is not an independent conservation test or a conservative material
 concentration solution.
 
 The confirmed cylindrical solid-contact case completes three 25 microsecond
-steps. Its new reference-domain thermal audit **fails** the declared 2% screen:
-stored heat plus convection is up to 7.498% below generated friction heat.
-Plastic strain remains zero, so this is an elastic thermal qualification only.
-The old independently integrated gap transfer is being replaced in a separate
-qualification case with conservative mortar coupling. The thermal multiplier
-version passes isolated conservation/open-gap tests but fails to complete the
-coupled case; tighter scaled tolerances do not cure the old quadrature energy
-deficit. A direct finite-conductance mortar constraint is under qualification.
-Keep the failed case as a
-regression; do not accept full energy closure from a successful nonlinear solve.
+steps. The original quadrature gap treatment fails the declared 2% thermal
+screen, losing about 7.50% of generated friction heat. Tighter scaled tolerances
+do not remove that deficit.
+
+**The corrected `direct_mortar_bulk` case completes all three steps and passes:**
+maximum discrete thermal-budget error is **0.000176%**, with no plastic strain.
+`AFSDConservativeContactHeat` integrates finite conductance on one shared mortar
+interface, applying equal-and-opposite fluxes without additional thermal
+multiplier unknowns. Open gaps do not conduct through this contact model. Bulk
+heat kernels and materials are explicitly restricted to the plate and rod;
+otherwise lower-dimensional mortar elements introduce spurious surface storage.
+The isolated actual-MOOSE tests also pass partial-footprint conservation,
+hot-to-cold heat transfer and open-gap insulation. The thermal multiplier variant
+remains a failed coupled diagnostic, not the selected generator default.
+
+The budget integrates the backward-Euler capacity term using **current volume**
+and end-step rho/cp, matching MOOSE's displaced thermal kernel defaults. It also
+reports a reference-volume enthalpy diagnostic separately. This checks the
+assembled thermal equation; it does not establish full actuator-work balance,
+finite-deformation mass/energy conservation, or complete deposition. The run
+still has a small temperature undershoot below ambient that needs numerical
+refinement/monotonicity work. No temperatures were clipped to hide it.
+
+The dwell generator now selects direct conservative mortar by default, preserves
+the old quadrature source as a reference and includes INITIAL Exodus output for
+audit. A fresh generated input passes MOOSE's input check. The retained coupled
+run's `T_mean` includes interface averaging; do not use that column. The generator
+now restricts that postprocessor to the bulk, and the exported comparison table
+omits `T_mean`.
 
 ## Free-surface conservation correction
 

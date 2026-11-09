@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'scripts'))
-from check_contact_thermal_balance import reference_enthalpy_density, stored_energy
+from check_contact_thermal_balance import reference_enthalpy_density, stored_energy, capacity_increment
 
 
 class ThermalBudgetTest(unittest.TestCase):
@@ -23,6 +23,15 @@ class ThermalBudgetTest(unittest.TestCase):
         c=(-.312)*.601/3
         exact=a*6/24+b*36/60+c*216/120
         self.assertAlmostEqual(stored_energy(xyz,np.array([[0,1,2,3]]),293.15+6*xyz[:,0])/exact,1.,places=12)
+
+    def test_discrete_capacity_uses_current_volume_and_end_properties(self):
+        xyz=np.array([[0.,0.,0.],[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]])
+        a=2661.42*948.14
+        b=2661.42*.601+948.14*(-.312)
+        c=(-.312)*.601
+        exact=8*(a*6/24+b*36/60+c*216/120)
+        result=capacity_increment(2*xyz,np.array([[0,1,2,3]]),293.15+6*xyz[:,0],np.full(4,293.15))
+        self.assertAlmostEqual(result/exact,1.,places=12)
 
 
 if __name__=='__main__': unittest.main()

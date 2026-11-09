@@ -1,33 +1,36 @@
 {
   "passed": false,
   "complete": true,
-  "scope": "Reference-domain thermal budget in elastic, low-temperature contact qualification",
-  "maximum_relative_thermal_error": 0.07498183433648081,
+  "scope": "Discrete current-volume thermal equation budget in elastic, low-temperature contact qualification; not full mechanical or finite-deformation energy closure",
+  "maximum_relative_thermal_error": 0.07498939759215888,
   "allowed_relative_error": 0.02,
   "samples": [
     {
       "time_s": 2.5e-05,
-      "stored_increment_J": 0.00406068336645748,
+      "integrated_capacity_increment_J": 0.004060649626372488,
+      "reference_enthalpy_increment_J": 0.00406068336645748,
       "generated_heat_J": 0.004233018654949,
       "convective_loss_J": 1.4113310002197397e-09,
-      "thermal_balance_error_J": -0.00017233387716052064,
-      "relative_to_generated_heat": -0.040711816131270256
+      "thermal_balance_error_J": -0.00017236761724551217,
+      "relative_to_generated_heat": -0.040719786822576355
     },
     {
       "time_s": 5e-05,
-      "stored_increment_J": 0.00850701231453811,
+      "integrated_capacity_increment_J": 0.008506942344666344,
+      "reference_enthalpy_increment_J": 0.00850701231453811,
       "generated_heat_J": 0.00903090776070025,
       "convective_loss_J": 4.338512544443882e-09,
-      "thermal_balance_error_J": -0.0005238911076495961,
-      "relative_to_generated_heat": -0.05801090228486333
+      "thermal_balance_error_J": -0.0005239610775213625,
+      "relative_to_generated_heat": -0.05801865010752085
     },
     {
       "time_s": 7.5e-05,
-      "stored_increment_J": 0.012787665503284851,
+      "integrated_capacity_increment_J": 0.012787560947014444,
+      "reference_enthalpy_increment_J": 0.012787665503284851,
       "generated_heat_J": 0.013824241154572998,
       "convective_loss_J": 8.691208392918449e-09,
-      "thermal_balance_error_J": -0.0010365669600797527,
-      "relative_to_generated_heat": -0.07498183433648081
+      "thermal_balance_error_J": -0.00103667151635016,
+      "relative_to_generated_heat": -0.07498939759215888
     }
   ],
   "artifact_sha256": {

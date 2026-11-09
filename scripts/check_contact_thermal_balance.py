@@ -2,9 +2,9 @@
 """Audit the combined thermal budget of the small elastic contact qualification.
 
 Restricted to the confirmed-geometry, implicit-Euler case with solved nodal heat,
-the documented convection boundaries, and no plastic dissipation. Integrals use
-reference volume, matching the current solid thermal kernels. This is not a
-complete actuator/mechanical energy balance or a finite-deformation mass audit.
+the documented convection boundaries, and no plastic dissipation. Capacity uses
+current volume and end-step properties, matching HeatConductionTimeDerivative.
+This discrete equation budget is not a complete finite-deformation energy audit.
 """
 import argparse
 import csv
@@ -35,6 +35,19 @@ def stored_energy(reference, connectivity, temperature):
     return float(volume @ (reference_enthalpy_density(quadrature_T) @ weights))
 
 
+def capacity_increment(current, connectivity, temperature, previous):
+    barycentric = np.full((5,4),1/6)
+    barycentric[0] = .25
+    for i in range(4):
+        barycentric[i+1,i] = .5
+    weights = np.array([-.8,.45,.45,.45,.45])
+    delta = temperature[connectivity] @ barycentric.T - 293.15
+    change = (temperature-previous)[connectivity] @ barycentric.T
+    capacity = (2661.42-.312*delta)*(948.14+.601*delta)
+    volume = abs(tetra_determinants(current,connectivity))/6
+    return float(volume @ ((capacity*change) @ weights))
+
+
 def assess(directory, tolerance):
     if not math.isfinite(tolerance) or tolerance <= 0:
         raise ValueError('finite positive tolerance required')
@@ -51,6 +64,8 @@ def assess(directory, tolerance):
         v = f.variables
         names = [b''.join(r).decode().strip('\x00 ') for r in v['name_nod_var'].data]
         T = np.array(v[f'vals_nod_var{names.index("T")+1}'].data)
+        displacement = np.stack([np.array(v[f'vals_nod_var{names.index(a)+1}'].data)
+                                 for a in ('Ux','Uy','Uz')],axis=-1)
         reference = np.column_stack([v['coord'+a].data for a in 'xyz'])
         blocks = []
         for name,var in v.items():
@@ -86,22 +101,24 @@ def assess(directory, tolerance):
             area = np.linalg.norm(np.cross(points[1]-points[0],points[2]-points[0]))/2
             convection.append((face,coefficient*area))
     energies = [stored_energy(reference,connectivity,t) for t in T]
-    supplied, lost = 0.,0.
+    supplied, lost, capacity_work = 0.,0.,0.
     records = []
     for i in range(1,len(times)):
         dt = times[i]-times[i-1]
         supplied += dt*rows[i]['friction_power_W']
+        capacity_work += capacity_increment(reference+displacement[i],connectivity,T[i],T[i-1])
         lost += dt*sum(weight*(T[i,face].mean()-293.15) for face,weight in convection)
         if supplied <= 0:
             raise ValueError('a positive source is required for relative-energy screening')
-        error = energies[i]-energies[0]+lost-supplied
-        records.append(dict(time_s=float(times[i]),stored_increment_J=energies[i]-energies[0],
+        error = capacity_work+lost-supplied
+        records.append(dict(time_s=float(times[i]),integrated_capacity_increment_J=capacity_work,
+                            reference_enthalpy_increment_J=energies[i]-energies[0],
                             generated_heat_J=supplied,convective_loss_J=lost,
                             thermal_balance_error_J=error,relative_to_generated_heat=error/supplied))
     worst = float(max(abs(r['relative_to_generated_heat']) for r in records))
     complete = bool(abs(times[-1]-case['end_s'])<1e-12)
     result = dict(passed=complete and worst<=tolerance,complete=complete,
-                  scope='Reference-domain thermal budget in elastic, low-temperature contact qualification',
+                  scope='Discrete current-volume thermal equation budget in elastic, low-temperature contact qualification; not full mechanical or finite-deformation energy closure',
                   maximum_relative_thermal_error=worst,allowed_relative_error=tolerance,samples=records,
                   artifact_sha256={name:hashlib.sha256((directory/name).read_bytes()).hexdigest()
                                    for name in ('dwell.i','dwell.csv','dwell.e','case.json')})

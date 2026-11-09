@@ -1,23 +1,42 @@
 {
-  "passed": false,
-  "complete": false,
-  "scope": "Reference-domain thermal budget in elastic, low-temperature contact qualification",
-  "maximum_relative_thermal_error": 6.472287974148245e-06,
+  "passed": true,
+  "complete": true,
+  "scope": "Discrete current-volume thermal equation budget in elastic, low-temperature contact qualification; not full mechanical or finite-deformation energy closure",
+  "maximum_relative_thermal_error": 1.7537746143359268e-06,
   "allowed_relative_error": 0.02,
   "samples": [
     {
       "time_s": 2.5e-05,
-      "stored_increment_J": 0.00423304631189948,
+      "integrated_capacity_increment_J": 0.00423301149080929,
+      "reference_enthalpy_increment_J": 0.00423304631189948,
       "generated_heat_J": 0.004233020332088001,
       "convective_loss_J": 1.4175151107263026e-09,
-      "thermal_balance_error_J": 2.739732658969818e-08,
-      "relative_to_generated_heat": 6.472287974148245e-06
+      "thermal_balance_error_J": -7.42376360038377e-09,
+      "relative_to_generated_heat": -1.7537746143359268e-06
+    },
+    {
+      "time_s": 5e-05,
+      "integrated_capacity_increment_J": 0.00903090309224227,
+      "reference_enthalpy_increment_J": 0.009030976308179738,
+      "generated_heat_J": 0.009030915722517751,
+      "convective_loss_J": 4.365009441160191e-09,
+      "thermal_balance_error_J": -8.26526604102984e-09,
+      "relative_to_generated_heat": -9.15219042563e-07
+    },
+    {
+      "time_s": 7.5e-05,
+      "integrated_capacity_increment_J": 0.013824244587734359,
+      "reference_enthalpy_increment_J": 0.01382435550757921,
+      "generated_heat_J": 0.01382426200366825,
+      "convective_loss_J": 8.76442002801357e-09,
+      "thermal_balance_error_J": -8.6515138629506e-09,
+      "relative_to_generated_heat": -6.258210283236046e-07
     }
   ],
   "artifact_sha256": {
     "dwell.i": "bd7c75e8cd5df355d08ceaeec0193be21837f79de491bfe4f06945f32cc794b7",
-    "dwell.csv": "ab800161b2e81f660868d99f338a3a0e94dd1a5d1bacc1d77edd2325dce36be5",
-    "dwell.e": "e9b5d23d0b0b4c4eb46bed9b083738e6c7fd5f297a44f165d232cb0c7b8da70e",
+    "dwell.csv": "e0c5788b123d24dd11b3b035e02ce3c290919813114889fc7b420fff335775ed",
+    "dwell.e": "046ed35d6c77bef2ce5f9efb8ce1bf851b26282965ca6a435f073dacd20e4b50",
     "case.json": "466262d46fe09e3d9a54d9b25ecadfa727c4e85ee5cdee94898049c8eeedcd51"
   }
 }

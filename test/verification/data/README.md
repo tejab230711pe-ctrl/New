@@ -8,6 +8,11 @@ The user will supply/check independent experimental measurements for validation.
   of this separate flow qualification, not a solved cold-to-hot dwell history.
   Temperature columns are kelvin; area is m² and volume is m³.
 
+- `contact_75us.csv`: three accepted contact steps from `direct_mortar_bulk`.
+  Time is seconds, temperatures kelvin, force kN, torque N·m and friction heat W.
+  The all-zero, uninitialized postprocessor row at time zero is omitted.
+  These are an elastic cold-contact qualification, not a complete dwell.
+
 See `../NUMERICAL_EXPERIMENTS.md` for acceptance limits, mesh-area error,
 failed alternatives and the full-process limitations. Source decks, geometry,
 qualification reports and artifact hashes remain in the corresponding run folders.

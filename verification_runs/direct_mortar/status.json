@@ -1,0 +1,4 @@
+{
+  "accepted": false,
+  "reason": "Interrupted: unrestricted bulk thermal kernels also integrated on lower-dimensional interface elements, introducing spurious surface heat capacity. Corrected in direct_mortar_bulk."
+}
