@@ -372,8 +372,8 @@
   line_search = bt
   start_time = 4.0
   end_time = 32.0
-  dtmin = 1e-6
-  dtmax = 0.25
+  dtmin = 1e-7
+  dtmax = 2e-05
   automatic_scaling = true
   off_diagonals_in_auto_scaling = true
   nl_rel_tol = 1.e-7
@@ -382,7 +382,7 @@
   l_max_its = 100
   [TimeStepper]
     type = IterationAdaptiveDT
-    dt = 0.001
+    dt = 5e-07
     growth_factor = 1.25
     cutback_factor = 0.5
     cutback_factor_at_failure = 0.25
