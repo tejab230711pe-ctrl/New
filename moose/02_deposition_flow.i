@@ -49,6 +49,11 @@
     family = LAGRANGE
     order = FIRST
   []
+  [rod_c]
+    family = LAGRANGE
+    order = FIRST
+    initial_condition = 0.0
+  []
 []
 
 [Functions]
@@ -188,6 +193,18 @@
   [mesh_z_smoothing]
     type = Diffusion
     variable = mesh_z
+  []
+  [rod_c_time]
+    type = TimeDerivative
+    variable = rod_c
+    use_displaced_mesh = true
+  []
+  [rod_c_advection]
+    type = ConservativeAdvection
+    variable = rod_c
+    velocity_variable = velocity
+    upwinding_type = full
+    use_displaced_mesh = true
   []
 []
 
@@ -330,6 +347,12 @@
     T_infinity = 293.15
     use_displaced_mesh = true
   []
+  [inlet_rod_c]
+    type = DirichletBC
+    variable = rod_c
+    boundary = rod_inlet
+    value = 1.0
+  []
 []
 
 [Preconditioning]
@@ -410,6 +433,12 @@
   function = 1
   boundary = rod_inlet
   use_displaced_mesh = true
+  execute_on = 'INITIAL TIMESTEP_END'
+ []
+ [rod_c_max]
+  type = NodalExtremeValue
+  variable = rod_c
+  value_type = max
   execute_on = 'INITIAL TIMESTEP_END'
  []
 []
