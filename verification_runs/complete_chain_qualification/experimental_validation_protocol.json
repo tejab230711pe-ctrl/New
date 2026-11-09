@@ -1,0 +1,52 @@
+{
+  "process_parameters": {
+    "rod_diameter_mm": 25.0,
+    "rod_length_mm": 200.0,
+    "plate_dimensions_mm": "50.0x100.0x10.0",
+    "rpm": 1200.0,
+    "axial_feed_mm_min": 75.0,
+    "traverse_speed_mm_s": 1.7857142857142858
+  },
+  "observables_for_measurement": [
+    {
+      "name": "Spindle Reaction Torque",
+      "unit": "N-m",
+      "model_output": "spindle_torque_Nm"
+    },
+    {
+      "name": "Axial Forging Force",
+      "unit": "kN",
+      "model_output": "force_kN / spindle_reaction_z_N"
+    },
+    {
+      "name": "Traverse Force",
+      "unit": "N",
+      "model_output": "traverse_force_N / spindle_reaction_y_N"
+    },
+    {
+      "name": "Peak Contact Temperature",
+      "unit": "K",
+      "model_output": "T_max"
+    },
+    {
+      "name": "Deposited Track Width",
+      "unit": "mm",
+      "model_output": "W_bead"
+    },
+    {
+      "name": "Deposited Track Height",
+      "unit": "mm",
+      "model_output": "h_layer"
+    },
+    {
+      "name": "Flash Mass / Fraction",
+      "unit": "g / %",
+      "model_output": "flash_volume_mm3"
+    }
+  ],
+  "acceptance_criteria": {
+    "max_relative_volume_error": 0.02,
+    "max_relative_energy_error": 0.02,
+    "max_relative_mass_error": 0.03
+  }
+}

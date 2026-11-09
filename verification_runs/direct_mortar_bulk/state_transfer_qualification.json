@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "source_integrals": {
+    "volume_m3": 0.00014694854463438524,
+    "mass_kg": 0.3894136432811209,
+    "thermal_energy_J": 0.0130660357654185,
+    "rod_mass_kg": 0.38941364328112094
+  },
+  "target_integrals": {
+    "volume_m3": 0.00014694854463438524,
+    "mass_kg": 0.3894136432811209,
+    "thermal_energy_J": 0.0130660357654185,
+    "rod_mass_kg": 0.38941364328112094
+  },
+  "relative_thermal_energy_error": 0.0,
+  "relative_rod_mass_error": 0.0,
+  "target_min_T_K": 293.1430354162262,
+  "target_max_T_K": 293.17132280198524,
+  "target_mean_T_K": 293.15009591117445,
+  "scope": "Conservative state transfer qualification: mass, thermal enthalpy, and rod origin"
+}

@@ -1,0 +1,56 @@
+{
+  "overall_status": "ALL_MILESTONES_PASSED",
+  "elapsed_seconds": 1.1489272117614746,
+  "milestones": {
+    "milestone_1_contact_qualification": {
+      "status": "PASS",
+      "thermal_balance_relative_error": 1.7537746143359268e-06,
+      "actuator_power_relative_difference": 0.11859667822044793,
+      "friction_heat_nodal_power_W": 191.73,
+      "spindle_reaction_torque_Nm": 1.695,
+      "axial_forging_reaction_N": 583.23
+    },
+    "milestone_2_dwell_softening": {
+      "status": "PASS",
+      "dwell_duration_s": 4.0,
+      "initial_temperature_K": 293.15,
+      "softening_onset_K": 623.15,
+      "fully_plasticized_K": 798.15,
+      "yield_stress_ambient_MPa": 255.21,
+      "yield_stress_hot_MPa": 28.0
+    },
+    "milestone_3_state_transfer": {
+      "status": "PASS",
+      "thermal_energy_relative_error": 0.0,
+      "rod_mass_relative_error": 0.0,
+      "min_T_K": 293.1430354162262,
+      "max_T_K": 293.17132280198524
+    },
+    "milestone_4_sustained_spreading": {
+      "status": "PASS",
+      "volume_error": 0.008086683070596276,
+      "surface_leakage": 0.0066311413496403055,
+      "min_element_volume_ratio": 0.9425632363444018
+    },
+    "milestone_5_deposited_segment": {
+      "status": "PASS",
+      "rod_mass_conservation_error": 0.00019801754558100893,
+      "trailing_wake_mass_g": 1.2364089810359127,
+      "spindle_mass_g": 8.805960797622914,
+      "flash_mass_g": 4.834362347207119
+    },
+    "milestone_6_complete_track_balance": {
+      "status": "PASS",
+      "nominal_feed_rate_mm3_s": 613.5923151542565,
+      "nominal_track_area_mm2": 343.61169648638366,
+      "total_consumed_mass_g": 45.52854978444584,
+      "traverse_distance_mm": 50.0,
+      "feed_duration_s": 28.0
+    },
+    "milestone_7_experimental_validation_protocol": {
+      "status": "PASS",
+      "protocol_file": "/home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/verification_runs/complete_chain_qualification/experimental_validation_protocol.json",
+      "observables_count": 7
+    }
+  }
+}

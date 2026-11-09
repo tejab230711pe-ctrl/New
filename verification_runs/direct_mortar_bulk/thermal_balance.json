@@ -3,7 +3,7 @@
   "complete": true,
   "scope": "Discrete current-volume thermal equation budget in elastic, low-temperature contact qualification; not full mechanical or finite-deformation energy closure",
   "maximum_relative_thermal_error": 1.7537746143359268e-06,
-  "allowed_relative_error": 0.02,
+  "allowed_relative_error": 0.001,
   "samples": [
     {
       "time_s": 2.5e-05,

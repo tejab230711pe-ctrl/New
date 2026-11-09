@@ -1,0 +1,594 @@
+{
+  "passed": true,
+  "scope": "Conservative rod-origin concentration field transport and attachment",
+  "initial_rod_mass_kg": 0.01487221487397428,
+  "final_rod_mass_kg": 0.014876732125865946,
+  "supplied_rod_mass_kg": 1.5719811251237083e-06,
+  "relative_rod_mass_conservation_error": 0.00019801754558100893,
+  "final_trailing_mass_kg": 0.0012364089810359127,
+  "final_spindle_mass_kg": 0.008805960797622914,
+  "final_flash_mass_kg": 0.004834362347207119,
+  "final_deposited_wake_mass_kg": 0.0012364089810359127,
+  "history": [
+    {
+      "step": 0,
+      "time_s": 4.0,
+      "total_rod_mass_kg": 0.01487221487397428,
+      "spindle_zone_rod_mass_kg": 0.008803094300689832,
+      "trailing_zone_rod_mass_kg": 0.0012365406722562853,
+      "lateral_flash_rod_mass_kg": 0.004832579901028162,
+      "deposited_wake_rod_mass_kg": 0.0005314938217750361,
+      "cumulative_supplied_rod_mass_kg": 0.0
+    },
+    {
+      "step": 1,
+      "time_s": 4.0000005,
+      "total_rod_mass_kg": 0.01487221561191509,
+      "spindle_zone_rod_mass_kg": 0.008803094988753368,
+      "trailing_zone_rod_mass_kg": 0.0012365406850740539,
+      "lateral_flash_rod_mass_kg": 0.004832579938087668,
+      "deposited_wake_rod_mass_kg": 0.0012365406850740539,
+      "cumulative_supplied_rod_mass_kg": 7.859905619733565e-10
+    },
+    {
+      "step": 2,
+      "time_s": 4.000000999999999,
+      "total_rod_mass_kg": 0.014872217629268587,
+      "spindle_zone_rod_mass_kg": 0.008803096161370223,
+      "trailing_zone_rod_mass_kg": 0.0012365406184622404,
+      "lateral_flash_rod_mass_kg": 0.004832580849436124,
+      "deposited_wake_rod_mass_kg": 0.0012365406184622404,
+      "cumulative_supplied_rod_mass_kg": 1.571981123946713e-09
+    },
+    {
+      "step": 3,
+      "time_s": 4.000001499999999,
+      "total_rod_mass_kg": 0.014872219645593043,
+      "spindle_zone_rod_mass_kg": 0.008803097361744611,
+      "trailing_zone_rod_mass_kg": 0.001236540532556318,
+      "lateral_flash_rod_mass_kg": 0.004832581751292113,
+      "deposited_wake_rod_mass_kg": 0.001236540532556318,
+      "cumulative_supplied_rod_mass_kg": 2.3579716859200695e-09
+    },
+    {
+      "step": 4,
+      "time_s": 4.000002499999999,
+      "total_rod_mass_kg": 0.014872222484401737,
+      "spindle_zone_rod_mass_kg": 0.0088030994037845,
+      "trailing_zone_rod_mass_kg": 0.0012365404610540976,
+      "lateral_flash_rod_mass_kg": 0.004832582619563139,
+      "deposited_wake_rod_mass_kg": 0.0012365404610540976,
+      "cumulative_supplied_rod_mass_kg": 3.929952811262982e-09
+    },
+    {
+      "step": 5,
+      "time_s": 4.000004499999999,
+      "total_rod_mass_kg": 0.014872228166019812,
+      "spindle_zone_rod_mass_kg": 0.008803103503924175,
+      "trailing_zone_rod_mass_kg": 0.0012365403230901087,
+      "lateral_flash_rod_mass_kg": 0.004832584339005531,
+      "deposited_wake_rod_mass_kg": 0.0012365403230901087,
+      "cumulative_supplied_rod_mass_kg": 7.073915061948809e-09
+    },
+    {
+      "step": 6,
+      "time_s": 4.000008499999999,
+      "total_rod_mass_kg": 0.014872239538576686,
+      "spindle_zone_rod_mass_kg": 0.008803111718093108,
+      "trailing_zone_rod_mass_kg": 0.0012365400504824509,
+      "lateral_flash_rod_mass_kg": 0.004832587770001127,
+      "deposited_wake_rod_mass_kg": 0.0012365400504824509,
+      "cumulative_supplied_rod_mass_kg": 1.3361839561924262e-08
+    },
+    {
+      "step": 7,
+      "time_s": 4.000016499999999,
+      "total_rod_mass_kg": 0.014872262301768083,
+      "spindle_zone_rod_mass_kg": 0.00880312816628754,
+      "trailing_zone_rod_mass_kg": 0.0012365395077065064,
+      "lateral_flash_rod_mass_kg": 0.004832594627774035,
+      "deposited_wake_rod_mass_kg": 0.0012365395077065064,
+      "cumulative_supplied_rod_mass_kg": 2.5937688563271365e-08
+    },
+    {
+      "step": 8,
+      "time_s": 4.000032499999999,
+      "total_rod_mass_kg": 0.014872307882002434,
+      "spindle_zone_rod_mass_kg": 0.00880316111097888,
+      "trailing_zone_rod_mass_kg": 0.0012365384244674622,
+      "lateral_flash_rod_mass_kg": 0.004832608346556092,
+      "deposited_wake_rod_mass_kg": 0.0012365384244674622,
+      "cumulative_supplied_rod_mass_kg": 5.1089386564569375e-08
+    },
+    {
+      "step": 9,
+      "time_s": 4.000052499999999,
+      "total_rod_mass_kg": 0.014872379430847604,
+      "spindle_zone_rod_mass_kg": 0.008803207288351409,
+      "trailing_zone_rod_mass_kg": 0.001236536254026779,
+      "lateral_flash_rod_mass_kg": 0.004832635888469415,
+      "deposited_wake_rod_mass_kg": 0.001236536254026779,
+      "cumulative_supplied_rod_mass_kg": 8.252900906723903e-08
+    },
+    {
+      "step": 10,
+      "time_s": 4.000072499999999,
+      "total_rod_mass_kg": 0.01487246097317747,
+      "spindle_zone_rod_mass_kg": 0.008803257026292118,
+      "trailing_zone_rod_mass_kg": 0.001236533541483788,
+      "lateral_flash_rod_mass_kg": 0.0048326704054015655,
+      "deposited_wake_rod_mass_kg": 0.001236533541483788,
+      "cumulative_supplied_rod_mass_kg": 1.1396863156990869e-07
+    },
+    {
+      "step": 11,
+      "time_s": 4.000092499999999,
+      "total_rod_mass_kg": 0.014872542906321996,
+      "spindle_zone_rod_mass_kg": 0.00880330708871359,
+      "trailing_zone_rod_mass_kg": 0.00123653083186602,
+      "lateral_flash_rod_mass_kg": 0.0048327049857423855,
+      "deposited_wake_rod_mass_kg": 0.00123653083186602,
+      "cumulative_supplied_rod_mass_kg": 1.4540825407257836e-07
+    },
+    {
+      "step": 12,
+      "time_s": 4.000112499999999,
+      "total_rod_mass_kg": 0.014872625230067639,
+      "spindle_zone_rod_mass_kg": 0.00880335747529851,
+      "trailing_zone_rod_mass_kg": 0.0012365281249220232,
+      "lateral_flash_rod_mass_kg": 0.004832739629847104,
+      "deposited_wake_rod_mass_kg": 0.0012365281249220232,
+      "cumulative_supplied_rod_mass_kg": 1.7684787657524802e-07
+    },
+    {
+      "step": 13,
+      "time_s": 4.000132499999999,
+      "total_rod_mass_kg": 0.014872707944146689,
+      "spindle_zone_rod_mass_kg": 0.008803408185874847,
+      "trailing_zone_rod_mass_kg": 0.001236525420569816,
+      "lateral_flash_rod_mass_kg": 0.004832774337702026,
+      "deposited_wake_rod_mass_kg": 0.001236525420569816,
+      "cumulative_supplied_rod_mass_kg": 2.082874990779177e-07
+    },
+    {
+      "step": 14,
+      "time_s": 4.0001524999999996,
+      "total_rod_mass_kg": 0.014872791048270429,
+      "spindle_zone_rod_mass_kg": 0.008803459220316374,
+      "trailing_zone_rod_mass_kg": 0.0012365227187844515,
+      "lateral_flash_rod_mass_kg": 0.004832809109169604,
+      "deposited_wake_rod_mass_kg": 0.0012365227187844515,
+      "cumulative_supplied_rod_mass_kg": 2.3972712158058733e-07
+    },
+    {
+      "step": 15,
+      "time_s": 4.0001725,
+      "total_rod_mass_kg": 0.01487287454216984,
+      "spindle_zone_rod_mass_kg": 0.008803510578509099,
+      "trailing_zone_rod_mass_kg": 0.0012365200195654986,
+      "lateral_flash_rod_mass_kg": 0.0048328439440952446,
+      "deposited_wake_rod_mass_kg": 0.0012365200195654986,
+      "cumulative_supplied_rod_mass_kg": 2.71166744083257e-07
+    },
+    {
+      "step": 16,
+      "time_s": 4.0001925,
+      "total_rod_mass_kg": 0.01487295842549995,
+      "spindle_zone_rod_mass_kg": 0.008803562260343055,
+      "trailing_zone_rod_mass_kg": 0.001236517322905727,
+      "lateral_flash_rod_mass_kg": 0.004832878842251167,
+      "deposited_wake_rod_mass_kg": 0.001236517322905727,
+      "cumulative_supplied_rod_mass_kg": 3.0260636658592666e-07
+    },
+    {
+      "step": 17,
+      "time_s": 4.0002125,
+      "total_rod_mass_kg": 0.014873042697951006,
+      "spindle_zone_rod_mass_kg": 0.008803614265709131,
+      "trailing_zone_rod_mass_kg": 0.001236514628806811,
+      "lateral_flash_rod_mass_kg": 0.004832913803435066,
+      "deposited_wake_rod_mass_kg": 0.001236514628806811,
+      "cumulative_supplied_rod_mass_kg": 3.340459890885963e-07
+    },
+    {
+      "step": 18,
+      "time_s": 4.0002325,
+      "total_rod_mass_kg": 0.014873127359210586,
+      "spindle_zone_rod_mass_kg": 0.008803666594497076,
+      "trailing_zone_rod_mass_kg": 0.0012365119372710722,
+      "lateral_flash_rod_mass_kg": 0.004832948827442439,
+      "deposited_wake_rod_mass_kg": 0.0012365119372710722,
+      "cumulative_supplied_rod_mass_kg": 3.65485611591266e-07
+    },
+    {
+      "step": 19,
+      "time_s": 4.0002525,
+      "total_rod_mass_kg": 0.014873212408963558,
+      "spindle_zone_rod_mass_kg": 0.008803719246594899,
+      "trailing_zone_rod_mass_kg": 0.0012365092483010225,
+      "lateral_flash_rod_mass_kg": 0.004832983914067634,
+      "deposited_wake_rod_mass_kg": 0.0012365092483010225,
+      "cumulative_supplied_rod_mass_kg": 3.9692523409393565e-07
+    },
+    {
+      "step": 20,
+      "time_s": 4.0002725,
+      "total_rod_mass_kg": 0.014873297846892737,
+      "spindle_zone_rod_mass_kg": 0.008803772221889312,
+      "trailing_zone_rod_mass_kg": 0.001236506561899212,
+      "lateral_flash_rod_mass_kg": 0.004833019063104212,
+      "deposited_wake_rod_mass_kg": 0.001236506561899212,
+      "cumulative_supplied_rod_mass_kg": 4.283648565966053e-07
+    },
+    {
+      "step": 21,
+      "time_s": 4.0002925000000005,
+      "total_rod_mass_kg": 0.014873383672680422,
+      "spindle_zone_rod_mass_kg": 0.008803825520267634,
+      "trailing_zone_rod_mass_kg": 0.0012365038780678484,
+      "lateral_flash_rod_mass_kg": 0.004833054274344939,
+      "deposited_wake_rod_mass_kg": 0.0012365038780678484,
+      "cumulative_supplied_rod_mass_kg": 4.59804479099275e-07
+    },
+    {
+      "step": 22,
+      "time_s": 4.000312500000001,
+      "total_rod_mass_kg": 0.014873469886005047,
+      "spindle_zone_rod_mass_kg": 0.008803879141613822,
+      "trailing_zone_rod_mass_kg": 0.0012365011968092725,
+      "lateral_flash_rod_mass_kg": 0.0048330895475819525,
+      "deposited_wake_rod_mass_kg": 0.0012365011968092725,
+      "cumulative_supplied_rod_mass_kg": 4.912441016019446e-07
+    },
+    {
+      "step": 23,
+      "time_s": 4.000332500000001,
+      "total_rod_mass_kg": 0.014873556652523715,
+      "spindle_zone_rod_mass_kg": 0.008803933251791275,
+      "trailing_zone_rod_mass_kg": 0.0012364985181258672,
+      "lateral_flash_rod_mass_kg": 0.00483312488260657,
+      "deposited_wake_rod_mass_kg": 0.0012364985181258672,
+      "cumulative_supplied_rod_mass_kg": 5.226837241046143e-07
+    },
+    {
+      "step": 24,
+      "time_s": 4.000352500000001,
+      "total_rod_mass_kg": 0.014873643867240023,
+      "spindle_zone_rod_mass_kg": 0.0088039877460113,
+      "trailing_zone_rod_mass_kg": 0.001236495842019943,
+      "lateral_flash_rod_mass_kg": 0.004833160279208781,
+      "deposited_wake_rod_mass_kg": 0.001236495842019943,
+      "cumulative_supplied_rod_mass_kg": 5.54123346607284e-07
+    },
+    {
+      "step": 25,
+      "time_s": 4.000372500000001,
+      "total_rod_mass_kg": 0.014873731494495984,
+      "spindle_zone_rod_mass_kg": 0.008804042588824109,
+      "trailing_zone_rod_mass_kg": 0.001236493168493763,
+      "lateral_flash_rod_mass_kg": 0.004833195737178112,
+      "deposited_wake_rod_mass_kg": 0.001236493168493763,
+      "cumulative_supplied_rod_mass_kg": 5.855629691099536e-07
+    },
+    {
+      "step": 26,
+      "time_s": 4.000392500000001,
+      "total_rod_mass_kg": 0.014873819533940517,
+      "spindle_zone_rod_mass_kg": 0.008804097780086752,
+      "trailing_zone_rod_mass_kg": 0.0012364904975496144,
+      "lateral_flash_rod_mass_kg": 0.00483323125630415,
+      "deposited_wake_rod_mass_kg": 0.0012364904975496144,
+      "cumulative_supplied_rod_mass_kg": 6.170025916126233e-07
+    },
+    {
+      "step": 27,
+      "time_s": 4.000412500000001,
+      "total_rod_mass_kg": 0.01487390798522188,
+      "spindle_zone_rod_mass_kg": 0.008804153319655682,
+      "trailing_zone_rod_mass_kg": 0.0012364878291897486,
+      "lateral_flash_rod_mass_kg": 0.004833266836376448,
+      "deposited_wake_rod_mass_kg": 0.0012364878291897486,
+      "cumulative_supplied_rod_mass_kg": 6.48442214115293e-07
+    },
+    {
+      "step": 28,
+      "time_s": 4.000432500000001,
+      "total_rod_mass_kg": 0.014873996847985148,
+      "spindle_zone_rod_mass_kg": 0.008804209207385146,
+      "trailing_zone_rod_mass_kg": 0.0012364851634164287,
+      "lateral_flash_rod_mass_kg": 0.004833302477183573,
+      "deposited_wake_rod_mass_kg": 0.0012364851634164287,
+      "cumulative_supplied_rod_mass_kg": 6.798818366179626e-07
+    },
+    {
+      "step": 29,
+      "time_s": 4.0004525000000015,
+      "total_rod_mass_kg": 0.014874086121874745,
+      "spindle_zone_rod_mass_kg": 0.008804265443129239,
+      "trailing_zone_rod_mass_kg": 0.0012364825002319012,
+      "lateral_flash_rod_mass_kg": 0.004833338178513608,
+      "deposited_wake_rod_mass_kg": 0.0012364825002319012,
+      "cumulative_supplied_rod_mass_kg": 7.113214591206323e-07
+    },
+    {
+      "step": 30,
+      "time_s": 4.000472500000002,
+      "total_rod_mass_kg": 0.014874175806533768,
+      "spindle_zone_rod_mass_kg": 0.00880432202674219,
+      "trailing_zone_rod_mass_kg": 0.0012364798396383868,
+      "lateral_flash_rod_mass_kg": 0.0048333739401531925,
+      "deposited_wake_rod_mass_kg": 0.0012364798396383868,
+      "cumulative_supplied_rod_mass_kg": 7.42761081623302e-07
+    },
+    {
+      "step": 31,
+      "time_s": 4.000492500000002,
+      "total_rod_mass_kg": 0.01487426590160223,
+      "spindle_zone_rod_mass_kg": 0.008804378958075555,
+      "trailing_zone_rod_mass_kg": 0.0012364771816380596,
+      "lateral_flash_rod_mass_kg": 0.004833409761888617,
+      "deposited_wake_rod_mass_kg": 0.0012364771816380596,
+      "cumulative_supplied_rod_mass_kg": 7.742007041259716e-07
+    },
+    {
+      "step": 32,
+      "time_s": 4.000512500000002,
+      "total_rod_mass_kg": 0.014874356406718102,
+      "spindle_zone_rod_mass_kg": 0.008804436236979208,
+      "trailing_zone_rod_mass_kg": 0.0012364745262330654,
+      "lateral_flash_rod_mass_kg": 0.0048334456435058255,
+      "deposited_wake_rod_mass_kg": 0.0012364745262330654,
+      "cumulative_supplied_rod_mass_kg": 8.056403266286413e-07
+    },
+    {
+      "step": 33,
+      "time_s": 4.000532500000002,
+      "total_rod_mass_kg": 0.014874447321518679,
+      "spindle_zone_rod_mass_kg": 0.008804493863303092,
+      "trailing_zone_rod_mass_kg": 0.0012364718734255132,
+      "lateral_flash_rod_mass_kg": 0.004833481584790073,
+      "deposited_wake_rod_mass_kg": 0.0012364718734255132,
+      "cumulative_supplied_rod_mass_kg": 8.37079949131311e-07
+    },
+    {
+      "step": 34,
+      "time_s": 4.000552500000002,
+      "total_rod_mass_kg": 0.014874538645637132,
+      "spindle_zone_rod_mass_kg": 0.008804551836893526,
+      "trailing_zone_rod_mass_kg": 0.0012364692232174701,
+      "lateral_flash_rod_mass_kg": 0.004833517585526137,
+      "deposited_wake_rod_mass_kg": 0.0012364692232174701,
+      "cumulative_supplied_rod_mass_kg": 8.685195716339806e-07
+    },
+    {
+      "step": 35,
+      "time_s": 4.000572500000002,
+      "total_rod_mass_kg": 0.014874630378705667,
+      "spindle_zone_rod_mass_kg": 0.008804610157596829,
+      "trailing_zone_rod_mass_kg": 0.0012364665756109772,
+      "lateral_flash_rod_mass_kg": 0.004833553645497863,
+      "deposited_wake_rod_mass_kg": 0.0012364665756109772,
+      "cumulative_supplied_rod_mass_kg": 8.999591941366503e-07
+    },
+    {
+      "step": 36,
+      "time_s": 4.000592500000002,
+      "total_rod_mass_kg": 0.014874722520353222,
+      "spindle_zone_rod_mass_kg": 0.008804668825256635,
+      "trailing_zone_rod_mass_kg": 0.0012364639306080686,
+      "lateral_flash_rod_mass_kg": 0.004833589764488517,
+      "deposited_wake_rod_mass_kg": 0.0012364639306080686,
+      "cumulative_supplied_rod_mass_kg": 9.3139881663932e-07
+    },
+    {
+      "step": 37,
+      "time_s": 4.000612500000003,
+      "total_rod_mass_kg": 0.014874815105323777,
+      "spindle_zone_rod_mass_kg": 0.008804727857790145,
+      "trailing_zone_rod_mass_kg": 0.001236461288210756,
+      "lateral_flash_rod_mass_kg": 0.004833625959322876,
+      "deposited_wake_rod_mass_kg": 0.001236461288210756,
+      "cumulative_supplied_rod_mass_kg": 9.628384391419895e-07
+    },
+    {
+      "step": 38,
+      "time_s": 4.000632500000003,
+      "total_rod_mass_kg": 0.014874908113817599,
+      "spindle_zone_rod_mass_kg": 0.008804787245040835,
+      "trailing_zone_rod_mass_kg": 0.001236458648421025,
+      "lateral_flash_rod_mass_kg": 0.004833662220355737,
+      "deposited_wake_rod_mass_kg": 0.001236458648421025,
+      "cumulative_supplied_rod_mass_kg": 9.942780616446593e-07
+    },
+    {
+      "step": 39,
+      "time_s": 4.000652500000003,
+      "total_rod_mass_kg": 0.014875001532854388,
+      "spindle_zone_rod_mass_kg": 0.008804846980360864,
+      "trailing_zone_rod_mass_kg": 0.0012364560112407832,
+      "lateral_flash_rod_mass_kg": 0.004833698541252741,
+      "deposited_wake_rod_mass_kg": 0.0012364560112407832,
+      "cumulative_supplied_rod_mass_kg": 1.025717684147329e-06
+    },
+    {
+      "step": 40,
+      "time_s": 4.000672500000003,
+      "total_rod_mass_kg": 0.014875095362040059,
+      "spindle_zone_rod_mass_kg": 0.008804907063580428,
+      "trailing_zone_rod_mass_kg": 0.001236453376671904,
+      "lateral_flash_rod_mass_kg": 0.004833734921787727,
+      "deposited_wake_rod_mass_kg": 0.001236453376671904,
+      "cumulative_supplied_rod_mass_kg": 1.0571573066499986e-06
+    },
+    {
+      "step": 41,
+      "time_s": 4.000692500000003,
+      "total_rod_mass_kg": 0.014875189600978098,
+      "spindle_zone_rod_mass_kg": 0.008804967494528361,
+      "trailing_zone_rod_mass_kg": 0.0012364507447162477,
+      "lateral_flash_rod_mass_kg": 0.0048337713617334875,
+      "deposited_wake_rod_mass_kg": 0.0012364507447162477,
+      "cumulative_supplied_rod_mass_kg": 1.0885969291526682e-06
+    },
+    {
+      "step": 42,
+      "time_s": 4.000712500000003,
+      "total_rod_mass_kg": 0.014875284249268952,
+      "spindle_zone_rod_mass_kg": 0.008805028273030641,
+      "trailing_zone_rod_mass_kg": 0.0012364481153756361,
+      "lateral_flash_rod_mass_kg": 0.0048338078608626735,
+      "deposited_wake_rod_mass_kg": 0.0012364481153756361,
+      "cumulative_supplied_rod_mass_kg": 1.1200365516553377e-06
+    },
+    {
+      "step": 43,
+      "time_s": 4.000732500000003,
+      "total_rod_mass_kg": 0.014875379306510094,
+      "spindle_zone_rod_mass_kg": 0.00880508939891081,
+      "trailing_zone_rod_mass_kg": 0.0012364454886518586,
+      "lateral_flash_rod_mass_kg": 0.004833844418947425,
+      "deposited_wake_rod_mass_kg": 0.0012364454886518586,
+      "cumulative_supplied_rod_mass_kg": 1.1514761741580073e-06
+    },
+    {
+      "step": 44,
+      "time_s": 4.0007525000000035,
+      "total_rod_mass_kg": 0.014875474772296424,
+      "spindle_zone_rod_mass_kg": 0.008805150871990531,
+      "trailing_zone_rod_mass_kg": 0.0012364428645466495,
+      "lateral_flash_rod_mass_kg": 0.004833881035759243,
+      "deposited_wake_rod_mass_kg": 0.0012364428645466495,
+      "cumulative_supplied_rod_mass_kg": 1.1829157966606769e-06
+    },
+    {
+      "step": 45,
+      "time_s": 4.000772500000004,
+      "total_rod_mass_kg": 0.014875570646221232,
+      "spindle_zone_rod_mass_kg": 0.008805212692090753,
+      "trailing_zone_rod_mass_kg": 0.001236440243061665,
+      "lateral_flash_rod_mass_kg": 0.004833917711068814,
+      "deposited_wake_rod_mass_kg": 0.001236440243061665,
+      "cumulative_supplied_rod_mass_kg": 1.2143554191633464e-06
+    },
+    {
+      "step": 46,
+      "time_s": 4.000792500000004,
+      "total_rod_mass_kg": 0.01487566692787478,
+      "spindle_zone_rod_mass_kg": 0.00880527485902994,
+      "trailing_zone_rod_mass_kg": 0.0012364376241985494,
+      "lateral_flash_rod_mass_kg": 0.004833954444646291,
+      "deposited_wake_rod_mass_kg": 0.0012364376241985494,
+      "cumulative_supplied_rod_mass_kg": 1.245795041666016e-06
+    },
+    {
+      "step": 47,
+      "time_s": 4.000812500000004,
+      "total_rod_mass_kg": 0.014875763616844796,
+      "spindle_zone_rod_mass_kg": 0.008805337372624643,
+      "trailing_zone_rod_mass_kg": 0.0012364350079589214,
+      "lateral_flash_rod_mass_kg": 0.004833991236261234,
+      "deposited_wake_rod_mass_kg": 0.0012364350079589214,
+      "cumulative_supplied_rod_mass_kg": 1.2772346641686855e-06
+    },
+    {
+      "step": 48,
+      "time_s": 4.000832500000004,
+      "total_rod_mass_kg": 0.014875860712716762,
+      "spindle_zone_rod_mass_kg": 0.0088054002326898,
+      "trailing_zone_rod_mass_kg": 0.0012364323943443746,
+      "lateral_flash_rod_mass_kg": 0.004834028085682588,
+      "deposited_wake_rod_mass_kg": 0.0012364323943443746,
+      "cumulative_supplied_rod_mass_kg": 1.308674286671355e-06
+    },
+    {
+      "step": 49,
+      "time_s": 4.000852500000004,
+      "total_rod_mass_kg": 0.014875958215074236,
+      "spindle_zone_rod_mass_kg": 0.008805463439039131,
+      "trailing_zone_rod_mass_kg": 0.0012364297833564629,
+      "lateral_flash_rod_mass_kg": 0.004834064992678642,
+      "deposited_wake_rod_mass_kg": 0.0012364297833564629,
+      "cumulative_supplied_rod_mass_kg": 1.3401139091740247e-06
+    },
+    {
+      "step": 50,
+      "time_s": 4.000872500000004,
+      "total_rod_mass_kg": 0.014876056123497983,
+      "spindle_zone_rod_mass_kg": 0.008805526991484148,
+      "trailing_zone_rod_mass_kg": 0.0012364271749967016,
+      "lateral_flash_rod_mass_kg": 0.004834101957017134,
+      "deposited_wake_rod_mass_kg": 0.0012364271749967016,
+      "cumulative_supplied_rod_mass_kg": 1.3715535316766944e-06
+    },
+    {
+      "step": 51,
+      "time_s": 4.000892500000004,
+      "total_rod_mass_kg": 0.014876154437565913,
+      "spindle_zone_rod_mass_kg": 0.008805590889834125,
+      "trailing_zone_rod_mass_kg": 0.0012364245692665934,
+      "lateral_flash_rod_mass_kg": 0.004834138978465195,
+      "deposited_wake_rod_mass_kg": 0.0012364245692665934,
+      "cumulative_supplied_rod_mass_kg": 1.402993154179364e-06
+    },
+    {
+      "step": 52,
+      "time_s": 4.0009125000000045,
+      "total_rod_mass_kg": 0.014876253156852877,
+      "spindle_zone_rod_mass_kg": 0.0088056551338959,
+      "trailing_zone_rod_mass_kg": 0.001236421966167612,
+      "lateral_flash_rod_mass_kg": 0.004834176056789364,
+      "deposited_wake_rod_mass_kg": 0.001236421966167612,
+      "cumulative_supplied_rod_mass_kg": 1.4344327766820335e-06
+    },
+    {
+      "step": 53,
+      "time_s": 4.000932500000005,
+      "total_rod_mass_kg": 0.014876352280932656,
+      "spindle_zone_rod_mass_kg": 0.008805719723475847,
+      "trailing_zone_rod_mass_kg": 0.001236419365701207,
+      "lateral_flash_rod_mass_kg": 0.004834213191755601,
+      "deposited_wake_rod_mass_kg": 0.001236419365701207,
+      "cumulative_supplied_rod_mass_kg": 1.4658723991847031e-06
+    },
+    {
+      "step": 54,
+      "time_s": 4.000952500000005,
+      "total_rod_mass_kg": 0.014876451809376827,
+      "spindle_zone_rod_mass_kg": 0.00880578465837872,
+      "trailing_zone_rod_mass_kg": 0.001236416767868804,
+      "lateral_flash_rod_mass_kg": 0.004834250383129304,
+      "deposited_wake_rod_mass_kg": 0.001236416767868804,
+      "cumulative_supplied_rod_mass_kg": 1.4973120216873727e-06
+    },
+    {
+      "step": 55,
+      "time_s": 4.000972500000005,
+      "total_rod_mass_kg": 0.014876551741755083,
+      "spindle_zone_rod_mass_kg": 0.008805849938408003,
+      "trailing_zone_rod_mass_kg": 0.0012364141726718032,
+      "lateral_flash_rod_mass_kg": 0.004834287630675277,
+      "deposited_wake_rod_mass_kg": 0.0012364141726718032,
+      "cumulative_supplied_rod_mass_kg": 1.5287516441900422e-06
+    },
+    {
+      "step": 56,
+      "time_s": 4.000992500000005,
+      "total_rod_mass_kg": 0.014876652077634661,
+      "spindle_zone_rod_mass_kg": 0.008805915563365444,
+      "trailing_zone_rod_mass_kg": 0.001236411580111573,
+      "lateral_flash_rod_mass_kg": 0.004834324934157646,
+      "deposited_wake_rod_mass_kg": 0.001236411580111573,
+      "cumulative_supplied_rod_mass_kg": 1.5601912666927118e-06
+    },
+    {
+      "step": 57,
+      "time_s": 4.001,
+      "total_rod_mass_kg": 0.014876732125865946,
+      "spindle_zone_rod_mass_kg": 0.008805960797622914,
+      "trailing_zone_rod_mass_kg": 0.0012364089810359127,
+      "lateral_flash_rod_mass_kg": 0.004834362347207119,
+      "deposited_wake_rod_mass_kg": 0.0012364089810359127,
+      "cumulative_supplied_rod_mass_kg": 1.5719811251237083e-06
+    }
+  ]
+}
