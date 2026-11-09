@@ -37,7 +37,11 @@ steps. Its new reference-domain thermal audit **fails** the declared 2% screen:
 stored heat plus convection is up to 7.498% below generated friction heat.
 Plastic strain remains zero, so this is an elastic thermal qualification only.
 The old independently integrated gap transfer is being replaced in a separate
-qualification case with conservative mortar coupling. Keep the failed case as a
+qualification case with conservative mortar coupling. The thermal multiplier
+version passes isolated conservation/open-gap tests but fails to complete the
+coupled case; tighter scaled tolerances do not cure the old quadrature energy
+deficit. A direct finite-conductance mortar constraint is under qualification.
+Keep the failed case as a
 regression; do not accept full energy closure from a successful nonlinear solve.
 
 ## Free-surface conservation correction

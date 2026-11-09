@@ -1,0 +1,23 @@
+{
+  "passed": false,
+  "complete": false,
+  "scope": "Reference-domain thermal budget in elastic, low-temperature contact qualification",
+  "maximum_relative_thermal_error": 6.472287974148245e-06,
+  "allowed_relative_error": 0.02,
+  "samples": [
+    {
+      "time_s": 2.5e-05,
+      "stored_increment_J": 0.00423304631189948,
+      "generated_heat_J": 0.004233020332088001,
+      "convective_loss_J": 1.4175151107263026e-09,
+      "thermal_balance_error_J": 2.739732658969818e-08,
+      "relative_to_generated_heat": 6.472287974148245e-06
+    }
+  ],
+  "artifact_sha256": {
+    "dwell.i": "bd7c75e8cd5df355d08ceaeec0193be21837f79de491bfe4f06945f32cc794b7",
+    "dwell.csv": "ab800161b2e81f660868d99f338a3a0e94dd1a5d1bacc1d77edd2325dce36be5",
+    "dwell.e": "e9b5d23d0b0b4c4eb46bed9b083738e6c7fd5f297a44f165d232cb0c7b8da70e",
+    "case.json": "466262d46fe09e3d9a54d9b25ecadfa727c4e85ee5cdee94898049c8eeedcd51"
+  }
+}

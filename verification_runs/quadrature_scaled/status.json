@@ -1,0 +1,4 @@
+{
+  "accepted": false,
+  "reason": "Interrupted after timestep cutback. First accepted step still loses 4.071% of generated heat despite tighter scaled tolerances."
+}

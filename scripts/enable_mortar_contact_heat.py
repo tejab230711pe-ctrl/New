@@ -59,6 +59,22 @@ def convert(source, target, formulation='multiplier'):
 []
 '''
     text = text[:start]+replacement+text[end:]
+    # Mortar adds lower-dimensional elements. Bulk heat storage/conduction must
+    # not also integrate over those interface elements (which would introduce
+    # spurious surface heat capacity with inconsistent units).
+    for parent in ('Kernels','Materials'):
+        start = text.index('['+parent+']')
+        end = block_end(text,start)
+        objects = text[start:end]
+        for match in reversed(list(re.finditer(r'(?m)^  \[[^]\n]+\]\n',objects))):
+            stop = block_end(objects,match.start())
+            if not re.search(r'(?m)^\s*block\s*=',objects[match.start():stop]):
+                objects = objects[:match.end()]+"    block = 'plate rod'\n"+objects[match.end():]
+        text = text[:start]+objects+text[end:]
+    start = text.index('  [T_mean]',text.index('[Postprocessors]'))
+    stop = block_end(text,start)
+    if not re.search(r'(?m)^\s*block\s*=',text[start:stop]):
+        text = text[:start]+text[start:].replace('  [T_mean]\n',"  [T_mean]\n    block = 'plate rod'\n",1)
     if formulation == 'direct':
         text = append_block(text, 'Mesh', f'''  [thermal_primary]
     type = LowerDBlockFromSidesetGenerator
