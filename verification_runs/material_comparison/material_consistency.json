@@ -1,0 +1,97 @@
+{
+  "passed": false,
+  "scope": "Actual MOOSE thermal-property compatibility only",
+  "maximum_relative_difference": 0.0823154929730097,
+  "tolerance": 1e-06,
+  "samples": [
+    {
+      "temperature_K": 293.15,
+      "values": {
+        "time": 1.0,
+        "flow_cp": 900.0,
+        "flow_k": 122.0,
+        "flow_rho": 2650.0,
+        "solid_cp": 948.14,
+        "solid_k": 116.58,
+        "solid_rho": 2661.42
+      },
+      "relative_differences": {
+        "k": 0.04649167953336766,
+        "cp": 0.050773092581264355,
+        "rho": 0.004290942429229536
+      }
+    },
+    {
+      "temperature_K": 450.0,
+      "values": {
+        "time": 1.0,
+        "flow_cp": 970.5825,
+        "flow_k": 134.548,
+        "flow_rho": 2650.0,
+        "solid_cp": 1031.17225,
+        "solid_k": 132.1913,
+        "solid_rho": 2627.5914
+      },
+      "relative_differences": {
+        "k": 0.01782795085606987,
+        "cp": 0.058758126976361215,
+        "rho": 0.008528190494153775
+      }
+    },
+    {
+      "temperature_K": 623.15,
+      "values": {
+        "time": 1.0,
+        "flow_cp": 1048.5,
+        "flow_k": 148.4,
+        "flow_rho": 2650.0,
+        "solid_cp": 1123.2466666667,
+        "solid_k": 150.44333333333,
+        "solid_rho": 2596.9633333333
+      },
+      "relative_differences": {
+        "k": 0.013582079631290024,
+        "cp": 0.06654519339773798,
+        "rho": 0.020422570463721375
+      }
+    },
+    {
+      "temperature_K": 723.15,
+      "values": {
+        "time": 1.0,
+        "flow_cp": 1093.5,
+        "flow_k": 156.4,
+        "flow_rho": 2650.0,
+        "solid_cp": 1183.3133333333,
+        "solid_k": 162.07666666667,
+        "solid_rho": 2576.1966666667
+      },
+      "relative_differences": {
+        "k": 0.03502457684636829,
+        "cp": 0.07589987436404778,
+        "rho": 0.028648175152246064
+      }
+    },
+    {
+      "temperature_K": 798.15,
+      "values": {
+        "time": 1.0,
+        "flow_cp": 1127.25,
+        "flow_k": 162.4,
+        "flow_rho": 2650.0,
+        "solid_cp": 1228.3633333333,
+        "solid_k": 170.80166666667,
+        "solid_rho": 2560.6216666667
+      },
+      "relative_differences": {
+        "k": 0.04918960587818132,
+        "cp": 0.0823154929730097,
+        "rho": 0.03490493519476016
+      }
+    }
+  ],
+  "constitutive_overlap_validated": false,
+  "calibrated_range_validated": false,
+  "solid_input_sha256": "9e0557d9a40e50bb12c82d9f7d8157a969082559f4ef729fa37869c002364b52",
+  "note": "Plasticization bounds and viscosity clamps are numerical choices, not proof of a calibrated solid-state range."
+}

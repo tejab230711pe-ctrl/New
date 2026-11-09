@@ -1,21 +1,24 @@
 {
   "passed": true,
-  "source_integrals": {
-    "volume_m3": 0.00014694854463438524,
-    "mass_kg": 0.3894136432811209,
-    "thermal_energy_J": 0.0130660357654185,
-    "rod_mass_kg": 0.38941364328112094
-  },
-  "target_integrals": {
-    "volume_m3": 0.00014694854463438524,
-    "mass_kg": 0.3894136432811209,
-    "thermal_energy_J": 0.0130660357654185,
-    "rod_mass_kg": 0.38941364328112094
-  },
-  "relative_thermal_energy_error": 0.0,
+  "handoff_ready": false,
+  "scope": "Cell-integrated elastic low-temperature remap only; no velocity, stress relaxation or flow initialization",
+  "relative_total_mass_error": 2.83912189428863e-16,
+  "relative_thermal_energy_error": 1.0659971148886642e-15,
   "relative_rod_mass_error": 0.0,
-  "target_min_T_K": 293.1430354162262,
-  "target_max_T_K": 293.17132280198524,
-  "target_mean_T_K": 293.15009591117445,
-  "scope": "Conservative state transfer qualification: mass, thermal enthalpy, and rod origin"
+  "target_min_T_K": 293.1499947217013,
+  "target_max_T_K": 324.65618204644534,
+  "source_mass_kg": 0.3910445081130741,
+  "source_rod_mass_kg": 0.25800348635229986,
+  "transferred_fields": [
+    "cell mass",
+    "reference-relative thermal enthalpy",
+    "rod-origin mass"
+  ],
+  "missing_handoff_fields": [
+    "velocity/momentum",
+    "elastic stress/energy compatibility",
+    "hot constitutive history"
+  ],
+  "source_cells": 12029,
+  "target_cells": 12035
 }

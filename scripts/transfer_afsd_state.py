@@ -1,199 +1,173 @@
 #!/usr/bin/env python3
-"""Conservative state transfer from solved solid dwell to ALE flow domain.
+"""Conservative geometric remap of low-temperature elastic solid fields.
 
-Preserves:
-1. Geometry and volume
-2. Mass conservation
-3. Thermal energy conservation: E_th = integral rho * cp * (T - T0) dV
-4. Constitutive / plastic history
-5. Rod-origin identity field c in [0, 1]
-6. Velocity boundary compatibility
+Intersections transfer cell-integrated mass, thermal enthalpy and rod identity.
+No nearest-node extrapolation, global temperature rescaling, or invented missing
+history. This is a remap qualification, not an implemented solid-to-flow handoff.
 """
-
 import argparse
-import hashlib
+from itertools import combinations
 import json
 import math
-import sys
 from pathlib import Path
 import numpy as np
 from scipy.io import netcdf_file
-from scipy.spatial import cKDTree
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-from afsd_process import AFSDProcess
+from scipy.spatial import ConvexHull,cKDTree
+from check_contact_thermal_balance import reference_enthalpy_density
+from analyze_afsd_surface_flux import tetra_determinants
 
 
-def read_exodus_mesh(exodus_path: Path):
-    """Reads coordinates, displacements, connectivity, and nodal fields from Exodus."""
-    with netcdf_file(exodus_path, mmap=False) as f:
-        v = f.variables
-        names = [b"".join(r).decode().strip("\x00 ") for r in v["name_nod_var"].data]
-        times = np.array(v["time_whole"].data)
-        last_step = len(times) - 1
-
-        ref_coords = np.column_stack([v[f"coord{a}"].data for a in "xyz"])
-
-        # Displacements
-        disp = np.zeros_like(ref_coords)
-        for i, a in enumerate(["Ux", "Uy", "Uz"]):
-            if a in names:
-                var_idx = names.index(a) + 1
-                disp[:, i] = v[f"vals_nod_var{var_idx}"].data[last_step]
-
-        curr_coords = ref_coords + disp
-
-        # Fields
-        fields = {}
-        for var_name in ["T", "vonmises_stress", "effective_plastic_strain", "is_deposited"]:
-            if var_name in names:
-                var_idx = names.index(var_name) + 1
-                fields[var_name] = np.array(v[f"vals_nod_var{var_idx}"].data[last_step])
-            else:
-                fields[var_name] = np.zeros(len(ref_coords))
-
-        # Connectivity and block identities
-        blocks = []
-        block_ids = []
-        for name, var in v.items():
-            if not name.startswith("connect"):
-                continue
-            kind = var.elem_type.decode().upper()
-            if kind.startswith("TRI"):
-                continue
-            if kind.startswith("TET"):
-                conn = np.array(var.data, dtype=int) - 1
-                blocks.append(conn)
-                # Block id from var name
-                bid = int(name.replace("connect", ""))
-                block_ids.extend([bid] * len(conn))
-
-        connectivity = np.vstack(blocks)
-        element_block_ids = np.array(block_ids)
-
-        return {
-            "ref_coords": ref_coords,
-            "curr_coords": curr_coords,
-            "connectivity": connectivity,
-            "element_block_ids": element_block_ids,
-            "fields": fields,
-            "times": times,
-            "last_step": last_step
-        }
+def decode(rows):return [b''.join(row).decode().strip('\x00 ') for row in rows]
 
 
-def tetra_volumes(coords, connectivity):
-    """Computes volumes of all tetrahedra."""
-    p0 = coords[connectivity[:, 0]]
-    p1 = coords[connectivity[:, 1]]
-    p2 = coords[connectivity[:, 2]]
-    p3 = coords[connectivity[:, 3]]
-    dets = np.einsum("ij,ij->i", p1 - p0, np.cross(p2 - p0, p3 - p0))
-    return np.abs(dets) / 6.0
+def read_exodus_mesh(path):
+    with netcdf_file(path,mmap=False) as f:
+        v=f.variables;names=decode(v['name_nod_var'].data)
+        times=np.array(v['time_whole'].data)
+        if not len(times) or not np.isfinite(times).all():raise ValueError('valid time history required')
+        fields={name:np.array(v[f'vals_nod_var{i+1}'].data[-1]) for i,name in enumerate(names)}
+        if any(name not in fields for name in ('T','Ux','Uy','Uz')):
+            raise ValueError('temperature and displacement fields required; missing fields are not zero-filled')
+        ref=np.column_stack([v['coord'+a].data for a in 'xyz'])
+        current=ref+np.column_stack([fields[a] for a in ('Ux','Uy','Uz')])
+        ids=np.array(v['eb_prop1'].data);block_names=decode(v['eb_names'].data)
+        cells=[];labels=[];element_fields={}
+        element_names=decode(v['name_elem_var'].data) if 'name_elem_var' in v else []
+        for i,bid in enumerate(ids,1):
+            var=v[f'connect{i}'];kind=var.elem_type.decode().upper()
+            if kind.startswith('TRI'):continue
+            if not kind.startswith('TET') or var.shape[1]!=4:raise ValueError('TET4 bulk required')
+            conn=np.array(var.data,dtype=int)-1;cells.append(conn);labels.extend([block_names[i-1]]*len(conn))
+            for j,name in enumerate(element_names,1):
+                key=f'vals_elem_var{j}eb{i}'
+                if key in v:element_fields.setdefault(name,[]).append(np.array(v[key].data[-1]))
+        conn=np.vstack(cells)
+        return dict(ref_coords=ref,curr_coords=current,connectivity=conn,
+                    element_block_names=np.array(labels),fields=fields,times=times,
+                    element_fields={k:np.concatenate(a) for k,a in element_fields.items()})
 
 
-def compute_bulk_integrals(coords, connectivity, T_nodal, c_nodal, p: AFSDProcess):
-    """Computes total volume, mass, thermal energy, and rod-origin mass."""
-    vols = tetra_volumes(coords, connectivity)
-    elem_T = np.mean(T_nodal[connectivity], axis=1)
-    elem_c = np.mean(c_nodal[connectivity], axis=1)
-
-    rho = p.rho
-    total_volume = np.sum(vols)
-    total_mass = total_volume * rho
-
-    # Enthalpy density relative to 293.15 K
-    delta_T = elem_T - 293.15
-    cp = 900.0 + 0.45 * delta_T
-    thermal_energy = np.sum(vols * rho * cp * delta_T)
-
-    rod_mass = np.sum(vols * rho * elem_c)
-
-    return {
-        "volume_m3": float(total_volume),
-        "mass_kg": float(total_mass),
-        "thermal_energy_J": float(thermal_energy),
-        "rod_mass_kg": float(rod_mass)
-    }
+def tetra_volumes(coords,connectivity):return abs(tetra_determinants(coords,connectivity))/6
 
 
-def transfer_state(source_exodus: Path, target_coords: np.ndarray, target_connectivity: np.ndarray, p: AFSDProcess):
-    """Transfers fields from predecessor source mesh to target ALE mesh conservatively."""
-    src = read_exodus_mesh(source_exodus)
-
-    # Define rod-origin field on source: rod block is block 1 or 2
-    # Check block IDs: block 1 is rod in standard AFSD mesh
-    src_c = np.zeros(len(src["curr_coords"]))
-    for elem_idx, conn in enumerate(src["connectivity"]):
-        bid = src["element_block_ids"][elem_idx]
-        if bid in [1, 2]:  # rod or deposit
-            src_c[conn] = 1.0
-
-    src_T = src["fields"]["T"]
-    src_integrals = compute_bulk_integrals(src["curr_coords"], src["connectivity"], src_T, src_c, p)
-
-    # Spatial KDTree transfer to target coordinates
-    tree = cKDTree(src["curr_coords"])
-    dists, indices = tree.query(target_coords, k=1)
-
-    target_T = src_T[indices].copy()
-    target_c = src_c[indices].copy()
-
-    # Re-normalize thermal energy to strictly conserve thermal enthalpy on target
-    target_integrals_raw = compute_bulk_integrals(target_coords, target_connectivity, target_T, target_c, p)
-
-    # Scale thermal delta_T so thermal_energy matches exactly
-    raw_energy = target_integrals_raw["thermal_energy_J"]
-    src_energy = src_integrals["thermal_energy_J"]
-    if abs(raw_energy) > 1e-6 and abs(src_energy) > 1e-6:
-        ratio = src_energy / raw_energy
-        # delta_T' * cp(delta_T') approx ratio * delta_T
-        target_T = 293.15 + (target_T - 293.15) * ratio
-
-    target_integrals_conserved = compute_bulk_integrals(target_coords, target_connectivity, target_T, target_c, p)
-
-    rel_energy_err = abs(target_integrals_conserved["thermal_energy_J"] - src_energy) / max(1e-6, abs(src_energy))
-    rel_mass_err = abs(target_integrals_conserved["rod_mass_kg"] - src_integrals["rod_mass_kg"]) / max(1e-6, src_integrals["rod_mass_kg"])
-
-    result = {
-        "passed": bool(rel_energy_err < 0.02 and rel_mass_err < 0.05),
-        "source_integrals": src_integrals,
-        "target_integrals": target_integrals_conserved,
-        "relative_thermal_energy_error": float(rel_energy_err),
-        "relative_rod_mass_error": float(rel_mass_err),
-        "target_min_T_K": float(np.min(target_T)),
-        "target_max_T_K": float(np.max(target_T)),
-        "target_mean_T_K": float(np.mean(target_T))
-    }
-    return target_T, target_c, result
+def barycentric(tet,points):
+    local=(np.asarray(points)-tet[0])@np.linalg.inv((tet[1:]-tet[0]).T).T
+    return np.column_stack([1-local.sum(axis=1),local])
 
 
-def run_state_transfer_test(source_dir: Path, tolerance: float = 0.02):
-    p = AFSDProcess()
-    src_e = source_dir / "dwell.e"
-    src = read_exodus_mesh(src_e)
+def intersection_volume(a,b):
+    ba=barycentric(b,a);ab=barycentric(a,b);eps=1e-10
+    volume=lambda tet:abs(np.linalg.det((tet[1:]-tet[0]).T))/6
+    if np.all(ba>=-eps):return volume(a)
+    if np.all(ab>=-eps):return volume(b)
+    points=[*a[np.all(ba>=-eps,axis=1)],*b[np.all(ab>=-eps,axis=1)]]
+    for tet,coordinates in ((a,ba),(b,ab)):
+        for i,j in combinations(range(4),2):
+            for k in range(4):
+                denominator=coordinates[i,k]-coordinates[j,k]
+                if abs(denominator)<1e-15:continue
+                s=coordinates[i,k]/denominator
+                if 0<=s<=1 and np.all((1-s)*coordinates[i]+s*coordinates[j]>=-eps):
+                    points.append((1-s)*tet[i]+s*tet[j])
+    if len(points)<4:return 0.
+    points=np.unique(np.round(points,14),axis=0)
+    if len(points)<4:return 0.
+    centered=points-points.mean(axis=0)
+    singular=np.linalg.svd(centered,compute_uv=False)
+    if singular[0]==0 or singular[-1]<1e-10*singular[0]:return 0.
+    scale=np.max(abs(centered))
+    return float(ConvexHull(centered/scale).volume*scale**3)
 
-    # For the qualification benchmark: target mesh is the deformed source mesh
-    target_coords = src["curr_coords"].copy()
-    target_connectivity = src["connectivity"].copy()
 
-    _, _, cert = transfer_state(src_e, target_coords, target_connectivity, p)
-    cert["scope"] = "Conservative state transfer qualification: mass, thermal enthalpy, and rod origin"
+def conservative_remap(source,target,quantities,source_labels,target_labels,tolerance=1e-8):
+    """P0 conservative geometric projection; reject uncovered/duplicated material."""
+    source=np.asarray(source);target=np.asarray(target);quantities=np.asarray(quantities)
+    volume=lambda t:abs(np.linalg.det(np.stack([t[:,j]-t[:,0] for j in (1,2,3)],axis=-1)))/6
+    sv,tv=volume(source),volume(target)
+    if np.any(sv<=0) or np.any(tv<=0) or not np.isfinite(quantities).all():raise ValueError('finite nondegenerate input required')
+    centers=source.mean(axis=1);radii=np.linalg.norm(source-centers[:,None,:],axis=-1).max(axis=1)
+    tree=cKDTree(centers);covered=np.zeros(len(source));output=np.zeros((len(target),quantities.shape[1]))
+    identical={(str(label),tet.tobytes()):j for j,(tet,label) in enumerate(zip(source,source_labels))}
+    for i,tet in enumerate(target):
+        same=identical.get((str(target_labels[i]),tet.tobytes()))
+        if same is not None:
+            covered[same]+=tv[i];output[i]=quantities[same]
+            continue
+        center=tet.mean(axis=0);radius=np.linalg.norm(tet-center,axis=1).max()
+        candidates=tree.query_ball_point(center,radius+radii.max()+1e-12)
+        total=0.
+        for j in candidates:
+            if source_labels[j]!=target_labels[i]:continue
+            if np.any(source[j].max(axis=0)<tet.min(axis=0)-1e-12) or np.any(tet.max(axis=0)<source[j].min(axis=0)-1e-12):continue
+            overlap=intersection_volume(source[j],tet)
+            if overlap:
+                covered[j]+=overlap;total+=overlap;output[i]+=overlap*quantities[j]
+        if abs(total-tv[i])>tolerance*tv[i]:raise ValueError('target has uncovered or overlapping source material')
+        output[i]/=tv[i]
+    if np.any(abs(covered-sv)>tolerance*sv):raise ValueError('source material lost or duplicated by target geometry')
+    return output,sv,tv
 
-    out_json = source_dir / "state_transfer_qualification.json"
-    out_json.write_text(json.dumps(cert, indent=2) + "\n")
-    return cert
+
+def source_quantities(source):
+    T=source['fields']['T'];cells=source['connectivity']
+    if not np.isfinite(T).all() or T.min()<253.15 or T.max()>353.15:
+        raise ValueError('this remap benchmark supports only the solid first thermal-property segment')
+    plastic=source['element_fields'].get('effective_plastic_strain')
+    if plastic is None or len(plastic)!=len(cells):raise ValueError('actual elemental plastic history required')
+    if np.max(abs(plastic))>1e-14:raise ValueError('plastic-history remap is not implemented; refusing to discard it')
+    if not set(source['element_block_names'])<= {'plate','rod'}:raise ValueError('explicit rod/plate material labels required')
+    bary=np.full((5,4),1/6);bary[0]=.25
+    for j in range(4):bary[j+1,j]=.5
+    qT=T[cells]@bary.T;weights=np.array([-.8,.45,.45,.45,.45])
+    rho=(2661.42-.312*(qT-293.15))@weights
+    energy=reference_enthalpy_density(qT)@weights
+    return np.column_stack([rho,energy,rho*(source['element_block_names']=='rod')])
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source_dir", type=Path)
-    parser.add_argument("--tolerance", type=float, default=0.02)
-    args = parser.parse_args()
+def transfer_state(source_exodus,target_coords,target_connectivity,p=None,*,target_block_names=None,tolerance=.02):
+    if not math.isfinite(tolerance) or tolerance<=0:raise ValueError('positive tolerance required')
+    if target_block_names is None:raise ValueError('target material labels required; block indices are not material identity')
+    src=read_exodus_mesh(source_exodus);quantities=source_quantities(src)
+    mapped,sv,tv=conservative_remap(src['curr_coords'][src['connectivity']],target_coords[target_connectivity],
+        quantities,src['element_block_names'],np.asarray(target_block_names))
+    before=sv@quantities;after=tv@mapped
+    # Invert the same solid volumetric enthalpy primitive, rather than multiply
+    # temperatures by a global ratio. Density is separately carried by remap.
+    lower=np.full(len(tv),253.15);upper=np.full(len(tv),353.15)
+    for _ in range(60):
+        middle=(lower+upper)/2;mask=reference_enthalpy_density(middle)<mapped[:,1]
+        lower=np.where(mask,middle,lower);upper=np.where(mask,upper,middle)
+    temperature=(lower+upper)/2;origin=mapped[:,2]/mapped[:,0]
+    error=abs(after-before)/np.maximum(abs(before),1e-20)
+    report=dict(passed=bool(np.all(error<tolerance)),handoff_ready=False,
+        scope='Cell-integrated elastic low-temperature remap only; no velocity, stress relaxation or flow initialization',
+        relative_total_mass_error=float(error[0]),relative_thermal_energy_error=float(error[1]),relative_rod_mass_error=float(error[2]),
+        target_min_T_K=float(temperature.min()),target_max_T_K=float(temperature.max()),
+        source_mass_kg=float(before[0]),source_rod_mass_kg=float(before[2]),
+        transferred_fields=['cell mass','reference-relative thermal enthalpy','rod-origin mass'],
+        missing_handoff_fields=['velocity/momentum','elastic stress/energy compatibility','hot constitutive history'])
+    return temperature,origin,report
 
-    cert = run_state_transfer_test(args.source_dir, args.tolerance)
-    print(f"State Transfer Qualification: {'PASS' if cert['passed'] else 'FAIL'}")
-    print(f"  Relative thermal energy error: {cert['relative_thermal_energy_error']*100:.4f}%")
-    print(f"  Target T range: [{cert['target_min_T_K']:.2f}, {cert['target_max_T_K']:.2f}] K")
-    sys.exit(0 if cert["passed"] else 1)
+
+def run_state_transfer_test(source_dir,tolerance=.02):
+    src=read_exodus_mesh(source_dir/'dwell.e')
+    # Refine actual source tetrahedra into four children. This exercises a
+    # different target mesh; use a small mesh in unit tests for generic remaps.
+    coords=src['curr_coords'].tolist();target=[];labels=[]
+    for i,tet in enumerate(src['connectivity']):
+        if i in (0,len(src['connectivity'])//2):
+            center=len(coords);coords.append(src['curr_coords'][tet].mean(axis=0).tolist())
+            for face in combinations(tet,3):target.append([*face,center]);labels.append(src['element_block_names'][i])
+        else:target.append(tet.tolist());labels.append(src['element_block_names'][i])
+    _,_,report=transfer_state(source_dir/'dwell.e',np.array(coords),np.array(target),
+                             target_block_names=labels,tolerance=tolerance)
+    report['source_cells']=len(src['connectivity']);report['target_cells']=len(target)
+    (source_dir/'state_transfer_qualification.json').write_text(json.dumps(report,indent=2)+'\n')
+    return report
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source_dir',type=Path);parser.add_argument('--tolerance',type=float,default=.02)
+    args=parser.parse_args();result=run_state_transfer_test(args.source_dir,args.tolerance)
+    print(json.dumps(result,indent=2));raise SystemExit(0 if result['passed'] else 2)
