@@ -630,9 +630,8 @@
     type = ContactFrictionHeatFlux
     variable = T
     boundary = workpiece_top
-    temperature = T
     contact_pressure = contact_pressure
-    material_props = aa5083_properties
+    friction_coefficient = 0.35
     rpm = 1200
     tool_center_y = rod_stage_center_y
     heat_partition = 1.0
