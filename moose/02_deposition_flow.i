@@ -62,12 +62,12 @@
   expression = '0.0125 + 0.00178571428571429*(t-4)'
  []
  [inlet_mesh_x]
-  type = ConstantFunction
-  value = 0.0
+  type = ParsedFunction
+  expression = 'x*(cos(125.663706143592*(t-4))-1)-(y-0.0125)*sin(125.663706143592*(t-4))'
  []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = '0.00178571428571429*(t-4)'
+  expression = 'x*sin(125.663706143592*(t-4))+(y-0.0125)*(cos(125.663706143592*(t-4))-1)+0.00178571428571429*(t-4)'
  []
  [shoulder_vx]
   type = ParsedFunction
