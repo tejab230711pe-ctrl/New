@@ -31,13 +31,13 @@
 [Functions]
   [rod_motion_y]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 32.0, 0.00178571428571429 * (t - 4.0), 0.050))'
+    expression = 'if(t < 5.0, 0.0, if(t < 33.0, 0.00178571428571429 * (t - 5.0), 0.050))'
   []
   [rod_center_y]
     type = ParsedFunction
     symbol_names = 'travel'
     symbol_values = 'rod_motion_y'
-    expression = '0.050 + travel'
+    expression = '0.0125 + travel'
   []
   [rod_motion_z_bottom]
     type = ParsedFunction
@@ -45,19 +45,19 @@
   []
   [rod_motion_z_top]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 32.0, -0.00125 * (t - 4.0), -0.035))'
+    expression = 'if(t < 1.0, -0.01000515 * t, if(t < 5.0, -0.01000515, -0.01000515 - 0.00125 * (t - 5.0)))'
   []
   [rod_height_func]
     type = ParsedFunction
-    expression = '200.0 - if(t < 4.0, 0.0, if(t < 32.0, 35.0 * (t - 4.0) / 28.0, 35.0))'
+    expression = '200.0 - if(t < 5.0, 0.0, if(t < 33.0, 35.0 * (t - 5.0) / 28.0, 35.0))'
   []
   [rod_consumed_func]
     type = ParsedFunction
-    expression = 'if(t < 4.0, 0.0, if(t < 32.0, 35.0 * (t - 4.0) / 28.0, 35.0))'
+    expression = 'if(t < 5.0, 0.0, if(t < 33.0, 35.0 * (t - 5.0) / 28.0, 35.0))'
   []
   [axial_feed_rate_func]
     type = ParsedFunction
-    expression = 'if(t >= 4.0 & t < 32.0, 75.0, 0.0)'
+    expression = 'if(t >= 5.0 & t < 33.0, 75.0, 0.0)'
   []
   [rod_spin_ux]
     type = ParsedFunction
@@ -102,16 +102,18 @@
   []
 
   [rod_stage_translation_y]
-    type = ConstantFunction
-    value = 0.0
+    type = ParsedFunction
+    expression = 'if(t < 5.0, 0.0, if(t < 33.0, 0.00178571428571429 * (t - 5.0), 0.050))'
   []
   [rod_stage_translation_z]
-    type = ConstantFunction
-    value = 0.0
+    type = ParsedFunction
+    expression = 'if(t < 1.0, -0.01000515 * t, if(t < 5.0, -0.01000515, -0.01000515 - 0.00125 * (t - 5.0)))'
   []
   [rod_stage_center_y]
-    type = ConstantFunction
-    value = 0.0125
+    type = ParsedFunction
+    symbol_names = translation
+    symbol_values = rod_stage_translation_y
+    expression = '0.0125 + translation'
   []
 []
 
@@ -721,7 +723,7 @@
   nl_max_its = 40
 
   start_time = 0.0
-  end_time = 4.0
+  end_time = 5.0
   dtmin = 1.0e-7
   dtmax = 0.1
 
