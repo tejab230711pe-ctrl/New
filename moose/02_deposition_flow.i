@@ -59,15 +59,15 @@
 [Functions]
  [center_y]
   type = ParsedFunction
-  expression = '0.0125 + 0.00178571428571429*(t-4)'
+  expression = '0.0125 + 0.00178571428571429*(t-5)'
  []
  [inlet_mesh_x]
   type = ParsedFunction
-  expression = 'x*(cos(125.663706143592*(t-4))-1)-(y-0.0125)*sin(125.663706143592*(t-4))'
+  expression = 'x*(cos(125.663706143592*(t-5))-1)-(y-0.0125)*sin(125.663706143592*(t-5))'
  []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = 'x*sin(125.663706143592*(t-4))+(y-0.0125)*(cos(125.663706143592*(t-4))-1)+0.00178571428571429*(t-4)'
+  expression = 'x*sin(125.663706143592*(t-5))+(y-0.0125)*(cos(125.663706143592*(t-5))-1)+0.00178571428571429*(t-5)'
  []
  [shoulder_vx]
   type = ParsedFunction
@@ -370,8 +370,8 @@
   petsc_options_iname = '-ksp_type -pc_type -pc_factor_mat_solver_type'
   petsc_options_value = 'preonly lu mumps'
   line_search = bt
-  start_time = 4.0
-  end_time = 32.0
+  start_time = 5.0
+  end_time = 33.0
   dtmin = 1e-7
   dtmax = 2e-05
   automatic_scaling = true

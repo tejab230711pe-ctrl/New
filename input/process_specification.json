@@ -24,9 +24,11 @@
     "axial_feed_mm_per_s": 1.25,
     "axial_feed_axis": "-Z",
     "traverse_axis": "+Y",
+    "initial_clearance_mm": 10.0,
+    "plunge_duration_s": 1.0,
     "dwell_duration_s": 4.0,
     "deposition_duration_s": 28.0,
-    "total_process_duration_s": 32.0,
+    "total_process_duration_s": 33.0,
     "traverse_speed_mm_per_s": 1.7857142857142858
   },
   "material_balance": {
