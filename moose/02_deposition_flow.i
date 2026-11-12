@@ -62,12 +62,12 @@
   expression = '0.0125 + 0.00178571428571429*(t-5)'
  []
  [inlet_mesh_x]
-  type = ParsedFunction
-  expression = 'x*(cos(125.663706143592*(t-5))-1)-(y-0.0125)*sin(125.663706143592*(t-5))'
+  type = ConstantFunction
+  value = 0.0
  []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = 'x*sin(125.663706143592*(t-5))+(y-0.0125)*(cos(125.663706143592*(t-5))-1)+0.00178571428571429*(t-5)'
+  expression = '0.00178571428571429*(t-5)'
  []
  [shoulder_vx]
   type = ParsedFunction
@@ -269,20 +269,16 @@
   # These faces are open to geometric expansion, so retained sideward flow
   # becomes bead/flash geometry rather than a prescribed bead width.
   [move_free_x]
-    type = AFSDDisplaceBoundaryBC
+    type = DirichletBC
     boundary = free_nodes
     variable = mesh_x
-    velocity = velocity
-    component = 0
-    associated_subdomain = flow
+    value = 0.0
   []
   [move_free_y]
-    type = AFSDDisplaceBoundaryBC
+    type = FunctionDirichletBC
     boundary = free_nodes
     variable = mesh_y
-    velocity = velocity
-    component = 1
-    associated_subdomain = flow
+    function = inlet_mesh_y
   []
   [move_free_z]
     type = AFSDDisplaceBoundaryBC
