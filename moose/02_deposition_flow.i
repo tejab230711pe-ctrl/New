@@ -389,13 +389,13 @@
 [Outputs]
   [exodus]
     type = Exodus
-    file_base = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/verification_runs/bdf2_inlet_layers4/flow
+    file_base = /home/teja/Videos/FSAM/verification_runs/bdf2_inlet_layers4/flow
     execute_on = 'INITIAL TIMESTEP_END'
     output_material_properties = true
     show_material_properties = 'plastic_fraction effective_strain_rate mu'
   []
   csv = true
-  file_base = /home/teja/Videos/a28796a1-f5f2-42d5-ad41-3bb346f082b6/verification_runs/bdf2_inlet_layers4/flow
+  file_base = /home/teja/Videos/FSAM/verification_runs/bdf2_inlet_layers4/flow
 []
 
 [ICs]
