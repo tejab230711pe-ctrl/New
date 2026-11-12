@@ -62,12 +62,12 @@
   expression = '0.0125 + 0.00178571428571429*(t-5)'
  []
  [inlet_mesh_x]
-  type = ConstantFunction
-  value = 0.0
+  type = ParsedFunction
+  expression = 'x*(cos(125.663706143592*(t-5))-1)-(y-0.0125)*sin(125.663706143592*(t-5))'
  []
  [inlet_mesh_y]
   type = ParsedFunction
-  expression = '0.00178571428571429*(t-5)'
+  expression = 'x*sin(125.663706143592*(t-5))+(y-0.0125)*(cos(125.663706143592*(t-5))-1)+0.00178571428571429*(t-5)'
  []
  [shoulder_vx]
   type = ParsedFunction
@@ -225,10 +225,6 @@
 []
 
 [BCs]
-  # Inactive azimuthal free-surface spin; in steady ALE deposition the mesh
-  # translates with traverse (+Y) and tracks vertical bead expansion (Z), but does
-  # not spin with 1200 rpm material rotation, preventing candy-wrapper element inversion.
-  inactive = 'move_free_x move_free_y move_free_x_dummy move_free_y_dummy'
   # No-slip bonded plate interface. It remains solid-contact material outside
   # this re-zoned plastic domain.
   [plate_no_slip]
